@@ -57,6 +57,7 @@
 #include "libavutil/refstruct.h"
 #include "thread.h"
 #include "threadprogress.h"
+#include "voidplayer_vbs3.h"
 
 static const uint8_t hevc_pel_weight[65] = { [2] = 0, [4] = 1, [6] = 2, [8] = 3, [12] = 4, [16] = 5, [24] = 6, [32] = 7, [48] = 8, [64] = 9 };
 
@@ -2417,6 +2418,110 @@ static void intra_prediction_unit_default_value(HEVCLocalContext *lc,
                 tab_mvf[(y_pu + j) * min_pu_width + x_pu + k].pred_flag = PF_INTRA;
 }
 
+static int16_t voidplayer_hevc_round_mv(int mv)
+{
+    int rounded = mv >= 0 ? (mv + 2) >> 2 : -((-mv + 2) >> 2);
+
+    if (rounded < INT16_MIN)
+        return INT16_MIN;
+    if (rounded > INT16_MAX)
+        return INT16_MAX;
+    return rounded;
+}
+
+static void voidplayer_hevc_ref_pocs(const HEVCContext *s,
+                                     const RefPicList *ref_pic_list,
+                                     int list,
+                                     int32_t ref_pocs[15],
+                                     uint8_t *num_refs)
+{
+    int nb_refs = s->sh.nb_refs[list];
+    int i;
+
+    if (ref_pic_list && ref_pic_list[list].nb_refs > 0)
+        nb_refs = FFMIN(nb_refs, ref_pic_list[list].nb_refs);
+    nb_refs = FFMIN(nb_refs, 15);
+    *num_refs = nb_refs;
+    for (i = 0; i < 15; ++i)
+        ref_pocs[i] = (i < nb_refs && ref_pic_list && ref_pic_list[list].ref[i]) ?
+                      ref_pic_list[list].ref[i]->poc : -1;
+}
+
+static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
+                                      const HEVCContext *s,
+                                      const HEVCLayerContext *l,
+                                      const HEVCSPS *sps,
+                                      int x0, int y0,
+                                      int log2_cb_size)
+{
+    const int cb_size = 1 << log2_cb_size;
+    const int frame_width = s->avctx->width > 0 ? s->avctx->width : sps->width;
+    const int frame_height = s->avctx->height > 0 ? s->avctx->height : sps->height;
+    const int w = FFMAX(0, FFMIN(cb_size, frame_width - x0));
+    const int h = FFMAX(0, FFMIN(cb_size, frame_height - y0));
+    const int min_cb_width = sps->min_cb_width;
+    const int x_cb = x0 >> sps->log2_min_cb_size;
+    const int y_cb = y0 >> sps->log2_min_cb_size;
+    const int x_pu = x0 >> sps->log2_min_pu_size;
+    const int y_pu = y0 >> sps->log2_min_pu_size;
+    const MvField *mvf = NULL;
+    const RefPicList *ref_pic_list = s->cur_frame ? s->cur_frame->refPicList : NULL;
+    int32_t ref_pocs_l0[15];
+    int32_t ref_pocs_l1[15];
+    uint8_t num_ref_l0 = 0;
+    uint8_t num_ref_l1 = 0;
+    uint8_t qp;
+
+    if (!ff_voidplayer_vbs3_is_active() || !s->cur_frame || w <= 0 || h <= 0)
+        return;
+
+    voidplayer_hevc_ref_pocs(s, ref_pic_list, L0, ref_pocs_l0, &num_ref_l0);
+    voidplayer_hevc_ref_pocs(s, ref_pic_list, L1, ref_pocs_l1, &num_ref_l1);
+    ff_voidplayer_vbs3_begin_frame(s->sh.poc,
+                                   frame_width,
+                                   frame_height,
+                                   (uint8_t)av_clip_uint8(s->temporal_id),
+                                   (uint8_t)s->sh.slice_type,
+                                   (uint8_t)s->nal_unit_type,
+                                   num_ref_l0,
+                                   num_ref_l1,
+                                   ref_pocs_l0,
+                                   ref_pocs_l1);
+
+    qp = (uint8_t)av_clip_uint8(lc->qp_y);
+    if (lc->cu.pred_mode == MODE_INTRA) {
+        ff_voidplayer_vbs3_write_intra_cu((uint16_t)x0,
+                                          (uint16_t)y0,
+                                          (uint8_t)FFMIN(w, 255),
+                                          (uint8_t)FFMIN(h, 255),
+                                          (uint8_t)av_clip_uint8(lc->ct_depth),
+                                          qp,
+                                          lc->pu.intra_pred_mode[0],
+                                          0,
+                                          0);
+        return;
+    }
+
+    if (s->cur_frame->tab_mvf)
+        mvf = &s->cur_frame->tab_mvf[y_pu * sps->min_pu_width + x_pu];
+
+    ff_voidplayer_vbs3_write_inter_cu((uint16_t)x0,
+                                      (uint16_t)y0,
+                                      (uint8_t)FFMIN(w, 255),
+                                      (uint8_t)FFMIN(h, 255),
+                                      (uint8_t)av_clip_uint8(lc->ct_depth),
+                                      qp,
+                                      SAMPLE_CTB(l->skip_flag, x_cb, y_cb) ? 1 : 0,
+                                      lc->pu.merge_flag ? 1 : 0,
+                                      mvf ? (uint8_t)mvf->pred_flag : 0,
+                                      (mvf && (mvf->pred_flag & PF_L0)) ? voidplayer_hevc_round_mv(mvf->mv[0].x) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L0)) ? voidplayer_hevc_round_mv(mvf->mv[0].y) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L1)) ? voidplayer_hevc_round_mv(mvf->mv[1].x) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L1)) ? voidplayer_hevc_round_mv(mvf->mv[1].y) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L0)) ? mvf->ref_idx[0] : -1,
+                                      (mvf && (mvf->pred_flag & PF_L1)) ? mvf->ref_idx[1] : -1);
+}
+
 static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
                            const HEVCLayerContext *l,
                            const HEVCPPS *pps, const HEVCSPS *sps,
@@ -2600,6 +2705,7 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
     }
 
     set_ct_depth(sps, l->tab_ct_depth, x0, y0, log2_cb_size, lc->ct_depth);
+    voidplayer_hevc_record_cu(lc, s, l, sps, x0, y0, log2_cb_size);
 
     return 0;
 }

@@ -2,8 +2,8 @@
  * VoidPlayer FFmpeg analysis tool.
  *
  * This tool owns the command-line contract used by the main VoidPlayer repo.
- * The first VBS3 writer emits decoder-derived frame summaries and a valid empty
- * CU section. Codec block-stat hooks will fill CUBL in later patches.
+ * H.265 and H.264 use decoder-internal hooks to emit real VBS3 CU payloads.
+ * Less important codecs still use frame summaries with an empty CU section.
  */
 
 #include <stdint.h>
@@ -14,6 +14,7 @@
 #include "libavcodec/codec_id.h"
 #include "libavcodec/codec_par.h"
 #include "libavcodec/packet.h"
+#include "libavcodec/voidplayer_vbs3.h"
 #include "libavformat/avformat.h"
 #include "libavutil/avutil.h"
 #include "libavutil/error.h"
@@ -98,7 +99,7 @@ static void print_usage(FILE *out)
             "Supported codec names: hevc, h265, h264, av1, vp9, mpeg2, mpeg2video\n"
             "\n"
             "VBS3 generation currently supports hevc/h265, h264, vp9, and mpeg2/mpeg2video.\n"
-            "AV1 is probe-only until a real software decode path is added. CU block payloads are not emitted yet.\n");
+            "H.265/H.264 emit CUBL records; VP9/MPEG-2 are frame-summary only. AV1 is probe-only until a real software decode path is added.\n");
 }
 
 static void error_text(int errnum, char *buffer, size_t buffer_size)
@@ -384,7 +385,7 @@ static int receive_frames(AVCodecContext *decoder, AVFrame *frame, SummaryList *
             return ret;
         }
 
-        ret = collect_frame_summary(summaries, decoder, frame);
+        ret = summaries ? collect_frame_summary(summaries, decoder, frame) : 0;
         av_frame_unref(frame);
         if (ret < 0)
             return ret;
@@ -498,6 +499,8 @@ static int decode_vbs3(const AnalyzerOptions *options,
     AVFrame *frame = NULL;
     SummaryList summaries = { 0 };
     char errbuf[AV_ERROR_MAX_STRING_SIZE];
+    int instrumented_vbs3 = 0;
+    int instrumented_started = 0;
     int ret = 0;
 
     codec = avcodec_find_decoder_by_name(software_decoder_name(codecpar->codec_id));
@@ -520,10 +523,25 @@ static int decode_vbs3(const AnalyzerOptions *options,
     if (ret < 0)
         goto done;
     decoder->pkt_timebase = stream->time_base;
+    instrumented_vbs3 = codecpar->codec_id == AV_CODEC_ID_HEVC ||
+                        codecpar->codec_id == AV_CODEC_ID_H264;
+    if (instrumented_vbs3) {
+        decoder->thread_count = 1;
+        decoder->thread_type = 0;
+    }
 
     ret = avcodec_open2(decoder, codec, NULL);
     if (ret < 0)
         goto done;
+
+    if (instrumented_vbs3) {
+        ret = ff_voidplayer_vbs3_start(options->vbs3,
+                                       decoder->width > 0 ? decoder->width : codecpar->width,
+                                       decoder->height > 0 ? decoder->height : codecpar->height);
+        if (ret < 0)
+            goto done;
+        instrumented_started = 1;
+    }
 
     while ((ret = av_read_frame(format, packet)) >= 0) {
         if (packet->stream_index == stream_index) {
@@ -532,7 +550,7 @@ static int decode_vbs3(const AnalyzerOptions *options,
                 av_packet_unref(packet);
                 goto done;
             }
-            ret = receive_frames(decoder, frame, &summaries);
+            ret = receive_frames(decoder, frame, instrumented_vbs3 ? NULL : &summaries);
             if (ret < 0) {
                 av_packet_unref(packet);
                 goto done;
@@ -548,9 +566,24 @@ static int decode_vbs3(const AnalyzerOptions *options,
 
     ret = avcodec_send_packet(decoder, NULL);
     if (ret >= 0)
-        ret = receive_frames(decoder, frame, &summaries);
+        ret = receive_frames(decoder, frame, instrumented_vbs3 ? NULL : &summaries);
     if (ret < 0)
         goto done;
+
+    if (instrumented_vbs3) {
+        uint32_t frames = ff_voidplayer_vbs3_frame_count();
+        if (frames == 0) {
+            fprintf(stderr, "Decoder produced no VBS3 frame records.\n");
+            ret = 22;
+            goto done;
+        }
+        ret = ff_voidplayer_vbs3_finish();
+        instrumented_started = 0;
+        if (ret < 0)
+            goto done;
+        fprintf(stdout, "vbs3=%s\nframes=%u\n", options->vbs3, frames);
+        goto done;
+    }
 
     if (summaries.count == 0) {
         fprintf(stderr, "Decoder produced no frames.\n");
@@ -568,6 +601,8 @@ static int decode_vbs3(const AnalyzerOptions *options,
 
 done:
     if (ret < 0) {
+        if (instrumented_started)
+            ff_voidplayer_vbs3_abort();
         error_text(ret, errbuf, sizeof(errbuf));
         fprintf(stderr, "VBS3 generation failed: %s\n", errbuf);
         ret = 23;
