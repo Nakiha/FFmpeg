@@ -1,4 +1,4 @@
-TOOLS = enc_recon_frame_test enum_options qt-faststart scale_slice_test trasher uncoded_frame
+TOOLS = enc_recon_frame_test enum_options qt-faststart scale_slice_test trasher uncoded_frame void_ffmpeg_analyzer
 TOOLS-$(CONFIG_LIBMYSOFA) += sofa2wavs
 TOOLS-$(CONFIG_ZLIB) += cws2fws
 
@@ -29,6 +29,8 @@ tools/target_swr_fuzzer.o: tools/target_swr_fuzzer.c
 tools/enc_recon_frame_test$(EXESUF): tools/decode_simple.o
 tools/venc_data_dump$(EXESUF): tools/decode_simple.o
 tools/scale_slice_test$(EXESUF): tools/decode_simple.o
+tools/void_ffmpeg_analyzer$(EXESUF): tools/void_ffmpeg_analyzer.o libavformat/avformat.lib libavcodec/avcodec.lib libavutil/avutil.lib
+tools/void_ffmpeg_analyzer$(EXESUF): ELIBS = libavformat/avformat.lib libavcodec/avcodec.lib libavutil/avutil.lib $(EXTRALIBS-avformat) $(EXTRALIBS-avcodec) $(EXTRALIBS-avutil)
 
 tools/decode_simple.o: | tools
 
