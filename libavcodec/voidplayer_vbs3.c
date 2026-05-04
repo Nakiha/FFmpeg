@@ -4,9 +4,19 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 #include "libavutil/error.h"
 #include "libavutil/mem.h"
 #include "libavutil/thread.h"
+
+#define VBS3_CUID_FLAG_COMPRESSED_XPRESS_HUFF 0x00000001u
+#define VBS3_CUBL_SECTION_FLAG_PER_FRAME_COMPRESSION 0x00000001u
 
 #pragma pack(push, 1)
 typedef struct Vbs3Header {
@@ -122,6 +132,12 @@ typedef struct VoidVbs3State {
 
 static VoidVbs3State g_vbs3;
 
+typedef struct Vbs3CompressedFrame {
+    uint8_t *data;
+    size_t size;
+    uint32_t flags;
+} Vbs3CompressedFrame;
+
 static void vbs3_lock(void)
 {
     if (g_vbs3.lock_initialized)
@@ -147,6 +163,95 @@ static int write_exact(FILE *file, const void *data, size_t size)
     if (size == 0)
         return 0;
     return fwrite(data, 1, size, file) == size ? 0 : AVERROR(EIO);
+}
+
+#ifdef _WIN32
+#define VOID_COMPRESS_ALGORITHM_XPRESS_HUFF 4u
+
+typedef void *VoidCompressorHandle;
+typedef BOOL (WINAPI *VoidCreateCompressorProc)(DWORD, void *, VoidCompressorHandle *);
+typedef BOOL (WINAPI *VoidCompressProc)(VoidCompressorHandle, void *, size_t, void *, size_t, size_t *);
+typedef BOOL (WINAPI *VoidCloseCompressorProc)(VoidCompressorHandle);
+
+typedef struct VoidCompressionApi {
+    int initialized;
+    int available;
+    HMODULE module;
+    VoidCreateCompressorProc create_compressor;
+    VoidCompressProc compress;
+    VoidCloseCompressorProc close_compressor;
+} VoidCompressionApi;
+
+static VoidCompressionApi g_compression_api;
+
+static int load_compression_api(void)
+{
+    if (!g_compression_api.initialized) {
+        g_compression_api.initialized = 1;
+        g_compression_api.module = LoadLibraryA("Cabinet.dll");
+        if (g_compression_api.module) {
+            g_compression_api.create_compressor =
+                (VoidCreateCompressorProc)GetProcAddress(g_compression_api.module, "CreateCompressor");
+            g_compression_api.compress =
+                (VoidCompressProc)GetProcAddress(g_compression_api.module, "Compress");
+            g_compression_api.close_compressor =
+                (VoidCloseCompressorProc)GetProcAddress(g_compression_api.module, "CloseCompressor");
+            g_compression_api.available = g_compression_api.create_compressor &&
+                                          g_compression_api.compress &&
+                                          g_compression_api.close_compressor;
+        }
+    }
+    return g_compression_api.available;
+}
+#endif
+
+static int try_compress_frame(const uint8_t *src, uint64_t src_size, Vbs3CompressedFrame *dst)
+{
+#ifdef _WIN32
+    VoidCompressorHandle compressor = NULL;
+    size_t compressed_size = 0;
+    size_t capacity;
+    uint8_t *buffer;
+
+    memset(dst, 0, sizeof(*dst));
+    if (!src || src_size < 256 || (uint64_t)(size_t)src_size != src_size)
+        return 0;
+    if (!load_compression_api())
+        return 0;
+    if (src_size > (uint64_t)(SIZE_MAX - 4096) / 17 * 16)
+        return 0;
+
+    capacity = (size_t)src_size + (size_t)(src_size / 16) + 4096;
+    if (capacity >= (size_t)src_size)
+        capacity = (size_t)src_size - 1;
+    if (!capacity)
+        return 0;
+
+    buffer = av_malloc(capacity);
+    if (!buffer)
+        return AVERROR(ENOMEM);
+
+    if (!g_compression_api.create_compressor(VOID_COMPRESS_ALGORITHM_XPRESS_HUFF, NULL, &compressor)) {
+        av_free(buffer);
+        return 0;
+    }
+    if (g_compression_api.compress(compressor, (void *)src, (size_t)src_size,
+                                   buffer, capacity, &compressed_size) &&
+        compressed_size > 0 && compressed_size < src_size) {
+        dst->data = buffer;
+        dst->size = compressed_size;
+        dst->flags = VBS3_CUID_FLAG_COMPRESSED_XPRESS_HUFF;
+    } else {
+        av_free(buffer);
+    }
+    g_compression_api.close_compressor(compressor);
+    return 0;
+#else
+    (void)src;
+    (void)src_size;
+    memset(dst, 0, sizeof(*dst));
+    return 0;
+#endif
 }
 
 static void free_frames(void)
@@ -439,6 +544,7 @@ int ff_voidplayer_vbs3_finish(void)
     Vbs3SectionEntry sections[3];
     Vbs3Header header;
     uint32_t i;
+    uint32_t cubl_flags = 0;
     int ret = 0;
 
     if (!g_vbs3.file)
@@ -462,6 +568,9 @@ int ff_voidplayer_vbs3_finish(void)
 
     for (i = 0; i < g_vbs3.frame_count; ++i) {
         Vbs3FrameBuffer *frame = &g_vbs3.frames[i];
+        Vbs3CompressedFrame compressed;
+        const uint8_t *payload;
+        uint64_t payload_size;
 
         if (frame->summary.num_cus) {
             frame->summary.avg_qp =
@@ -469,14 +578,26 @@ int ff_voidplayer_vbs3_finish(void)
         }
         frame->summary.coded_order = i;
         frame->summary.cu_index_entry = i;
+
+        ret = try_compress_frame(frame->data, frame->data_size, &compressed);
+        if (ret < 0)
+            goto done;
+        payload = compressed.data ? compressed.data : frame->data;
+        payload_size = compressed.data ? (uint64_t)compressed.size : frame->data_size;
+
         cu_index[i].offset = cubl_bytes;
-        cu_index[i].byte_size = frame->data_size;
+        cu_index[i].byte_size = payload_size;
         cu_index[i].cu_count = frame->summary.num_cus;
-        if (write_exact(g_vbs3.file, frame->data, (size_t)frame->data_size) < 0) {
+        cu_index[i].flags = compressed.flags;
+        if (compressed.flags)
+            cubl_flags |= VBS3_CUBL_SECTION_FLAG_PER_FRAME_COMPRESSION;
+        if (write_exact(g_vbs3.file, payload, (size_t)payload_size) < 0) {
+            av_freep(&compressed.data);
             ret = AVERROR(EIO);
             goto done;
         }
-        cubl_bytes += frame->data_size;
+        av_freep(&compressed.data);
+        cubl_bytes += payload_size;
     }
 
     fsum_offset = cubl_offset + cubl_bytes;
@@ -492,11 +613,12 @@ int ff_voidplayer_vbs3_finish(void)
                                sizeof(Vbs3CuIndexEntry), g_vbs3.frame_count);
     sections[2] = make_section("CUBL", cubl_offset, cubl_bytes, 0,
                                g_vbs3.frame_count);
+    sections[2].flags = cubl_flags;
 
     memset(&header, 0, sizeof(header));
     set_fourcc(header.magic, "VBS3");
     header.version_major = 3;
-    header.version_minor = 0;
+    header.version_minor = cubl_flags ? 1 : 0;
     header.header_size = sizeof(Vbs3Header);
     header.section_entry_size = sizeof(Vbs3SectionEntry);
     header.width = g_vbs3.width;
