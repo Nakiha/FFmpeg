@@ -2471,26 +2471,35 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
     uint8_t num_ref_l0 = 0;
     uint8_t num_ref_l1 = 0;
     uint8_t qp;
+    VoidPlayerVbs3FrameInfo frame_info = { 0 };
+    int i;
 
     if (!ff_voidplayer_vbs3_is_active() || !s->cur_frame || w <= 0 || h <= 0)
         return;
 
     voidplayer_hevc_ref_pocs(s, ref_pic_list, L0, ref_pocs_l0, &num_ref_l0);
     voidplayer_hevc_ref_pocs(s, ref_pic_list, L1, ref_pocs_l1, &num_ref_l1);
-    ff_voidplayer_vbs3_begin_frame(s->sh.poc,
-                                   frame_width,
-                                   frame_height,
-                                   (uint8_t)av_clip_uint8(s->temporal_id),
-                                   (uint8_t)s->sh.slice_type,
-                                   (uint8_t)s->nal_unit_type,
-                                   num_ref_l0,
-                                   num_ref_l1,
-                                   ref_pocs_l0,
-                                   ref_pocs_l1);
+    frame_info.poc = s->sh.poc;
+    frame_info.width = frame_width;
+    frame_info.height = frame_height;
+    frame_info.temporal_id = (uint8_t)av_clip_uint8(s->temporal_id);
+    frame_info.slice_type = (uint8_t)s->sh.slice_type;
+    frame_info.nal_unit_type = (uint8_t)s->nal_unit_type;
+    frame_info.num_ref_l0 = num_ref_l0;
+    frame_info.num_ref_l1 = num_ref_l1;
+    if (s->cur_frame->f && s->cur_frame->f->pts != AV_NOPTS_VALUE)
+        frame_info.frame_identity = (uintptr_t)(s->cur_frame->f->pts + 1);
+    else
+        frame_info.frame_identity = (uintptr_t)s->cur_frame;
+    for (i = 0; i < 15; ++i) {
+        frame_info.ref_pocs_l0[i] = ref_pocs_l0[i];
+        frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];
+    }
 
     qp = (uint8_t)av_clip_uint8(lc->qp_y);
     if (lc->cu.pred_mode == MODE_INTRA) {
-        ff_voidplayer_vbs3_write_intra_cu((uint16_t)x0,
+        ff_voidplayer_vbs3_write_intra_cu(&frame_info,
+                                          (uint16_t)x0,
                                           (uint16_t)y0,
                                           (uint8_t)FFMIN(w, 255),
                                           (uint8_t)FFMIN(h, 255),
@@ -2505,7 +2514,8 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
     if (s->cur_frame->tab_mvf)
         mvf = &s->cur_frame->tab_mvf[y_pu * sps->min_pu_width + x_pu];
 
-    ff_voidplayer_vbs3_write_inter_cu((uint16_t)x0,
+    ff_voidplayer_vbs3_write_inter_cu(&frame_info,
+                                      (uint16_t)x0,
                                       (uint16_t)y0,
                                       (uint8_t)FFMIN(w, 255),
                                       (uint8_t)FFMIN(h, 255),

@@ -93,24 +93,28 @@ typedef struct VbsCuInter {
 } VbsCuInter;
 #pragma pack(pop)
 
+typedef struct Vbs3FrameBuffer {
+    Vbs3FrameSummary summary;
+    uint8_t *data;
+    uint64_t data_size;
+    uint64_t data_capacity;
+    uint64_t qp_sum;
+    uint16_t first_x;
+    uint16_t first_y;
+    uint8_t first_w;
+    uint8_t first_h;
+    uint8_t first_depth;
+    int has_first_cu;
+    uintptr_t frame_identity;
+} Vbs3FrameBuffer;
+
 typedef struct VoidVbs3State {
     FILE *file;
     uint32_t width;
     uint32_t height;
-    uint64_t cubl_bytes;
-    Vbs3FrameSummary *summaries;
-    Vbs3CuIndexEntry *cu_index;
+    Vbs3FrameBuffer *frames;
     uint32_t frame_count;
     uint32_t frame_capacity;
-    Vbs3FrameSummary current_summary;
-    Vbs3CuIndexEntry current_index;
-    uint64_t current_cu_start;
-    uint32_t current_cu_count;
-    uint64_t current_cu_bytes;
-    uint64_t qp_sum;
-    uint8_t qp_min;
-    uint8_t qp_max;
-    int frame_active;
     int error;
     AVMutex lock;
     int lock_initialized;
@@ -130,19 +134,6 @@ static void vbs3_unlock(void)
         ff_mutex_unlock(&g_vbs3.lock);
 }
 
-static void reset_state(void)
-{
-    int had_lock = g_vbs3.lock_initialized;
-
-    if (g_vbs3.file)
-        fclose(g_vbs3.file);
-    av_freep(&g_vbs3.summaries);
-    av_freep(&g_vbs3.cu_index);
-    if (had_lock)
-        ff_mutex_destroy(&g_vbs3.lock);
-    memset(&g_vbs3, 0, sizeof(g_vbs3));
-}
-
 static void set_fourcc(char dst[4], const char src[4])
 {
     dst[0] = src[0];
@@ -158,58 +149,188 @@ static int write_exact(FILE *file, const void *data, size_t size)
     return fwrite(data, 1, size, file) == size ? 0 : AVERROR(EIO);
 }
 
-static int append_frame(Vbs3FrameSummary *summary, const Vbs3CuIndexEntry *index)
+static void free_frames(void)
 {
-    Vbs3FrameSummary *new_summaries;
-    Vbs3CuIndexEntry *new_indices;
+    uint32_t i;
+
+    for (i = 0; i < g_vbs3.frame_count; ++i)
+        av_freep(&g_vbs3.frames[i].data);
+    av_freep(&g_vbs3.frames);
+    g_vbs3.frame_count = 0;
+    g_vbs3.frame_capacity = 0;
+}
+
+static void reset_state(void)
+{
+    int had_lock = g_vbs3.lock_initialized;
+
+    if (g_vbs3.file)
+        fclose(g_vbs3.file);
+    free_frames();
+    if (had_lock)
+        ff_mutex_destroy(&g_vbs3.lock);
+    memset(&g_vbs3, 0, sizeof(g_vbs3));
+}
+
+static int ensure_frame_capacity(void)
+{
+    Vbs3FrameBuffer *new_frames;
     uint32_t new_capacity;
 
-    if (g_vbs3.frame_count == g_vbs3.frame_capacity) {
-        new_capacity = g_vbs3.frame_capacity ? g_vbs3.frame_capacity * 2 : 256;
-        if (new_capacity < g_vbs3.frame_capacity)
-            return AVERROR(ENOMEM);
-        new_summaries = av_realloc_array(g_vbs3.summaries, new_capacity, sizeof(*g_vbs3.summaries));
-        if (!new_summaries)
-            return AVERROR(ENOMEM);
-        g_vbs3.summaries = new_summaries;
+    if (g_vbs3.frame_count < g_vbs3.frame_capacity)
+        return 0;
 
-        new_indices = av_realloc_array(g_vbs3.cu_index, new_capacity, sizeof(*g_vbs3.cu_index));
-        if (!new_indices)
-            return AVERROR(ENOMEM);
-        g_vbs3.cu_index = new_indices;
-        g_vbs3.frame_capacity = new_capacity;
-    }
-
-    g_vbs3.summaries[g_vbs3.frame_count] = *summary;
-    g_vbs3.cu_index[g_vbs3.frame_count] = *index;
-    g_vbs3.frame_count++;
+    new_capacity = g_vbs3.frame_capacity ? g_vbs3.frame_capacity * 2 : 256;
+    if (new_capacity < g_vbs3.frame_capacity)
+        return AVERROR(ENOMEM);
+    new_frames = av_realloc_array(g_vbs3.frames, new_capacity, sizeof(*g_vbs3.frames));
+    if (!new_frames)
+        return AVERROR(ENOMEM);
+    memset(new_frames + g_vbs3.frame_capacity, 0,
+           (new_capacity - g_vbs3.frame_capacity) * sizeof(*new_frames));
+    g_vbs3.frames = new_frames;
+    g_vbs3.frame_capacity = new_capacity;
     return 0;
 }
 
-static void end_current_frame(void)
+static void fill_summary(Vbs3FrameSummary *summary, const VoidPlayerVbs3FrameInfo *info)
 {
-    if (!g_vbs3.frame_active || g_vbs3.error)
-        return;
+    int i;
 
-    g_vbs3.current_summary.num_cus = g_vbs3.current_cu_count;
-    if (g_vbs3.current_cu_count) {
-        g_vbs3.current_summary.avg_qp =
-            (uint8_t)((g_vbs3.qp_sum + g_vbs3.current_cu_count / 2) / g_vbs3.current_cu_count);
-        g_vbs3.current_summary.qp_min = g_vbs3.qp_min;
-        g_vbs3.current_summary.qp_max = g_vbs3.qp_max;
+    memset(summary, 0, sizeof(*summary));
+    summary->poc = info->poc;
+    summary->coded_order = g_vbs3.frame_count;
+    summary->vcl_nalu_index = 0xFFFFFFFFu;
+    summary->temporal_id = info->temporal_id;
+    summary->slice_type = info->slice_type;
+    summary->nal_unit_type = info->nal_unit_type;
+    summary->num_ref_l0 = info->num_ref_l0 > 15 ? 15 : info->num_ref_l0;
+    summary->num_ref_l1 = info->num_ref_l1 > 15 ? 15 : info->num_ref_l1;
+    summary->cu_index_entry = g_vbs3.frame_count;
+    for (i = 0; i < 15; ++i) {
+        summary->ref_pocs_l0[i] = i < summary->num_ref_l0 ? info->ref_pocs_l0[i] : -1;
+        summary->ref_pocs_l1[i] = i < summary->num_ref_l1 ? info->ref_pocs_l1[i] : -1;
     }
-    g_vbs3.current_index.offset = g_vbs3.current_cu_start;
-    g_vbs3.current_index.byte_size = g_vbs3.current_cu_bytes;
-    g_vbs3.current_index.cu_count = g_vbs3.current_cu_count;
-
-    g_vbs3.error = append_frame(&g_vbs3.current_summary, &g_vbs3.current_index);
-    g_vbs3.frame_active = 0;
 }
 
-static int write_cu_record(const void *common, size_t common_size,
-                           const void *extra, size_t extra_size,
-                           uint8_t qp)
+static int frame_can_accept_cu(const Vbs3FrameBuffer *frame,
+                               const VoidPlayerVbs3FrameInfo *info,
+                               uint16_t x,
+                               uint16_t y,
+                               uint8_t w,
+                               uint8_t h,
+                               uint8_t depth)
 {
+    if (info->expected_cus && frame->summary.num_cus >= info->expected_cus)
+        return 0;
+    if (info->frame_identity)
+        return frame->frame_identity == info->frame_identity;
+    if (!info->expected_cus && frame->has_first_cu &&
+        frame->first_x == x &&
+        frame->first_y == y &&
+        frame->first_w == w &&
+        frame->first_h == h &&
+        frame->first_depth == depth)
+        return 0;
+    return 1;
+}
+
+static Vbs3FrameBuffer *find_frame(const VoidPlayerVbs3FrameInfo *info,
+                                   uint16_t x,
+                                   uint16_t y,
+                                   uint8_t w,
+                                   uint8_t h,
+                                   uint8_t depth)
+{
+    uint32_t i;
+
+    for (i = g_vbs3.frame_count; i > 0; --i) {
+        Vbs3FrameBuffer *frame = &g_vbs3.frames[i - 1];
+        if (frame->summary.poc == info->poc &&
+            frame_can_accept_cu(frame, info, x, y, w, h, depth))
+            return frame;
+    }
+    return NULL;
+}
+
+static Vbs3FrameBuffer *get_or_create_frame(const VoidPlayerVbs3FrameInfo *info,
+                                            uint16_t x,
+                                            uint16_t y,
+                                            uint8_t w,
+                                            uint8_t h,
+                                            uint8_t depth)
+{
+    Vbs3FrameBuffer *frame;
+
+    if (!info) {
+        g_vbs3.error = AVERROR(EINVAL);
+        return NULL;
+    }
+
+    frame = find_frame(info, x, y, w, h, depth);
+    if (frame)
+        return frame;
+
+    g_vbs3.error = ensure_frame_capacity();
+    if (g_vbs3.error)
+        return NULL;
+
+    frame = &g_vbs3.frames[g_vbs3.frame_count];
+    memset(frame, 0, sizeof(*frame));
+    fill_summary(&frame->summary, info);
+    frame->frame_identity = info->frame_identity;
+    g_vbs3.frame_count++;
+    if (info->width)
+        g_vbs3.width = info->width;
+    if (info->height)
+        g_vbs3.height = info->height;
+    return frame;
+}
+
+static int append_bytes(Vbs3FrameBuffer *frame, const void *data, size_t size)
+{
+    uint8_t *new_data;
+    uint64_t required;
+    uint64_t new_capacity;
+
+    if (!size)
+        return 0;
+    if (frame->data_size > UINT64_MAX - size)
+        return AVERROR(ENOMEM);
+    required = frame->data_size + size;
+    if (required > frame->data_capacity) {
+        new_capacity = frame->data_capacity ? frame->data_capacity * 2 : 4096;
+        while (new_capacity < required) {
+            if (new_capacity > UINT64_MAX / 2) {
+                new_capacity = required;
+                break;
+            }
+            new_capacity *= 2;
+        }
+        if ((uint64_t)(size_t)new_capacity != new_capacity)
+            return AVERROR(ENOMEM);
+        new_data = av_realloc(frame->data, (size_t)new_capacity);
+        if (!new_data)
+            return AVERROR(ENOMEM);
+        frame->data = new_data;
+        frame->data_capacity = new_capacity;
+    }
+    memcpy(frame->data + frame->data_size, data, size);
+    frame->data_size = required;
+    return 0;
+}
+
+static int append_cu_record(const VoidPlayerVbs3FrameInfo *info,
+                            uint16_t x,
+                            uint16_t y,
+                            uint8_t w,
+                            uint8_t h,
+                            uint8_t depth,
+                            const void *common, size_t common_size,
+                            const void *extra, size_t extra_size,
+                            uint8_t qp)
+{
+    Vbs3FrameBuffer *frame;
     int ret = 0;
 
     vbs3_lock();
@@ -217,26 +338,38 @@ static int write_cu_record(const void *common, size_t common_size,
         ret = g_vbs3.error ? g_vbs3.error : AVERROR(EINVAL);
         goto done;
     }
-    if (!g_vbs3.frame_active) {
-        ret = AVERROR(EINVAL);
+
+    frame = get_or_create_frame(info, x, y, w, h, depth);
+    if (!frame) {
+        ret = g_vbs3.error ? g_vbs3.error : AVERROR(EINVAL);
         goto done;
     }
 
-    if (write_exact(g_vbs3.file, common, common_size) < 0 ||
-        write_exact(g_vbs3.file, extra, extra_size) < 0) {
-        g_vbs3.error = AVERROR(EIO);
-        ret = g_vbs3.error;
-        goto done;
-    }
+    ret = append_bytes(frame, common, common_size);
+    if (ret < 0)
+        goto fail;
+    ret = append_bytes(frame, extra, extra_size);
+    if (ret < 0)
+        goto fail;
 
-    g_vbs3.current_cu_count++;
-    g_vbs3.current_cu_bytes += common_size + extra_size;
-    g_vbs3.cubl_bytes += common_size + extra_size;
-    g_vbs3.qp_sum += qp;
-    if (g_vbs3.current_cu_count == 1 || qp < g_vbs3.qp_min)
-        g_vbs3.qp_min = qp;
-    if (g_vbs3.current_cu_count == 1 || qp > g_vbs3.qp_max)
-        g_vbs3.qp_max = qp;
+    frame->summary.num_cus++;
+    if (!frame->has_first_cu) {
+        frame->first_x = x;
+        frame->first_y = y;
+        frame->first_w = w;
+        frame->first_h = h;
+        frame->first_depth = depth;
+        frame->has_first_cu = 1;
+    }
+    frame->qp_sum += qp;
+    if (frame->summary.num_cus == 1 || qp < frame->summary.qp_min)
+        frame->summary.qp_min = qp;
+    if (frame->summary.num_cus == 1 || qp > frame->summary.qp_max)
+        frame->summary.qp_max = qp;
+    goto done;
+
+fail:
+    g_vbs3.error = ret;
 
 done:
     vbs3_unlock();
@@ -294,7 +427,9 @@ int ff_voidplayer_vbs3_start(const char *path, uint32_t width, uint32_t height)
 int ff_voidplayer_vbs3_finish(void)
 {
     const uint32_t section_count = 3;
+    Vbs3CuIndexEntry *cu_index = NULL;
     uint64_t cubl_offset;
+    uint64_t cubl_bytes = 0;
     uint64_t fsum_offset;
     uint64_t fsum_size;
     uint64_t cuid_offset;
@@ -303,19 +438,48 @@ int ff_voidplayer_vbs3_finish(void)
     uint64_t file_size;
     Vbs3SectionEntry sections[3];
     Vbs3Header header;
+    uint32_t i;
     int ret = 0;
 
     if (!g_vbs3.file)
         return AVERROR(EINVAL);
-
-    end_current_frame();
     if (g_vbs3.error) {
         ret = g_vbs3.error;
         goto done;
     }
 
+    cu_index = av_calloc(g_vbs3.frame_count ? g_vbs3.frame_count : 1, sizeof(*cu_index));
+    if (!cu_index) {
+        ret = AVERROR(ENOMEM);
+        goto done;
+    }
+
     cubl_offset = sizeof(Vbs3Header);
-    fsum_offset = cubl_offset + g_vbs3.cubl_bytes;
+    if (fseek(g_vbs3.file, (long)cubl_offset, SEEK_SET) != 0) {
+        ret = AVERROR(EIO);
+        goto done;
+    }
+
+    for (i = 0; i < g_vbs3.frame_count; ++i) {
+        Vbs3FrameBuffer *frame = &g_vbs3.frames[i];
+
+        if (frame->summary.num_cus) {
+            frame->summary.avg_qp =
+                (uint8_t)((frame->qp_sum + frame->summary.num_cus / 2) / frame->summary.num_cus);
+        }
+        frame->summary.coded_order = i;
+        frame->summary.cu_index_entry = i;
+        cu_index[i].offset = cubl_bytes;
+        cu_index[i].byte_size = frame->data_size;
+        cu_index[i].cu_count = frame->summary.num_cus;
+        if (write_exact(g_vbs3.file, frame->data, (size_t)frame->data_size) < 0) {
+            ret = AVERROR(EIO);
+            goto done;
+        }
+        cubl_bytes += frame->data_size;
+    }
+
+    fsum_offset = cubl_offset + cubl_bytes;
     fsum_size = (uint64_t)g_vbs3.frame_count * sizeof(Vbs3FrameSummary);
     cuid_offset = fsum_offset + fsum_size;
     cuid_size = (uint64_t)g_vbs3.frame_count * sizeof(Vbs3CuIndexEntry);
@@ -326,7 +490,7 @@ int ff_voidplayer_vbs3_finish(void)
                                sizeof(Vbs3FrameSummary), g_vbs3.frame_count);
     sections[1] = make_section("CUID", cuid_offset, cuid_size,
                                sizeof(Vbs3CuIndexEntry), g_vbs3.frame_count);
-    sections[2] = make_section("CUBL", cubl_offset, g_vbs3.cubl_bytes, 0,
+    sections[2] = make_section("CUBL", cubl_offset, cubl_bytes, 0,
                                g_vbs3.frame_count);
 
     memset(&header, 0, sizeof(header));
@@ -342,9 +506,14 @@ int ff_voidplayer_vbs3_finish(void)
     header.section_table_offset = section_table_offset;
     header.file_size = file_size;
 
-    if (fseek(g_vbs3.file, 0, SEEK_END) != 0 ||
-        write_exact(g_vbs3.file, g_vbs3.summaries, (size_t)fsum_size) < 0 ||
-        write_exact(g_vbs3.file, g_vbs3.cu_index, (size_t)cuid_size) < 0 ||
+    for (i = 0; i < g_vbs3.frame_count; ++i) {
+        if (write_exact(g_vbs3.file, &g_vbs3.frames[i].summary,
+                        sizeof(g_vbs3.frames[i].summary)) < 0) {
+            ret = AVERROR(EIO);
+            goto done;
+        }
+    }
+    if (write_exact(g_vbs3.file, cu_index, (size_t)cuid_size) < 0 ||
         write_exact(g_vbs3.file, sections, sizeof(sections)) < 0 ||
         fseek(g_vbs3.file, 0, SEEK_SET) != 0 ||
         write_exact(g_vbs3.file, &header, sizeof(header)) < 0) {
@@ -352,11 +521,11 @@ int ff_voidplayer_vbs3_finish(void)
     }
 
 done:
-    if (fclose(g_vbs3.file) != 0 && ret == 0)
+    av_freep(&cu_index);
+    if (g_vbs3.file && fclose(g_vbs3.file) != 0 && ret == 0)
         ret = AVERROR(EIO);
     g_vbs3.file = NULL;
-    av_freep(&g_vbs3.summaries);
-    av_freep(&g_vbs3.cu_index);
+    free_frames();
     if (g_vbs3.lock_initialized)
         ff_mutex_destroy(&g_vbs3.lock);
     memset(&g_vbs3, 0, sizeof(g_vbs3));
@@ -378,7 +547,7 @@ uint32_t ff_voidplayer_vbs3_frame_count(void)
     uint32_t frame_count;
 
     vbs3_lock();
-    frame_count = g_vbs3.frame_count + (g_vbs3.frame_active ? 1 : 0);
+    frame_count = g_vbs3.frame_count;
     vbs3_unlock();
     return frame_count;
 }
@@ -388,73 +557,14 @@ uint32_t ff_voidplayer_vbs3_last_frame_cu_count(void)
     uint32_t cu_count = 0;
 
     vbs3_lock();
-    if (g_vbs3.frame_active)
-        cu_count = g_vbs3.current_cu_count;
-    else if (g_vbs3.frame_count)
-        cu_count = g_vbs3.cu_index[g_vbs3.frame_count - 1].cu_count;
+    if (g_vbs3.frame_count)
+        cu_count = g_vbs3.frames[g_vbs3.frame_count - 1].summary.num_cus;
     vbs3_unlock();
     return cu_count;
 }
 
-void ff_voidplayer_vbs3_begin_frame(int32_t poc,
-                                    uint32_t width,
-                                    uint32_t height,
-                                    uint8_t temporal_id,
-                                    uint8_t slice_type,
-                                    uint8_t nal_unit_type,
-                                    uint8_t num_ref_l0,
-                                    uint8_t num_ref_l1,
-                                    const int32_t *ref_pocs_l0,
-                                    const int32_t *ref_pocs_l1)
-{
-    int i;
-
-    if (!ff_voidplayer_vbs3_is_active())
-        return;
-
-    vbs3_lock();
-    if (g_vbs3.frame_active && g_vbs3.current_summary.poc == poc)
-        goto done;
-
-    end_current_frame();
-    if (g_vbs3.error)
-        goto done;
-
-    if (width)
-        g_vbs3.width = width;
-    if (height)
-        g_vbs3.height = height;
-
-    memset(&g_vbs3.current_summary, 0, sizeof(g_vbs3.current_summary));
-    memset(&g_vbs3.current_index, 0, sizeof(g_vbs3.current_index));
-    g_vbs3.current_summary.poc = poc;
-    g_vbs3.current_summary.coded_order = g_vbs3.frame_count;
-    g_vbs3.current_summary.vcl_nalu_index = 0xFFFFFFFFu;
-    g_vbs3.current_summary.temporal_id = temporal_id;
-    g_vbs3.current_summary.slice_type = slice_type;
-    g_vbs3.current_summary.nal_unit_type = nal_unit_type;
-    g_vbs3.current_summary.num_ref_l0 = num_ref_l0 > 15 ? 15 : num_ref_l0;
-    g_vbs3.current_summary.num_ref_l1 = num_ref_l1 > 15 ? 15 : num_ref_l1;
-    g_vbs3.current_summary.cu_index_entry = g_vbs3.frame_count;
-    for (i = 0; i < 15; ++i) {
-        g_vbs3.current_summary.ref_pocs_l0[i] =
-            (ref_pocs_l0 && i < g_vbs3.current_summary.num_ref_l0) ? ref_pocs_l0[i] : -1;
-        g_vbs3.current_summary.ref_pocs_l1[i] =
-            (ref_pocs_l1 && i < g_vbs3.current_summary.num_ref_l1) ? ref_pocs_l1[i] : -1;
-    }
-    g_vbs3.current_cu_start = g_vbs3.cubl_bytes;
-    g_vbs3.current_cu_count = 0;
-    g_vbs3.current_cu_bytes = 0;
-    g_vbs3.qp_sum = 0;
-    g_vbs3.qp_min = 0;
-    g_vbs3.qp_max = 0;
-    g_vbs3.frame_active = 1;
-
-done:
-    vbs3_unlock();
-}
-
-void ff_voidplayer_vbs3_write_intra_cu(uint16_t x,
+void ff_voidplayer_vbs3_write_intra_cu(const VoidPlayerVbs3FrameInfo *info,
+                                       uint16_t x,
                                        uint16_t y,
                                        uint8_t w,
                                        uint8_t h,
@@ -467,10 +577,12 @@ void ff_voidplayer_vbs3_write_intra_cu(uint16_t x,
     VbsCuCommon common = { x, y, w, h, depth, qp, 1 };
     VbsCuIntra intra = { intra_mode, mip_flag, isp_mode };
 
-    write_cu_record(&common, sizeof(common), &intra, sizeof(intra), qp);
+    append_cu_record(info, x, y, w, h, depth,
+                     &common, sizeof(common), &intra, sizeof(intra), qp);
 }
 
-void ff_voidplayer_vbs3_write_inter_cu(uint16_t x,
+void ff_voidplayer_vbs3_write_inter_cu(const VoidPlayerVbs3FrameInfo *info,
+                                       uint16_t x,
                                        uint16_t y,
                                        uint8_t w,
                                        uint8_t h,
@@ -493,5 +605,6 @@ void ff_voidplayer_vbs3_write_inter_cu(uint16_t x,
         ref_l0, ref_l1
     };
 
-    write_cu_record(&common, sizeof(common), &inter, sizeof(inter), qp);
+    append_cu_record(info, x, y, w, h, depth,
+                     &common, sizeof(common), &inter, sizeof(inter), qp);
 }
