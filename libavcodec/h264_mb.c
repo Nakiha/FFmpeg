@@ -888,16 +888,19 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
 
     qp = (uint8_t)av_clip_uint8(h->cur_pic.qscale_table ? h->cur_pic.qscale_table[mb_xy] : sl->qscale);
     if (IS_INTRA(mb_type)) {
-        ff_voidplayer_vbs3_write_intra_cu(&frame_info,
-                                          (uint16_t)x,
-                                          (uint16_t)y,
-                                          (uint8_t)w,
-                                          (uint8_t)hgt,
-                                          0,
-                                          qp,
-                                          IS_INTRA16x16(mb_type) ? (uint8_t)sl->intra16x16_pred_mode : 0,
-                                          0,
-                                          0);
+        ff_voidplayer_vbs3_write_h264_mb(&frame_info,
+                                         qp,
+                                         1,
+                                         IS_INTRA16x16(mb_type) ? (uint8_t)sl->intra16x16_pred_mode : 0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         -1,
+                                         -1);
         return;
     }
 
@@ -920,22 +923,19 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
         }
     }
 
-    ff_voidplayer_vbs3_write_inter_cu(&frame_info,
-                                      (uint16_t)x,
-                                      (uint16_t)y,
-                                      (uint8_t)w,
-                                      (uint8_t)hgt,
-                                      0,
-                                      qp,
-                                      IS_SKIP(mb_type) ? 1 : 0,
-                                      0,
-                                      inter_dir,
-                                      mv_l0_x,
-                                      mv_l0_y,
-                                      mv_l1_x,
-                                      mv_l1_y,
-                                      ref_l0,
-                                      ref_l1);
+    ff_voidplayer_vbs3_write_h264_mb(&frame_info,
+                                     qp,
+                                     0,
+                                     0,
+                                     IS_SKIP(mb_type) ? 1 : 0,
+                                     0,
+                                     inter_dir,
+                                     mv_l0_x,
+                                     mv_l0_y,
+                                     mv_l1_x,
+                                     mv_l1_y,
+                                     ref_l0,
+                                     ref_l1);
 }
 
 void ff_h264_hl_decode_mb(const H264Context *h, H264SliceContext *sl)

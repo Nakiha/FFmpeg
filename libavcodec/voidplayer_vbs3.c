@@ -16,6 +16,7 @@
 #include "libavutil/thread.h"
 
 #define VBS3_CUID_FLAG_COMPRESSED_XPRESS_HUFF 0x00000001u
+#define VBS3_CUID_FLAG_H264_RASTER_MB_COMPACT 0x00000002u
 #define VBS3_CUBL_SECTION_FLAG_PER_FRAME_COMPRESSION 0x00000001u
 
 #pragma pack(push, 1)
@@ -101,6 +102,17 @@ typedef struct VbsCuInter {
     int8_t   ref_l0;
     int8_t   ref_l1;
 } VbsCuInter;
+
+typedef struct VbsH264MbCompact {
+    uint8_t qp;
+    uint8_t flags;
+    int16_t mv_l0_x;
+    int16_t mv_l0_y;
+    int16_t mv_l1_x;
+    int16_t mv_l1_y;
+    int8_t  ref_l0;
+    int8_t  ref_l1;
+} VbsH264MbCompact;
 #pragma pack(pop)
 
 typedef struct Vbs3FrameBuffer {
@@ -115,6 +127,7 @@ typedef struct Vbs3FrameBuffer {
     uint8_t first_h;
     uint8_t first_depth;
     int has_first_cu;
+    uint32_t payload_flags;
     uintptr_t frame_identity;
 } Vbs3FrameBuffer;
 
@@ -433,6 +446,7 @@ static int append_cu_record(const VoidPlayerVbs3FrameInfo *info,
                             uint8_t depth,
                             const void *common, size_t common_size,
                             const void *extra, size_t extra_size,
+                            uint32_t payload_flags,
                             uint8_t qp)
 {
     Vbs3FrameBuffer *frame;
@@ -456,6 +470,7 @@ static int append_cu_record(const VoidPlayerVbs3FrameInfo *info,
     ret = append_bytes(frame, extra, extra_size);
     if (ret < 0)
         goto fail;
+    frame->payload_flags |= payload_flags;
 
     frame->summary.num_cus++;
     if (!frame->has_first_cu) {
@@ -588,7 +603,7 @@ int ff_voidplayer_vbs3_finish(void)
         cu_index[i].offset = cubl_bytes;
         cu_index[i].byte_size = payload_size;
         cu_index[i].cu_count = frame->summary.num_cus;
-        cu_index[i].flags = compressed.flags;
+        cu_index[i].flags = frame->payload_flags | compressed.flags;
         if (compressed.flags)
             cubl_flags |= VBS3_CUBL_SECTION_FLAG_PER_FRAME_COMPRESSION;
         if (write_exact(g_vbs3.file, payload, (size_t)payload_size) < 0) {
@@ -700,7 +715,7 @@ void ff_voidplayer_vbs3_write_intra_cu(const VoidPlayerVbs3FrameInfo *info,
     VbsCuIntra intra = { intra_mode, mip_flag, isp_mode };
 
     append_cu_record(info, x, y, w, h, depth,
-                     &common, sizeof(common), &intra, sizeof(intra), qp);
+                     &common, sizeof(common), &intra, sizeof(intra), 0, qp);
 }
 
 void ff_voidplayer_vbs3_write_inter_cu(const VoidPlayerVbs3FrameInfo *info,
@@ -728,5 +743,39 @@ void ff_voidplayer_vbs3_write_inter_cu(const VoidPlayerVbs3FrameInfo *info,
     };
 
     append_cu_record(info, x, y, w, h, depth,
-                     &common, sizeof(common), &inter, sizeof(inter), qp);
+                     &common, sizeof(common), &inter, sizeof(inter), 0, qp);
+}
+
+void ff_voidplayer_vbs3_write_h264_mb(const VoidPlayerVbs3FrameInfo *info,
+                                      uint8_t qp,
+                                      uint8_t is_intra,
+                                      uint8_t intra_mode,
+                                      uint8_t skip,
+                                      uint8_t merge_flag,
+                                      uint8_t inter_dir,
+                                      int16_t mv_l0_x,
+                                      int16_t mv_l0_y,
+                                      int16_t mv_l1_x,
+                                      int16_t mv_l1_y,
+                                      int8_t ref_l0,
+                                      int8_t ref_l1)
+{
+    const uint8_t flags = (is_intra ? 0x01 : 0) |
+                          (skip ? 0x02 : 0) |
+                          (merge_flag ? 0x04 : 0) |
+                          ((inter_dir & 0x03) << 3) |
+                          ((intra_mode & 0x07) << 5);
+    VbsH264MbCompact mb = {
+        qp, flags,
+        mv_l0_x, mv_l0_y, mv_l1_x, mv_l1_y,
+        ref_l0, ref_l1
+    };
+    const uint32_t mb_index = ff_voidplayer_vbs3_last_frame_cu_count();
+    const uint16_t x = info && info->width ? (uint16_t)((mb_index * 16u) % info->width) : 0;
+    const uint16_t y = info && info->width ? (uint16_t)(((mb_index * 16u) / info->width) * 16u) : 0;
+
+    append_cu_record(info, x, y, 16, 16, 0,
+                     NULL, 0, &mb, sizeof(mb),
+                     VBS3_CUID_FLAG_H264_RASTER_MB_COMPACT,
+                     qp);
 }

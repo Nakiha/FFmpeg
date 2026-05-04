@@ -53,4 +53,18 @@ void ff_voidplayer_vbs3_write_inter_cu(const VoidPlayerVbs3FrameInfo *info,
                                        int8_t ref_l0,
                                        int8_t ref_l1);
 
+void ff_voidplayer_vbs3_write_h264_mb(const VoidPlayerVbs3FrameInfo *info,
+                                      uint8_t qp,
+                                      uint8_t is_intra,
+                                      uint8_t intra_mode,
+                                      uint8_t skip,
+                                      uint8_t merge_flag,
+                                      uint8_t inter_dir,
+                                      int16_t mv_l0_x,
+                                      int16_t mv_l0_y,
+                                      int16_t mv_l1_x,
+                                      int16_t mv_l1_y,
+                                      int8_t ref_l0,
+                                      int8_t ref_l1);
+
 #endif
