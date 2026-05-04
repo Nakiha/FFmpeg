@@ -44,6 +44,7 @@
 /coverage.info
 /lcov/
 /src
+/build/
 /mapfile
 /tools/python/__pycache__/
 /libavcodec/vulkan/*.c
