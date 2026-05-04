@@ -945,6 +945,11 @@ void ff_h264_hl_decode_mb(const H264Context *h, H264SliceContext *sl)
     int is_complex    = CONFIG_SMALL || sl->is_complex ||
                         IS_INTRA_PCM(mb_type) || sl->qscale == 0;
 
+    if (ff_voidplayer_vbs3_is_active()) {
+        voidplayer_h264_record_mb(h, sl);
+        return;
+    }
+
     if (CHROMA444(h)) {
         if (is_complex || h->pixel_shift)
             hl_decode_mb_444_complex(h, sl);
@@ -957,5 +962,4 @@ void ff_h264_hl_decode_mb(const H264Context *h, H264SliceContext *sl)
     } else
         hl_decode_mb_simple_8(h, sl);
 
-    voidplayer_h264_record_mb(h, sl);
 }

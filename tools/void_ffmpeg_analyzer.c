@@ -535,6 +535,8 @@ static int decode_vbs3(const AnalyzerOptions *options,
             threads = 16;
         decoder->thread_count = threads;
         decoder->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
+        decoder->skip_loop_filter = AVDISCARD_ALL;
+        decoder->skip_idct = AVDISCARD_ALL;
     }
 
     ret = avcodec_open2(decoder, codec, NULL);
