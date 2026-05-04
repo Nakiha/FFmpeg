@@ -1,9 +1,17 @@
-#ifndef AVCODEC_VOIDPLAYER_VBS3_H
-#define AVCODEC_VOIDPLAYER_VBS3_H
+#ifndef AVCODEC_VOIDPLAYER_VBS4_H
+#define AVCODEC_VOIDPLAYER_VBS4_H
 
 #include <stdint.h>
 
-typedef struct VoidPlayerVbs3FrameInfo {
+enum VoidPlayerVbs4Codec {
+    VOIDPLAYER_VBS4_CODEC_H264 = 1,
+    VOIDPLAYER_VBS4_CODEC_HEVC = 2,
+    VOIDPLAYER_VBS4_CODEC_VVC  = 3,
+    VOIDPLAYER_VBS4_CODEC_VP9  = 4,
+    VOIDPLAYER_VBS4_CODEC_MPEG2 = 5,
+};
+
+typedef struct VoidPlayerVbs4FrameInfo {
     int32_t poc;
     uint32_t width;
     uint32_t height;
@@ -16,16 +24,19 @@ typedef struct VoidPlayerVbs3FrameInfo {
     int32_t ref_pocs_l1[15];
     uint32_t expected_cus;
     uintptr_t frame_identity;
-} VoidPlayerVbs3FrameInfo;
+} VoidPlayerVbs4FrameInfo;
 
-int ff_voidplayer_vbs3_start(const char *path, uint32_t width, uint32_t height);
-int ff_voidplayer_vbs3_finish(void);
-void ff_voidplayer_vbs3_abort(void);
-int ff_voidplayer_vbs3_is_active(void);
-uint32_t ff_voidplayer_vbs3_frame_count(void);
-uint32_t ff_voidplayer_vbs3_last_frame_cu_count(void);
+int ff_voidplayer_vbs4_start(const char *path,
+                             uint32_t width,
+                             uint32_t height,
+                             uint16_t codec);
+int ff_voidplayer_vbs4_finish(void);
+void ff_voidplayer_vbs4_abort(void);
+int ff_voidplayer_vbs4_is_active(void);
+uint32_t ff_voidplayer_vbs4_frame_count(void);
+uint32_t ff_voidplayer_vbs4_last_frame_cu_count(void);
 
-void ff_voidplayer_vbs3_write_intra_cu(const VoidPlayerVbs3FrameInfo *info,
+void ff_voidplayer_vbs4_write_intra_cu(const VoidPlayerVbs4FrameInfo *info,
                                        uint16_t x,
                                        uint16_t y,
                                        uint8_t w,
@@ -36,7 +47,7 @@ void ff_voidplayer_vbs3_write_intra_cu(const VoidPlayerVbs3FrameInfo *info,
                                        uint8_t mip_flag,
                                        uint8_t isp_mode);
 
-void ff_voidplayer_vbs3_write_inter_cu(const VoidPlayerVbs3FrameInfo *info,
+void ff_voidplayer_vbs4_write_inter_cu(const VoidPlayerVbs4FrameInfo *info,
                                        uint16_t x,
                                        uint16_t y,
                                        uint8_t w,
@@ -53,7 +64,9 @@ void ff_voidplayer_vbs3_write_inter_cu(const VoidPlayerVbs3FrameInfo *info,
                                        int8_t ref_l0,
                                        int8_t ref_l1);
 
-void ff_voidplayer_vbs3_write_h264_mb(const VoidPlayerVbs3FrameInfo *info,
+void ff_voidplayer_vbs4_write_h264_mb(const VoidPlayerVbs4FrameInfo *info,
+                                      uint16_t x,
+                                      uint16_t y,
                                       uint8_t qp,
                                       uint8_t is_intra,
                                       uint8_t intra_mode,

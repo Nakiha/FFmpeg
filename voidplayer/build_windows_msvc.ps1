@@ -7,7 +7,10 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
+$VendorRoot = Split-Path -Parent $RepoRoot
+$ZstdRoot = Join-Path $VendorRoot "zstd"
 $BuildDir = Join-Path $RepoRoot "build/windows-msvc-$Configuration"
+$ZstdBuildDir = Join-Path $BuildDir "zstd"
 $OutputDir = Join-Path $RepoRoot "bin/windows-x64"
 $MsysBash = "C:\msys64\usr\bin\bash.exe"
 $NasmDir = "C:\Users\Nakiha\AppData\Local\bin\NASM"
@@ -21,6 +24,9 @@ if (!(Test-Path $VcVars)) {
 }
 if (!(Test-Path (Join-Path $NasmDir "nasm.exe"))) {
     throw "NASM not found: $NasmDir"
+}
+if (!(Test-Path (Join-Path $ZstdRoot "build\cmake\CMakeLists.txt"))) {
+    throw "zstd source tree not found or incomplete: $ZstdRoot"
 }
 
 if ($Clean -and (Test-Path $BuildDir)) {
@@ -39,8 +45,12 @@ function Convert-ToMsysPath([string]$Path) {
 $repoRootMsys = Convert-ToMsysPath $RepoRoot
 $buildDirMsys = Convert-ToMsysPath $BuildDir
 $nasmDirMsys = Convert-ToMsysPath $NasmDir
+$zstdIncludeMsys = Convert-ToMsysPath (Join-Path $ZstdRoot "lib")
+$zstdLib = Join-Path $ZstdBuildDir "lib\Release\zstd_static.lib"
+$zstdLibMsys = Convert-ToMsysPath $zstdLib
 $bashFile = Join-Path $BuildDir "build_voidplayer.sh"
 $bashFileMsys = Convert-ToMsysPath $bashFile
+$cmdFile = Join-Path $BuildDir "build_voidplayer.cmd"
 
 $configureCommand = ""
 if (!$SkipConfigure) {
@@ -58,6 +68,8 @@ if (!$SkipConfigure) {
   --disable-swresample \
   --disable-swscale \
   --disable-everything \
+  --extra-cflags="-DVOIDPLAYER_VBS4_ZSTD=1 -I$zstdIncludeMsys" \
+  --extra-ldexeflags="$zstdLibMsys" \
   --enable-decoder=hevc,h264,av1,vp9,mpeg2video \
   --enable-parser=hevc,h264,av1,vp9,mpegvideo \
   --enable-demuxer=mov,matroska,hevc,h264,ivf,mpegvideo,mpegts \
@@ -80,9 +92,18 @@ make -j`$(nproc) tools/void_ffmpeg_analyzer.exe
 
 Set-Content -LiteralPath $bashFile -Value $bashScript -Encoding ASCII
 
-$cmd = "`"$VcVars`" && `"$MsysBash`" `"$bashFileMsys`""
+$cmdScript = @"
+call "$VcVars"
+cmake -S "$($ZstdRoot)\build\cmake" -B "$ZstdBuildDir" -G "Visual Studio 18 2026" -A x64 -DZSTD_BUILD_SHARED=OFF -DZSTD_BUILD_STATIC=ON -DZSTD_BUILD_PROGRAMS=OFF -DZSTD_BUILD_TESTS=OFF -DZSTD_BUILD_CONTRIB=OFF -DZSTD_LEGACY_SUPPORT=OFF -DZSTD_MULTITHREAD_SUPPORT=OFF -DZSTD_USE_STATIC_RUNTIME=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+if errorlevel 1 exit /b %errorlevel%
+cmake --build "$ZstdBuildDir" --config Release --target libzstd_static
+if errorlevel 1 exit /b %errorlevel%
+"$MsysBash" "$bashFileMsys"
+"@
 
-cmd.exe /d /s /c $cmd
+Set-Content -LiteralPath $cmdFile -Value $cmdScript -Encoding ASCII
+
+cmd.exe /d /s /c "`"$cmdFile`""
 if ($LASTEXITCODE -ne 0) {
     throw "FFmpeg analyzer build failed with exit code $LASTEXITCODE"
 }
