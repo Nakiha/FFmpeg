@@ -862,6 +862,8 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
     int16_t mv_l1_x = 0;
     int16_t mv_l1_y = 0;
     int poc;
+    VoidPlayerVbs3FrameInfo frame_info = { 0 };
+    int i;
 
     if (!ff_voidplayer_vbs3_is_active() || w <= 0 || hgt <= 0)
         return;
@@ -869,20 +871,25 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
     voidplayer_h264_ref_pocs(sl, 0, ref_pocs_l0, &num_ref_l0);
     voidplayer_h264_ref_pocs(sl, 1, ref_pocs_l1, &num_ref_l1);
     poc = h->cur_pic_ptr ? h->cur_pic_ptr->poc : h->cur_pic.poc;
-    ff_voidplayer_vbs3_begin_frame(poc,
-                                   frame_width,
-                                   frame_height,
-                                   0,
-                                   voidplayer_h264_slice_type(sl->slice_type_nos),
-                                   (uint8_t)h->nal_unit_type,
-                                   num_ref_l0,
-                                   num_ref_l1,
-                                   ref_pocs_l0,
-                                   ref_pocs_l1);
+    frame_info.poc = poc;
+    frame_info.width = frame_width;
+    frame_info.height = frame_height;
+    frame_info.temporal_id = 0;
+    frame_info.slice_type = voidplayer_h264_slice_type(sl->slice_type_nos);
+    frame_info.nal_unit_type = (uint8_t)h->nal_unit_type;
+    frame_info.num_ref_l0 = num_ref_l0;
+    frame_info.num_ref_l1 = num_ref_l1;
+    frame_info.expected_cus = h->mb_width * h->mb_height;
+    frame_info.frame_identity = (uintptr_t)h->cur_pic_ptr;
+    for (i = 0; i < 15; ++i) {
+        frame_info.ref_pocs_l0[i] = ref_pocs_l0[i];
+        frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];
+    }
 
     qp = (uint8_t)av_clip_uint8(h->cur_pic.qscale_table ? h->cur_pic.qscale_table[mb_xy] : sl->qscale);
     if (IS_INTRA(mb_type)) {
-        ff_voidplayer_vbs3_write_intra_cu((uint16_t)x,
+        ff_voidplayer_vbs3_write_intra_cu(&frame_info,
+                                          (uint16_t)x,
                                           (uint16_t)y,
                                           (uint8_t)w,
                                           (uint8_t)hgt,
@@ -913,7 +920,8 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
         }
     }
 
-    ff_voidplayer_vbs3_write_inter_cu((uint16_t)x,
+    ff_voidplayer_vbs3_write_inter_cu(&frame_info,
+                                      (uint16_t)x,
                                       (uint16_t)y,
                                       (uint8_t)w,
                                       (uint8_t)hgt,
