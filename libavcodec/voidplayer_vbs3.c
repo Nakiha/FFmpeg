@@ -6,6 +6,7 @@
 
 #include "libavutil/error.h"
 #include "libavutil/mem.h"
+#include "libavutil/thread.h"
 
 #pragma pack(push, 1)
 typedef struct Vbs3Header {
@@ -111,9 +112,36 @@ typedef struct VoidVbs3State {
     uint8_t qp_max;
     int frame_active;
     int error;
+    AVMutex lock;
+    int lock_initialized;
 } VoidVbs3State;
 
 static VoidVbs3State g_vbs3;
+
+static void vbs3_lock(void)
+{
+    if (g_vbs3.lock_initialized)
+        ff_mutex_lock(&g_vbs3.lock);
+}
+
+static void vbs3_unlock(void)
+{
+    if (g_vbs3.lock_initialized)
+        ff_mutex_unlock(&g_vbs3.lock);
+}
+
+static void reset_state(void)
+{
+    int had_lock = g_vbs3.lock_initialized;
+
+    if (g_vbs3.file)
+        fclose(g_vbs3.file);
+    av_freep(&g_vbs3.summaries);
+    av_freep(&g_vbs3.cu_index);
+    if (had_lock)
+        ff_mutex_destroy(&g_vbs3.lock);
+    memset(&g_vbs3, 0, sizeof(g_vbs3));
+}
 
 static void set_fourcc(char dst[4], const char src[4])
 {
@@ -182,15 +210,23 @@ static int write_cu_record(const void *common, size_t common_size,
                            const void *extra, size_t extra_size,
                            uint8_t qp)
 {
-    if (!g_vbs3.file || g_vbs3.error)
-        return g_vbs3.error ? g_vbs3.error : AVERROR(EINVAL);
-    if (!g_vbs3.frame_active)
-        return AVERROR(EINVAL);
+    int ret = 0;
+
+    vbs3_lock();
+    if (!g_vbs3.file || g_vbs3.error) {
+        ret = g_vbs3.error ? g_vbs3.error : AVERROR(EINVAL);
+        goto done;
+    }
+    if (!g_vbs3.frame_active) {
+        ret = AVERROR(EINVAL);
+        goto done;
+    }
 
     if (write_exact(g_vbs3.file, common, common_size) < 0 ||
         write_exact(g_vbs3.file, extra, extra_size) < 0) {
         g_vbs3.error = AVERROR(EIO);
-        return g_vbs3.error;
+        ret = g_vbs3.error;
+        goto done;
     }
 
     g_vbs3.current_cu_count++;
@@ -201,7 +237,10 @@ static int write_cu_record(const void *common, size_t common_size,
         g_vbs3.qp_min = qp;
     if (g_vbs3.current_cu_count == 1 || qp > g_vbs3.qp_max)
         g_vbs3.qp_max = qp;
-    return 0;
+
+done:
+    vbs3_unlock();
+    return ret;
 }
 
 static Vbs3SectionEntry make_section(const char type[4],
@@ -224,20 +263,29 @@ static Vbs3SectionEntry make_section(const char type[4],
 int ff_voidplayer_vbs3_start(const char *path, uint32_t width, uint32_t height)
 {
     Vbs3Header header;
+    int ret;
 
     ff_voidplayer_vbs3_abort();
     if (!path)
         return AVERROR(EINVAL);
 
+    ret = ff_mutex_init(&g_vbs3.lock, NULL);
+    if (ret)
+        return AVERROR(EINVAL);
+    g_vbs3.lock_initialized = 1;
+
     g_vbs3.file = fopen(path, "w+b");
-    if (!g_vbs3.file)
-        return AVERROR(errno ? errno : EIO);
+    if (!g_vbs3.file) {
+        ret = AVERROR(errno ? errno : EIO);
+        reset_state();
+        return ret;
+    }
 
     g_vbs3.width = width;
     g_vbs3.height = height;
     memset(&header, 0, sizeof(header));
     if (write_exact(g_vbs3.file, &header, sizeof(header)) < 0) {
-        ff_voidplayer_vbs3_abort();
+        reset_state();
         return AVERROR(EIO);
     }
     return 0;
@@ -309,17 +357,15 @@ done:
     g_vbs3.file = NULL;
     av_freep(&g_vbs3.summaries);
     av_freep(&g_vbs3.cu_index);
-    g_vbs3.frame_capacity = 0;
+    if (g_vbs3.lock_initialized)
+        ff_mutex_destroy(&g_vbs3.lock);
+    memset(&g_vbs3, 0, sizeof(g_vbs3));
     return ret;
 }
 
 void ff_voidplayer_vbs3_abort(void)
 {
-    if (g_vbs3.file)
-        fclose(g_vbs3.file);
-    av_freep(&g_vbs3.summaries);
-    av_freep(&g_vbs3.cu_index);
-    memset(&g_vbs3, 0, sizeof(g_vbs3));
+    reset_state();
 }
 
 int ff_voidplayer_vbs3_is_active(void)
@@ -329,16 +375,25 @@ int ff_voidplayer_vbs3_is_active(void)
 
 uint32_t ff_voidplayer_vbs3_frame_count(void)
 {
-    return g_vbs3.frame_count + (g_vbs3.frame_active ? 1 : 0);
+    uint32_t frame_count;
+
+    vbs3_lock();
+    frame_count = g_vbs3.frame_count + (g_vbs3.frame_active ? 1 : 0);
+    vbs3_unlock();
+    return frame_count;
 }
 
 uint32_t ff_voidplayer_vbs3_last_frame_cu_count(void)
 {
+    uint32_t cu_count = 0;
+
+    vbs3_lock();
     if (g_vbs3.frame_active)
-        return g_vbs3.current_cu_count;
-    if (g_vbs3.frame_count)
-        return g_vbs3.cu_index[g_vbs3.frame_count - 1].cu_count;
-    return 0;
+        cu_count = g_vbs3.current_cu_count;
+    else if (g_vbs3.frame_count)
+        cu_count = g_vbs3.cu_index[g_vbs3.frame_count - 1].cu_count;
+    vbs3_unlock();
+    return cu_count;
 }
 
 void ff_voidplayer_vbs3_begin_frame(int32_t poc,
@@ -356,12 +411,14 @@ void ff_voidplayer_vbs3_begin_frame(int32_t poc,
 
     if (!ff_voidplayer_vbs3_is_active())
         return;
+
+    vbs3_lock();
     if (g_vbs3.frame_active && g_vbs3.current_summary.poc == poc)
-        return;
+        goto done;
 
     end_current_frame();
     if (g_vbs3.error)
-        return;
+        goto done;
 
     if (width)
         g_vbs3.width = width;
@@ -392,6 +449,9 @@ void ff_voidplayer_vbs3_begin_frame(int32_t poc,
     g_vbs3.qp_min = 0;
     g_vbs3.qp_max = 0;
     g_vbs3.frame_active = 1;
+
+done:
+    vbs3_unlock();
 }
 
 void ff_voidplayer_vbs3_write_intra_cu(uint16_t x,

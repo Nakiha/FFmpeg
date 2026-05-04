@@ -17,6 +17,7 @@
 #include "libavcodec/voidplayer_vbs3.h"
 #include "libavformat/avformat.h"
 #include "libavutil/avutil.h"
+#include "libavutil/cpu.h"
 #include "libavutil/error.h"
 #include "libavutil/frame.h"
 #include "libavutil/mem.h"
@@ -526,8 +527,14 @@ static int decode_vbs3(const AnalyzerOptions *options,
     instrumented_vbs3 = codecpar->codec_id == AV_CODEC_ID_HEVC ||
                         codecpar->codec_id == AV_CODEC_ID_H264;
     if (instrumented_vbs3) {
-        decoder->thread_count = 1;
-        decoder->thread_type = 0;
+        int threads = av_cpu_count();
+
+        if (threads < 2)
+            threads = 2;
+        if (threads > 16)
+            threads = 16;
+        decoder->thread_count = threads;
+        decoder->thread_type = FF_THREAD_SLICE;
     }
 
     ret = avcodec_open2(decoder, codec, NULL);
