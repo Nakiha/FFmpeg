@@ -397,11 +397,13 @@ static int flv_same_video_codec(AVCodecParameters *vpar, uint32_t flv_codecid)
 
     switch (flv_codecid) {
     case MKBETAG('v', 'v', 'c', '1'):
+    case FLV_CODECID_X_VVC:
         return vpar->codec_id == AV_CODEC_ID_VVC;
     case FLV_CODECID_X_HEVC:
     case MKBETAG('h', 'v', 'c', '1'):
         return vpar->codec_id == AV_CODEC_ID_HEVC;
     case MKBETAG('a', 'v', '0', '1'):
+    case FLV_CODECID_X_AV1:
         return vpar->codec_id == AV_CODEC_ID_AV1;
     case MKBETAG('v', 'p', '0', '9'):
         return vpar->codec_id == AV_CODEC_ID_VP9;
@@ -433,6 +435,7 @@ static int flv_set_video_codec(AVFormatContext *s, AVStream *vstream,
 
     switch (flv_codecid) {
     case MKBETAG('v', 'v', 'c', '1'):
+    case FLV_CODECID_X_VVC:
         par->codec_id = AV_CODEC_ID_VVC;
         vstreami->need_parsing = AVSTREAM_PARSE_HEADERS;
         break;
@@ -442,6 +445,7 @@ static int flv_set_video_codec(AVFormatContext *s, AVStream *vstream,
         vstreami->need_parsing = AVSTREAM_PARSE_HEADERS;
         break;
     case MKBETAG('a', 'v', '0', '1'):
+    case FLV_CODECID_X_AV1:
         par->codec_id = AV_CODEC_ID_AV1;
         vstreami->need_parsing = AVSTREAM_PARSE_HEADERS;
         break;
@@ -1780,6 +1784,7 @@ retry_duration:
             }
 
             if (st->codecpar->codec_id == AV_CODEC_ID_MPEG4 ||
+                (!enhanced_flv && st->codecpar->codec_id == AV_CODEC_ID_AV1) ||
                 ((st->codecpar->codec_id == AV_CODEC_ID_H264 ||
                   st->codecpar->codec_id == AV_CODEC_ID_VVC ||
                   st->codecpar->codec_id == AV_CODEC_ID_HEVC) &&
@@ -1810,6 +1815,13 @@ retry_duration:
                 st->codecpar->codec_id == AV_CODEC_ID_VVC ||
                 st->codecpar->codec_id == AV_CODEC_ID_AV1 || st->codecpar->codec_id == AV_CODEC_ID_VP9)) {
                 AVDictionaryEntry *t;
+
+                if (!enhanced_flv && st->codecpar->codec_id == AV_CODEC_ID_AV1 &&
+                    track_size >= 4) {
+                    avio_skip(s->pb, 4);
+                    size -= 4;
+                    track_size -= 4;
+                }
 
                 if (st->codecpar->extradata) {
                     if ((ret = flv_queue_extradata(flv, s->pb, multitrack ? track_idx : stream_type, track_size, multitrack)) < 0)
