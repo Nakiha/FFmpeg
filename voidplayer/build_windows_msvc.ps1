@@ -1,7 +1,10 @@
 param(
     [string]$Configuration = "analysis-minimal",
     [switch]$SkipConfigure,
-    [switch]$Clean
+    [switch]$Clean,
+    [string]$MsysBash = "",
+    [string]$NasmDir = "",
+    [string]$VcVars = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,9 +15,59 @@ $ZstdRoot = Join-Path $VendorRoot "zstd"
 $BuildDir = Join-Path $RepoRoot "build/windows-msvc-$Configuration"
 $ZstdBuildDir = Join-Path $BuildDir "zstd"
 $OutputDir = Join-Path $RepoRoot "bin/windows-x64"
-$MsysBash = "C:\msys64\usr\bin\bash.exe"
-$NasmDir = "C:\Users\Nakiha\AppData\Local\bin\NASM"
-$VcVars = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+function Resolve-FirstExistingPath([string[]]$Candidates) {
+    foreach ($candidate in $Candidates) {
+        if ($candidate -and (Test-Path $candidate)) {
+            return (Resolve-Path $candidate).Path
+        }
+    }
+    return ""
+}
+
+function Resolve-CommandPath([string]$Name) {
+    $command = Get-Command $Name -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+    return ""
+}
+
+if (!$MsysBash) {
+    $MsysBash = Resolve-FirstExistingPath @(
+        "C:\msys64\usr\bin\bash.exe",
+        "C:\msys64\ucrt64\bin\bash.exe",
+        (Resolve-CommandPath "bash.exe")
+    )
+}
+
+if (!$NasmDir) {
+    $nasmExe = Resolve-FirstExistingPath @(
+        (Resolve-CommandPath "nasm.exe"),
+        "C:\msys64\ucrt64\bin\nasm.exe",
+        "C:\msys64\mingw64\bin\nasm.exe",
+        "C:\Program Files\NASM\nasm.exe",
+        "$env:LOCALAPPDATA\bin\NASM\nasm.exe"
+    )
+    if ($nasmExe) {
+        $NasmDir = Split-Path -Parent $nasmExe
+    }
+}
+
+if (!$VcVars) {
+    $vsRoots = @(
+        "C:\Program Files\Microsoft Visual Studio",
+        "C:\Program Files (x86)\Microsoft Visual Studio"
+    )
+    $vcVarsCandidates = @()
+    foreach ($root in $vsRoots) {
+        if (Test-Path $root) {
+            $vcVarsCandidates += Get-ChildItem -LiteralPath $root -Recurse -Filter vcvars64.bat -ErrorAction SilentlyContinue |
+                Sort-Object FullName -Descending |
+                Select-Object -ExpandProperty FullName
+        }
+    }
+    $VcVars = Resolve-FirstExistingPath $vcVarsCandidates
+}
 
 if (!(Test-Path $MsysBash)) {
     throw "MSYS2 bash not found: $MsysBash"
