@@ -125,7 +125,7 @@ if (!$SkipConfigure) {
   --extra-ldexeflags="$zstdLibMsys" \
   --enable-decoder=hevc,h264,av1,vp9,mpeg2video \
   --enable-parser=hevc,h264,av1,vp9,mpegvideo \
-  --enable-demuxer=mov,matroska,hevc,h264,ivf,mpegvideo,mpegts \
+  --enable-demuxer=mov,matroska,flv,hevc,h264,ivf,mpegvideo,mpegts \
   --enable-protocol=file
 "@
 }

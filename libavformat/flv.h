@@ -120,6 +120,8 @@ enum {
 
     // non-standard protocol extension that is in use in the wild
     FLV_CODECID_X_HEVC  = 12,
+    FLV_CODECID_X_AV1   = 13,
+    FLV_CODECID_X_VVC   = 14,
 };
 
 enum {
