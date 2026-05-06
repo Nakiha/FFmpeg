@@ -1,9 +1,10 @@
 param(
     [string]$Configuration = "analysis-minimal",
+    [string]$MsysBash = $env:MSYS2_BASH,
+    [string]$NasmPath = $env:VOID_NASM,
+    [string]$NasmDir = $env:VOID_NASM_DIR,
     [switch]$SkipConfigure,
     [switch]$Clean,
-    [string]$MsysBash = "",
-    [string]$NasmDir = "",
     [string]$VcVars = ""
 )
 
@@ -32,7 +33,7 @@ function Resolve-CommandPath([string]$Name) {
     return ""
 }
 
-if (!$MsysBash) {
+if ([string]::IsNullOrWhiteSpace($MsysBash)) {
     $MsysBash = Resolve-FirstExistingPath @(
         "C:\msys64\usr\bin\bash.exe",
         "C:\msys64\ucrt64\bin\bash.exe",
@@ -40,20 +41,39 @@ if (!$MsysBash) {
     )
 }
 
-if (!$NasmDir) {
+function Resolve-NasmExe {
+    if (![string]::IsNullOrWhiteSpace($NasmPath)) {
+        if (Test-Path $NasmPath) {
+            return (Resolve-Path $NasmPath).Path
+        }
+        throw "NASM not found at VOID_NASM/NasmPath: $NasmPath"
+    }
+
+    if (![string]::IsNullOrWhiteSpace($NasmDir)) {
+        $candidate = Join-Path $NasmDir "nasm.exe"
+        if (Test-Path $candidate) {
+            return (Resolve-Path $candidate).Path
+        }
+        throw "NASM not found at VOID_NASM_DIR/NasmDir: $candidate"
+    }
+
     $nasmExe = Resolve-FirstExistingPath @(
         (Resolve-CommandPath "nasm.exe"),
-        "C:\msys64\ucrt64\bin\nasm.exe",
-        "C:\msys64\mingw64\bin\nasm.exe",
         "C:\Program Files\NASM\nasm.exe",
+        "C:\Program Files (x86)\NASM\nasm.exe",
+        "C:\msys64\usr\bin\nasm.exe",
+        "C:\msys64\mingw64\bin\nasm.exe",
+        "C:\msys64\ucrt64\bin\nasm.exe",
         "$env:LOCALAPPDATA\bin\NASM\nasm.exe"
     )
     if ($nasmExe) {
-        $NasmDir = Split-Path -Parent $nasmExe
+        return $nasmExe
     }
+
+    throw "NASM not found. Install NASM and add nasm.exe to PATH, or set VOID_NASM to nasm.exe / VOID_NASM_DIR to its directory."
 }
 
-if (!$VcVars) {
+if ([string]::IsNullOrWhiteSpace($VcVars)) {
     $vsRoots = @(
         "C:\Program Files\Microsoft Visual Studio",
         "C:\Program Files (x86)\Microsoft Visual Studio"
@@ -69,14 +89,14 @@ if (!$VcVars) {
     $VcVars = Resolve-FirstExistingPath $vcVarsCandidates
 }
 
+$NasmExe = Resolve-NasmExe
+$NasmDir = Split-Path -Parent $NasmExe
+
 if (!(Test-Path $MsysBash)) {
     throw "MSYS2 bash not found: $MsysBash"
 }
 if (!(Test-Path $VcVars)) {
     throw "Visual Studio vcvars64.bat not found: $VcVars"
-}
-if (!(Test-Path (Join-Path $NasmDir "nasm.exe"))) {
-    throw "NASM not found: $NasmDir"
 }
 if (!(Test-Path (Join-Path $ZstdRoot "build\cmake\CMakeLists.txt"))) {
     throw "zstd source tree not found or incomplete: $ZstdRoot"
@@ -137,7 +157,7 @@ export CHERE_INVOKING=1
 export PATH="/usr/bin:${nasmDirMsys}:`$PATH"
 command -v cl.exe
 command -v make
-command -v nasm.exe
+command -v nasm.exe || command -v nasm
 cd "$buildDirMsys"
 $configureCommand
 make -j`$(nproc) tools/void_ffmpeg_analyzer.exe
