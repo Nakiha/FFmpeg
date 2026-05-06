@@ -24,6 +24,8 @@ typedef struct VoidPlayerVbs4FrameInfo {
     int32_t ref_pocs_l1[15];
     uint32_t expected_cus;
     uintptr_t frame_identity;
+    uint64_t coded_order_key;
+    uint8_t has_coded_order_key;
 } VoidPlayerVbs4FrameInfo;
 
 int ff_voidplayer_vbs4_start(const char *path,

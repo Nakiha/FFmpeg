@@ -2487,10 +2487,15 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
     frame_info.nal_unit_type = (uint8_t)s->nal_unit_type;
     frame_info.num_ref_l0 = num_ref_l0;
     frame_info.num_ref_l1 = num_ref_l1;
-    if (s->cur_frame->f && s->cur_frame->f->pts != AV_NOPTS_VALUE)
+    if (s->cur_frame->f && s->cur_frame->f->opaque) {
+        frame_info.frame_identity = (uintptr_t)s->cur_frame->f->opaque;
+        frame_info.coded_order_key = (uint64_t)(uintptr_t)s->cur_frame->f->opaque;
+        frame_info.has_coded_order_key = 1;
+    } else if (s->cur_frame->f && s->cur_frame->f->pts != AV_NOPTS_VALUE) {
         frame_info.frame_identity = (uintptr_t)(s->cur_frame->f->pts + 1);
-    else
+    } else {
         frame_info.frame_identity = (uintptr_t)s->cur_frame;
+    }
     for (i = 0; i < 15; ++i) {
         frame_info.ref_pocs_l0[i] = ref_pocs_l0[i];
         frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];

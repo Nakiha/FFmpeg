@@ -222,6 +222,7 @@ static int decode_vbs4(const AnalyzerOptions *options,
     uint16_t vbs4_codec = vbs4_codec_from_avcodec(codecpar->codec_id);
     int writer_started = 0;
     int ret = 0;
+    uint64_t video_packet_index = 0;
 
     if (!vbs4_codec) {
         fprintf(stderr, "VBS4 generation is only implemented for H.265/H.264 in this analyzer build.\n");
@@ -248,6 +249,7 @@ static int decode_vbs4(const AnalyzerOptions *options,
     if (ret < 0)
         goto done;
     decoder->pkt_timebase = stream->time_base;
+    decoder->flags |= AV_CODEC_FLAG_COPY_OPAQUE;
 
     {
         int threads = av_cpu_count();
@@ -255,6 +257,11 @@ static int decode_vbs4(const AnalyzerOptions *options,
             threads = 2;
         if (threads > 16)
             threads = 16;
+        /*
+         * Decoder workers may finish pictures out of packet order when frame
+         * threading is enabled. Each packet gets a COPY_OPAQUE coded-order key;
+         * the VBS4 writer uses that key to sort frame summaries before writing.
+         */
         decoder->thread_count = threads;
         decoder->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
         decoder->skip_loop_filter = AVDISCARD_ALL;
@@ -275,7 +282,9 @@ static int decode_vbs4(const AnalyzerOptions *options,
 
     while ((ret = av_read_frame(format, packet)) >= 0) {
         if (packet->stream_index == stream_index) {
+            packet->opaque = (void *)(uintptr_t)(video_packet_index + 1);
             ret = avcodec_send_packet(decoder, packet);
+            video_packet_index++;
             if (ret < 0) {
                 av_packet_unref(packet);
                 goto done;
