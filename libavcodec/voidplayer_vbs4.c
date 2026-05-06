@@ -6,6 +6,8 @@
 #include <string.h>
 #ifndef _WIN32
 #include <sys/types.h>
+#else
+#include <windows.h>
 #endif
 
 #if defined(VOIDPLAYER_VBS4_ZSTD)
@@ -268,6 +270,44 @@ typedef struct VoidVbs4State {
 } VoidVbs4State;
 
 static VoidVbs4State g_vbs4;
+
+static FILE *open_utf8_file(const char *path, const char *mode)
+{
+#ifdef _WIN32
+    wchar_t *wide_path = NULL;
+    wchar_t *wide_mode = NULL;
+    FILE *file = NULL;
+    int path_len;
+    int mode_len;
+
+    if (!path || !mode)
+        return NULL;
+
+    path_len = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
+    mode_len = MultiByteToWideChar(CP_UTF8, 0, mode, -1, NULL, 0);
+    if (path_len <= 0 || mode_len <= 0)
+        return NULL;
+
+    wide_path = (wchar_t *)av_malloc_array((size_t)path_len, sizeof(*wide_path));
+    wide_mode = (wchar_t *)av_malloc_array((size_t)mode_len, sizeof(*wide_mode));
+    if (!wide_path || !wide_mode)
+        goto done;
+
+    if (MultiByteToWideChar(CP_UTF8, 0, path, -1, wide_path, path_len) <= 0)
+        goto done;
+    if (MultiByteToWideChar(CP_UTF8, 0, mode, -1, wide_mode, mode_len) <= 0)
+        goto done;
+
+    file = _wfopen(wide_path, wide_mode);
+
+done:
+    av_free(wide_path);
+    av_free(wide_mode);
+    return file;
+#else
+    return fopen(path, mode);
+#endif
+}
 
 static void vbs4_lock(void)
 {
@@ -1154,7 +1194,7 @@ int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, 
         return AVERROR(EINVAL);
     g_vbs4.lock_initialized = 1;
 
-    g_vbs4.file = fopen(path, "w+b");
+    g_vbs4.file = open_utf8_file(path, "w+b");
     if (!g_vbs4.file) {
         ret = AVERROR(errno ? errno : EIO);
         reset_state();
