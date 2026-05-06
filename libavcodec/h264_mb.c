@@ -880,7 +880,13 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
     frame_info.num_ref_l0 = num_ref_l0;
     frame_info.num_ref_l1 = num_ref_l1;
     frame_info.expected_cus = h->mb_width * h->mb_height;
-    frame_info.frame_identity = (uintptr_t)h->cur_pic_ptr;
+    if (h->cur_pic_ptr && h->cur_pic_ptr->f && h->cur_pic_ptr->f->opaque) {
+        frame_info.frame_identity = (uintptr_t)h->cur_pic_ptr->f->opaque;
+        frame_info.coded_order_key = (uint64_t)(uintptr_t)h->cur_pic_ptr->f->opaque;
+        frame_info.has_coded_order_key = 1;
+    } else {
+        frame_info.frame_identity = (uintptr_t)h->cur_pic_ptr;
+    }
     for (i = 0; i < 15; ++i) {
         frame_info.ref_pocs_l0[i] = ref_pocs_l0[i];
         frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];

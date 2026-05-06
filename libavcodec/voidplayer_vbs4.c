@@ -205,6 +205,8 @@ typedef struct Vbs4FrameBuffer {
     uint8_t first_depth;
     int has_first_cu;
     uintptr_t frame_identity;
+    uint64_t coded_order_key;
+    int has_coded_order_key;
 } Vbs4FrameBuffer;
 
 typedef struct Vbs4BlockFrame {
@@ -651,6 +653,8 @@ static Vbs4FrameBuffer *get_or_create_frame(const VoidPlayerVbs4FrameInfo *info,
     memset(frame, 0, sizeof(*frame));
     fill_summary(&frame->summary, info);
     frame->frame_identity = info->frame_identity;
+    frame->coded_order_key = info->coded_order_key;
+    frame->has_coded_order_key = info->has_coded_order_key;
     g_vbs4.frame_count++;
     if (info->width)
         g_vbs4.width = info->width;
@@ -669,6 +673,29 @@ static int compare_cu_raster(const void *lhs, const void *rhs)
     if (a->x != b->x)
         return a->x < b->x ? -1 : 1;
     return 0;
+}
+
+static int compare_frame_coded_order_key(const void *lhs, const void *rhs)
+{
+    const Vbs4FrameBuffer *a = lhs;
+    const Vbs4FrameBuffer *b = rhs;
+
+    if (a->coded_order_key != b->coded_order_key)
+        return a->coded_order_key < b->coded_order_key ? -1 : 1;
+    if (a->summary.coded_order != b->summary.coded_order)
+        return a->summary.coded_order < b->summary.coded_order ? -1 : 1;
+    return 0;
+}
+
+static int all_frames_have_coded_order_keys(void)
+{
+    uint32_t i;
+
+    for (i = 0; i < g_vbs4.frame_count; ++i) {
+        if (!g_vbs4.frames[i].has_coded_order_key)
+            return 0;
+    }
+    return g_vbs4.frame_count > 0;
 }
 
 static int pending_reserve_frames(Vbs4PendingBlock *block, uint32_t count)
@@ -1175,6 +1202,10 @@ int ff_voidplayer_vbs4_finish(void)
         ret = AVERROR(EIO);
         goto done;
     }
+
+    if (all_frames_have_coded_order_keys())
+        qsort(g_vbs4.frames, g_vbs4.frame_count, sizeof(*g_vbs4.frames),
+              compare_frame_coded_order_key);
 
     for (i = 0; i < g_vbs4.frame_count; ++i) {
         Vbs4FrameBuffer *frame = &g_vbs4.frames[i];
