@@ -6,7 +6,12 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #include "libavcodec/avcodec.h"
 #include "libavcodec/codec_id.h"
@@ -357,7 +362,7 @@ static int analyze_input(const AnalyzerOptions *options, enum AVCodecID expected
     return ret;
 }
 
-int main(int argc, char **argv)
+static int analyzer_main(int argc, char **argv)
 {
     AnalyzerOptions options;
     enum AVCodecID expected_codec = AV_CODEC_ID_NONE;
@@ -377,3 +382,64 @@ int main(int argc, char **argv)
 
     return analyze_input(&options, expected_codec);
 }
+
+#ifdef _WIN32
+static char *utf8_from_utf16_arg(const wchar_t *wide)
+{
+    char *utf8;
+    int length;
+
+    if (!wide)
+        return NULL;
+
+    length = WideCharToMultiByte(CP_UTF8, 0, wide, -1, NULL, 0, NULL, NULL);
+    if (length <= 0)
+        return NULL;
+
+    utf8 = (char *)malloc((size_t)length);
+    if (!utf8)
+        return NULL;
+
+    if (WideCharToMultiByte(CP_UTF8, 0, wide, -1, utf8, length, NULL, NULL) <= 0) {
+        free(utf8);
+        return NULL;
+    }
+
+    return utf8;
+}
+
+int wmain(int argc, wchar_t **wargv)
+{
+    char **argv;
+    int i;
+    int ret;
+
+    argv = (char **)calloc((size_t)argc + 1, sizeof(*argv));
+    if (!argv) {
+        fprintf(stderr, "Out of memory while converting command line.\n");
+        return 1;
+    }
+
+    for (i = 0; i < argc; ++i) {
+        argv[i] = utf8_from_utf16_arg(wargv[i]);
+        if (!argv[i]) {
+            fprintf(stderr, "Failed to convert command line argument %d to UTF-8.\n", i);
+            ret = 1;
+            goto done;
+        }
+    }
+
+    ret = analyzer_main(argc, argv);
+
+done:
+    for (i = 0; i < argc; ++i)
+        free(argv[i]);
+    free(argv);
+    return ret;
+}
+#else
+int main(int argc, char **argv)
+{
+    return analyzer_main(argc, argv);
+}
+#endif
