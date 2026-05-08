@@ -5,7 +5,9 @@ param(
     [string]$NasmDir = $env:VOID_NASM_DIR,
     [switch]$SkipConfigure,
     [switch]$Clean,
-    [string]$VcVars = ""
+    [string]$VcVars = "",
+    [string]$CMakeGenerator = $env:CMAKE_GENERATOR,
+    [string]$CMakePlatform = "x64"
 )
 
 $ErrorActionPreference = "Stop"
@@ -169,9 +171,32 @@ make -j`$(nproc) tools/void_ffmpeg_analyzer.exe
 
 Set-Content -LiteralPath $bashFile -Value $bashScript -Encoding ASCII
 
+$zstdConfigureArgs = @(
+    '-S', "`"$($ZstdRoot)\build\cmake`"",
+    '-B', "`"$ZstdBuildDir`""
+)
+if (![string]::IsNullOrWhiteSpace($CMakeGenerator)) {
+    $zstdConfigureArgs += @('-G', "`"$CMakeGenerator`"")
+}
+if (![string]::IsNullOrWhiteSpace($CMakePlatform)) {
+    $zstdConfigureArgs += @('-A', $CMakePlatform)
+}
+$zstdConfigureArgs += @(
+    '-DZSTD_BUILD_SHARED=OFF',
+    '-DZSTD_BUILD_STATIC=ON',
+    '-DZSTD_BUILD_PROGRAMS=OFF',
+    '-DZSTD_BUILD_TESTS=OFF',
+    '-DZSTD_BUILD_CONTRIB=OFF',
+    '-DZSTD_LEGACY_SUPPORT=OFF',
+    '-DZSTD_MULTITHREAD_SUPPORT=OFF',
+    '-DZSTD_USE_STATIC_RUNTIME=ON',
+    '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'
+)
+$zstdConfigureCommand = "cmake " + ($zstdConfigureArgs -join " ")
+
 $cmdScript = @"
 call "$VcVars"
-cmake -S "$($ZstdRoot)\build\cmake" -B "$ZstdBuildDir" -G "Visual Studio 18 2026" -A x64 -DZSTD_BUILD_SHARED=OFF -DZSTD_BUILD_STATIC=ON -DZSTD_BUILD_PROGRAMS=OFF -DZSTD_BUILD_TESTS=OFF -DZSTD_BUILD_CONTRIB=OFF -DZSTD_LEGACY_SUPPORT=OFF -DZSTD_MULTITHREAD_SUPPORT=OFF -DZSTD_USE_STATIC_RUNTIME=ON -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+$zstdConfigureCommand
 if errorlevel 1 exit /b %errorlevel%
 cmake --build "$ZstdBuildDir" --config Release --target libzstd_static
 if errorlevel 1 exit /b %errorlevel%
