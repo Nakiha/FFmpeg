@@ -160,6 +160,10 @@ command -v make
 command -v nasm.exe || command -v nasm
 cd "$buildDirMsys"
 $configureCommand
+# FFmpeg generates demuxer_list.c during configure and allformats.c includes it.
+# The MSVC dependency file for allformats.o is empty here, so config changes such
+# as enabling the FLV demuxer can leave a stale registry object in incremental builds.
+rm -f libavformat/allformats.o libavformat/allformats.d
 make -j`$(nproc) tools/void_ffmpeg_analyzer.exe
 "@
 
