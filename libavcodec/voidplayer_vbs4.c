@@ -827,7 +827,7 @@ static int append_frame_to_pending(Vbs4PendingBlock *block, uint32_t frame_index
         block->first_record = (uint32_t)g_vbs4.total_records;
     }
 
-    block_frame.first_record = block->record_count;
+    block_frame.first_record = block->first_record + block->record_count;
     block_frame.record_count = frame->record_count;
     block->frames[block->frame_count++] = block_frame;
     if (frame->record_count) {
