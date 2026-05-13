@@ -30,17 +30,22 @@ typedef struct AnalyzerOptions {
     const char *codec;
     const char *input;
     const char *vbs4;
+    const char *vachunk;
     int probe_only;
     int has_start_frame;
     int has_end_frame;
+    int has_base_revision;
+    int has_generator_revision;
     uint64_t start_frame;
     uint64_t end_frame;
+    uint64_t base_revision;
+    uint64_t generator_revision;
 } AnalyzerOptions;
 
 static void print_usage(FILE *out)
 {
     fprintf(out,
-            "Usage: void_ffmpeg_analyzer --codec <codec> --input <path> [--probe-only | --vbs4 <path> [--start-frame <n> --end-frame <n>]]\n"
+            "Usage: void_ffmpeg_analyzer --codec <codec> --input <path> [--probe-only | --vbs4 <path> | --vachunk <path> --start-frame <n> --end-frame <n> --base-revision <n> --generator-revision <n>]\n"
             "\n"
             "Supported codec names: hevc, h265, h264\n"
             "\n"
@@ -124,6 +129,10 @@ static int parse_args(int argc, char **argv, AnalyzerOptions *options)
             options->vbs4 = argv[++i];
             continue;
         }
+        if (!strcmp(argv[i], "--vachunk") && i + 1 < argc) {
+            options->vachunk = argv[++i];
+            continue;
+        }
         if (!strcmp(argv[i], "--start-frame") && i + 1 < argc) {
             if (parse_u64_arg(argv[++i], &options->start_frame) < 0) {
                 fprintf(stderr, "Invalid --start-frame value.\n");
@@ -140,25 +149,59 @@ static int parse_args(int argc, char **argv, AnalyzerOptions *options)
             options->has_end_frame = 1;
             continue;
         }
+        if (!strcmp(argv[i], "--base-revision") && i + 1 < argc) {
+            if (parse_u64_arg(argv[++i], &options->base_revision) < 0) {
+                fprintf(stderr, "Invalid --base-revision value.\n");
+                return -1;
+            }
+            options->has_base_revision = 1;
+            continue;
+        }
+        if (!strcmp(argv[i], "--generator-revision") && i + 1 < argc) {
+            if (parse_u64_arg(argv[++i], &options->generator_revision) < 0) {
+                fprintf(stderr, "Invalid --generator-revision value.\n");
+                return -1;
+            }
+            options->has_generator_revision = 1;
+            continue;
+        }
 
         fprintf(stderr, "Unknown or incomplete argument: %s\n", argv[i]);
         print_usage(stderr);
         return -1;
     }
 
-    if (!options->codec || !options->input || (!options->probe_only && !options->vbs4)) {
+    if (!options->codec || !options->input ||
+        (!options->probe_only && !options->vbs4 && !options->vachunk)) {
         fprintf(stderr, "Missing required arguments.\n");
         print_usage(stderr);
         return -1;
     }
+    if (options->vbs4 && options->vachunk) {
+        fprintf(stderr, "--vbs4 and --vachunk are mutually exclusive.\n");
+        print_usage(stderr);
+        return -1;
+    }
     if ((options->has_start_frame || options->has_end_frame) && options->probe_only) {
-        fprintf(stderr, "Frame windows require --vbs4 generation.\n");
+        fprintf(stderr, "Frame windows require generation output.\n");
         print_usage(stderr);
         return -1;
     }
     if (options->has_start_frame && options->has_end_frame &&
         options->start_frame > options->end_frame) {
         fprintf(stderr, "--start-frame must be <= --end-frame.\n");
+        return -1;
+    }
+    if (options->vachunk &&
+        (!options->has_start_frame || !options->has_end_frame ||
+         !options->has_base_revision || !options->has_generator_revision)) {
+        fprintf(stderr, "--vachunk requires frame range and revision arguments.\n");
+        print_usage(stderr);
+        return -1;
+    }
+    if (options->vachunk &&
+        (options->start_frame > UINT32_MAX || options->end_frame > UINT32_MAX)) {
+        fprintf(stderr, "--vachunk frame range exceeds uint32 limits.\n");
         return -1;
     }
 
@@ -323,10 +366,17 @@ static int decode_vbs4(const AnalyzerOptions *options,
     if (ret < 0)
         goto done;
 
-    ret = ff_voidplayer_vbs4_start(options->vbs4,
-                                   decoder->width > 0 ? decoder->width : codecpar->width,
-                                   decoder->height > 0 ? decoder->height : codecpar->height,
-                                   vbs4_codec);
+    if (options->vachunk) {
+        ret = ff_voidplayer_vbs4_start_memory(
+            decoder->width > 0 ? decoder->width : codecpar->width,
+            decoder->height > 0 ? decoder->height : codecpar->height,
+            vbs4_codec);
+    } else {
+        ret = ff_voidplayer_vbs4_start(options->vbs4,
+                                       decoder->width > 0 ? decoder->width : codecpar->width,
+                                       decoder->height > 0 ? decoder->height : codecpar->height,
+                                       vbs4_codec);
+    }
     if (ret < 0)
         goto done;
     writer_started = 1;
@@ -380,11 +430,24 @@ static int decode_vbs4(const AnalyzerOptions *options,
             ret = 22;
             goto done;
         }
-        ret = ff_voidplayer_vbs4_finish();
+        if (options->vachunk) {
+            ret = ff_voidplayer_vbs4_finish_vachunk(
+                options->vachunk,
+                (uint32_t)options->start_frame,
+                (uint32_t)options->end_frame,
+                options->base_revision,
+                options->generator_revision);
+        } else {
+            ret = ff_voidplayer_vbs4_finish();
+        }
         writer_started = 0;
         if (ret < 0)
             goto done;
-        fprintf(stdout, "vbs4=%s\nframes=%u\n", options->vbs4, frames);
+        fprintf(stdout,
+                "%s=%s\nframes=%u\n",
+                options->vachunk ? "vachunk" : "vbs4",
+                options->vachunk ? options->vachunk : options->vbs4,
+                frames);
     }
 
 done:
