@@ -32,8 +32,16 @@ int ff_voidplayer_vbs4_start(const char *path,
                              uint32_t width,
                              uint32_t height,
                              uint16_t codec);
+int ff_voidplayer_vbs4_start_memory(uint32_t width,
+                                    uint32_t height,
+                                    uint16_t codec);
 int ff_voidplayer_vbs4_set_frame_window(uint64_t start_frame,
                                         uint64_t end_frame);
+int ff_voidplayer_vbs4_finish_vachunk(const char *path,
+                                      uint32_t source_start_frame,
+                                      uint32_t source_end_frame,
+                                      uint64_t base_content_revision,
+                                      uint64_t generator_revision);
 int ff_voidplayer_vbs4_finish(void);
 void ff_voidplayer_vbs4_abort(void);
 int ff_voidplayer_vbs4_is_active(void);

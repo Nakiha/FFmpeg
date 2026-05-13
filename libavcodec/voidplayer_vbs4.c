@@ -63,6 +63,13 @@
 #define VBS4_H264_MV_L1_X 12u
 #define VBS4_H264_MV_L1_Y 13u
 
+#define VACHUNK_VERSION_MAJOR 1u
+#define VACHUNK_VERSION_MINOR 0u
+#define VACHUNK_KIND_OVERLAY 3u
+#define VACHUNK_OVERLAY_FRAME_FLAG_COMPLETE 0x00000001u
+#define VACHUNK_OVERLAY_FRAME_FLAG_EXACT 0x00000002u
+#define VACHUNK_OVERLAY_FEATURE_FLAGS 0x000000000000011full
+
 #pragma pack(push, 1)
 typedef struct Vbs4Header {
     char     magic[4];
@@ -162,6 +169,85 @@ typedef struct Vbs4StreamEntry {
     uint32_t value_count;
     uint32_t flags;
 } Vbs4StreamEntry;
+
+typedef struct VachunkHeader {
+    char     magic[4];
+    uint16_t version_major;
+    uint16_t version_minor;
+    uint16_t header_size;
+    uint16_t section_entry_size;
+    uint32_t section_count;
+    uint16_t kind;
+    uint16_t codec;
+    uint64_t feature_flags;
+    uint64_t base_content_revision;
+    uint64_t generator_revision;
+    uint16_t track_index;
+    uint16_t reserved0;
+    uint32_t start_frame;
+    uint32_t end_frame;
+    uint32_t start_packet;
+    uint32_t end_packet;
+    uint32_t start_unit;
+    uint32_t end_unit;
+    uint64_t section_table_offset;
+    uint64_t file_size;
+    uint64_t checksum;
+    uint64_t reserved1[4];
+} VachunkHeader;
+
+typedef struct VachunkSectionEntry {
+    char     type[4];
+    uint32_t flags;
+    uint64_t offset;
+    uint64_t size;
+    uint32_t entry_size;
+    uint32_t entry_count;
+    uint64_t decoded_size;
+    uint64_t checksum;
+    uint64_t reserved;
+} VachunkSectionEntry;
+
+typedef struct VachunkOverlayFrameIndexEntry {
+    uint32_t frame_index;
+    uint32_t first_unit;
+    uint32_t unit_count;
+    uint32_t first_stream_value;
+    uint32_t flags;
+    uint32_t reserved;
+} VachunkOverlayFrameIndexEntry;
+
+typedef struct VachunkCuIntra {
+    uint8_t intra_mode;
+    uint8_t mip_flag;
+    uint8_t isp_mode;
+} VachunkCuIntra;
+
+typedef struct VachunkCuInter {
+    uint8_t  skip;
+    uint8_t  merge_flag;
+    uint8_t  inter_dir;
+    int16_t  mv_l0_x;
+    int16_t  mv_l0_y;
+    int16_t  mv_l1_x;
+    int16_t  mv_l1_y;
+    int8_t   ref_l0;
+    int8_t   ref_l1;
+} VachunkCuInter;
+
+typedef struct VachunkCuRecord {
+    uint16_t x;
+    uint16_t y;
+    uint8_t  w;
+    uint8_t  h;
+    uint8_t  depth;
+    uint8_t  qp;
+    uint8_t  pred_mode;
+    union {
+        VachunkCuIntra intra;
+        VachunkCuInter inter;
+    } data;
+} VachunkCuRecord;
 #pragma pack(pop)
 
 typedef char Vbs4HeaderMustBe80[(sizeof(Vbs4Header) == 80) ? 1 : -1];
@@ -171,6 +257,10 @@ typedef char Vbs4FidxMustBe24[(sizeof(Vbs4FrameIndexEntry) == 24) ? 1 : -1];
 typedef char Vbs4BidxMustBe64[(sizeof(Vbs4BlockIndexEntry) == 64) ? 1 : -1];
 typedef char Vbs4BlockHeaderMustBe32[(sizeof(Vbs4DecodedBlockHeader) == 32) ? 1 : -1];
 typedef char Vbs4StreamEntryMustBe20[(sizeof(Vbs4StreamEntry) == 20) ? 1 : -1];
+typedef char VachunkHeaderMustBe128[(sizeof(VachunkHeader) == 128) ? 1 : -1];
+typedef char VachunkSectionMustBe56[(sizeof(VachunkSectionEntry) == 56) ? 1 : -1];
+typedef char VachunkOverlayFrameIndexMustBe24[(sizeof(VachunkOverlayFrameIndexEntry) == 24) ? 1 : -1];
+typedef char VachunkCuRecordMustBe22[(sizeof(VachunkCuRecord) == 22) ? 1 : -1];
 
 typedef struct Vbs4CuRecord {
     uint16_t x;
@@ -267,6 +357,7 @@ typedef struct VoidVbs4State {
     int error;
     AVMutex lock;
     int lock_initialized;
+    int active;
     int has_frame_window;
     uint64_t start_frame;
     uint64_t end_frame;
@@ -1141,7 +1232,7 @@ static int append_cu_record(const VoidPlayerVbs4FrameInfo *info,
     int ret = 0;
 
     vbs4_lock();
-    if (!g_vbs4.file || g_vbs4.error) {
+    if (!g_vbs4.active || g_vbs4.error) {
         ret = g_vbs4.error ? g_vbs4.error : AVERROR(EINVAL);
         goto done;
     }
@@ -1194,7 +1285,7 @@ int ff_voidplayer_vbs4_set_frame_window(uint64_t start_frame, uint64_t end_frame
         return AVERROR(EINVAL);
 
     vbs4_lock();
-    if (!g_vbs4.file || g_vbs4.error) {
+    if (!g_vbs4.active || g_vbs4.error) {
         ret = g_vbs4.error ? g_vbs4.error : AVERROR(EINVAL);
         goto done;
     }
@@ -1207,14 +1298,11 @@ done:
     return ret;
 }
 
-int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, uint16_t codec)
+static int start_common(uint32_t width, uint32_t height, uint16_t codec)
 {
-    Vbs4Header header;
     int ret;
 
     ff_voidplayer_vbs4_abort();
-    if (!path)
-        return AVERROR(EINVAL);
     if (codec != VOIDPLAYER_VBS4_CODEC_H264 &&
         codec != VOIDPLAYER_VBS4_CODEC_HEVC)
         return AVERROR(ENOSYS);
@@ -1223,6 +1311,30 @@ int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, 
     if (ret)
         return AVERROR(EINVAL);
     g_vbs4.lock_initialized = 1;
+    g_vbs4.active = 1;
+    g_vbs4.codec = codec;
+    g_vbs4.profile = VBS4_PROFILE_FIRST;
+    g_vbs4.width = width;
+    g_vbs4.height = height;
+    return 0;
+}
+
+int ff_voidplayer_vbs4_start_memory(uint32_t width, uint32_t height, uint16_t codec)
+{
+    return start_common(width, height, codec);
+}
+
+int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, uint16_t codec)
+{
+    Vbs4Header header;
+    int ret;
+
+    if (!path)
+        return AVERROR(EINVAL);
+
+    ret = start_common(width, height, codec);
+    if (ret < 0)
+        return ret;
 
     g_vbs4.file = open_utf8_file(path, "w+b");
     if (!g_vbs4.file) {
@@ -1231,10 +1343,6 @@ int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, 
         return ret;
     }
 
-    g_vbs4.codec = codec;
-    g_vbs4.profile = VBS4_PROFILE_FIRST;
-    g_vbs4.width = width;
-    g_vbs4.height = height;
     g_vbs4.cpay_payload_offset = sizeof(Vbs4Header);
     memset(&header, 0, sizeof(header));
     if (write_exact(g_vbs4.file, &header, sizeof(header)) < 0) {
@@ -1242,6 +1350,213 @@ int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, 
         return AVERROR(EIO);
     }
     return 0;
+}
+
+static void finalize_frame_summaries(void)
+{
+    uint32_t i;
+
+    if (all_frames_have_coded_order_keys())
+        qsort(g_vbs4.frames, g_vbs4.frame_count, sizeof(*g_vbs4.frames),
+              compare_frame_coded_order_key);
+
+    for (i = 0; i < g_vbs4.frame_count; ++i) {
+        Vbs4FrameBuffer *frame = &g_vbs4.frames[i];
+
+        if (frame->summary.num_cus) {
+            frame->summary.avg_qp =
+                (uint8_t)((frame->qp_sum + frame->summary.num_cus / 2) / frame->summary.num_cus);
+        }
+        frame->summary.coded_order = i;
+        frame->summary.cu_index_entry = i;
+        if (g_vbs4.codec == VOIDPLAYER_VBS4_CODEC_H264 && frame->record_count > 1)
+            qsort(frame->records, frame->record_count, sizeof(*frame->records), compare_cu_raster);
+    }
+}
+
+static VachunkSectionEntry make_vachunk_section(const char type[4],
+                                                uint64_t offset,
+                                                uint64_t size,
+                                                uint32_t entry_size,
+                                                uint32_t entry_count)
+{
+    VachunkSectionEntry entry;
+
+    memset(&entry, 0, sizeof(entry));
+    set_fourcc(entry.type, type);
+    entry.offset = offset;
+    entry.size = size;
+    entry.entry_size = entry_size;
+    entry.entry_count = entry_count;
+    entry.decoded_size = size;
+    return entry;
+}
+
+static uint64_t total_frame_records(void)
+{
+    uint64_t total = 0;
+    uint32_t i;
+
+    for (i = 0; i < g_vbs4.frame_count; ++i)
+        total += g_vbs4.frames[i].record_count;
+    return total;
+}
+
+static VachunkCuRecord make_vachunk_cu_record(const Vbs4CuRecord *source)
+{
+    VachunkCuRecord out;
+
+    memset(&out, 0, sizeof(out));
+    out.x = source->x;
+    out.y = source->y;
+    out.w = source->w;
+    out.h = source->h;
+    out.depth = source->depth;
+    out.qp = source->qp;
+    out.pred_mode = source->pred_mode;
+    if (source->pred_mode == 1) {
+        out.data.intra.intra_mode = source->intra_mode;
+        out.data.intra.mip_flag = source->mip_flag;
+        out.data.intra.isp_mode = source->isp_mode;
+    } else {
+        out.data.inter.skip = source->skip;
+        out.data.inter.merge_flag = source->merge_flag;
+        out.data.inter.inter_dir = source->inter_dir;
+        out.data.inter.mv_l0_x = source->mv_l0_x;
+        out.data.inter.mv_l0_y = source->mv_l0_y;
+        out.data.inter.mv_l1_x = source->mv_l1_x;
+        out.data.inter.mv_l1_y = source->mv_l1_y;
+        out.data.inter.ref_l0 = source->ref_l0;
+        out.data.inter.ref_l1 = source->ref_l1;
+    }
+    return out;
+}
+
+int ff_voidplayer_vbs4_finish_vachunk(const char *path,
+                                      uint32_t source_start_frame,
+                                      uint32_t source_end_frame,
+                                      uint64_t base_content_revision,
+                                      uint64_t generator_revision)
+{
+    const uint32_t section_count = 3;
+    VachunkSectionEntry sections[3];
+    VachunkHeader header;
+    FILE *out = NULL;
+    uint64_t table_offset = sizeof(VachunkHeader);
+    uint64_t table_size = section_count * sizeof(VachunkSectionEntry);
+    uint64_t payload_offset = table_offset + table_size;
+    uint64_t fsum_size;
+    uint64_t fidx_size;
+    uint64_t cu4r_size;
+    uint64_t cursor;
+    uint64_t first_unit = 0;
+    uint64_t record_count;
+    uint32_t i;
+    int ret = 0;
+
+    if (!path || !g_vbs4.active || g_vbs4.file || source_start_frame > source_end_frame)
+        return AVERROR(EINVAL);
+    if (g_vbs4.error) {
+        ret = g_vbs4.error;
+        goto done;
+    }
+    if (g_vbs4.frame_count == 0 ||
+        (uint64_t)source_end_frame - source_start_frame + 1 != g_vbs4.frame_count) {
+        ret = AVERROR(EINVAL);
+        goto done;
+    }
+
+    finalize_frame_summaries();
+    record_count = total_frame_records();
+    if (record_count > UINT32_MAX) {
+        ret = AVERROR(EOVERFLOW);
+        goto done;
+    }
+
+    fsum_size = (uint64_t)g_vbs4.frame_count * sizeof(Vbs4FrameSummary);
+    fidx_size = (uint64_t)g_vbs4.frame_count * sizeof(VachunkOverlayFrameIndexEntry);
+    cu4r_size = record_count * sizeof(VachunkCuRecord);
+    cursor = payload_offset;
+    sections[0] = make_vachunk_section("FSUM", cursor, fsum_size,
+                                       sizeof(Vbs4FrameSummary), g_vbs4.frame_count);
+    cursor += fsum_size;
+    sections[1] = make_vachunk_section("FIDX", cursor, fidx_size,
+                                       sizeof(VachunkOverlayFrameIndexEntry), g_vbs4.frame_count);
+    cursor += fidx_size;
+    sections[2] = make_vachunk_section("CU4R", cursor, cu4r_size,
+                                       sizeof(VachunkCuRecord), (uint32_t)record_count);
+    cursor += cu4r_size;
+
+    memset(&header, 0, sizeof(header));
+    set_fourcc(header.magic, "VCK1");
+    header.version_major = VACHUNK_VERSION_MAJOR;
+    header.version_minor = VACHUNK_VERSION_MINOR;
+    header.header_size = sizeof(VachunkHeader);
+    header.section_entry_size = sizeof(VachunkSectionEntry);
+    header.section_count = section_count;
+    header.kind = VACHUNK_KIND_OVERLAY;
+    header.codec = g_vbs4.codec;
+    header.feature_flags = VACHUNK_OVERLAY_FEATURE_FLAGS;
+    header.base_content_revision = base_content_revision;
+    header.generator_revision = generator_revision;
+    header.start_frame = source_start_frame;
+    header.end_frame = source_end_frame;
+    header.start_packet = UINT32_MAX;
+    header.end_packet = UINT32_MAX;
+    header.start_unit = UINT32_MAX;
+    header.end_unit = UINT32_MAX;
+    header.section_table_offset = table_offset;
+    header.file_size = cursor;
+
+    out = open_utf8_file(path, "w+b");
+    if (!out) {
+        ret = AVERROR(errno ? errno : EIO);
+        goto done;
+    }
+    if (write_exact(out, &header, sizeof(header)) < 0 ||
+        write_exact(out, sections, sizeof(sections)) < 0) {
+        ret = AVERROR(EIO);
+        goto done;
+    }
+    for (i = 0; i < g_vbs4.frame_count; ++i) {
+        if (write_exact(out, &g_vbs4.frames[i].summary,
+                        sizeof(g_vbs4.frames[i].summary)) < 0) {
+            ret = AVERROR(EIO);
+            goto done;
+        }
+    }
+    for (i = 0; i < g_vbs4.frame_count; ++i) {
+        VachunkOverlayFrameIndexEntry entry;
+        memset(&entry, 0, sizeof(entry));
+        entry.frame_index = source_start_frame + i;
+        entry.first_unit = (uint32_t)first_unit;
+        entry.unit_count = g_vbs4.frames[i].record_count;
+        entry.flags =
+            VACHUNK_OVERLAY_FRAME_FLAG_COMPLETE |
+            VACHUNK_OVERLAY_FRAME_FLAG_EXACT;
+        first_unit += g_vbs4.frames[i].record_count;
+        if (write_exact(out, &entry, sizeof(entry)) < 0) {
+            ret = AVERROR(EIO);
+            goto done;
+        }
+    }
+    for (i = 0; i < g_vbs4.frame_count; ++i) {
+        Vbs4FrameBuffer *frame = &g_vbs4.frames[i];
+        uint32_t j;
+        for (j = 0; j < frame->record_count; ++j) {
+            VachunkCuRecord record = make_vachunk_cu_record(&frame->records[j]);
+            if (write_exact(out, &record, sizeof(record)) < 0) {
+                ret = AVERROR(EIO);
+                goto done;
+            }
+        }
+    }
+
+done:
+    if (out && fclose(out) != 0 && ret == 0)
+        ret = AVERROR(EIO);
+    reset_state();
+    return ret;
 }
 
 int ff_voidplayer_vbs4_finish(void)
@@ -1273,21 +1588,10 @@ int ff_voidplayer_vbs4_finish(void)
         goto done;
     }
 
-    if (all_frames_have_coded_order_keys())
-        qsort(g_vbs4.frames, g_vbs4.frame_count, sizeof(*g_vbs4.frames),
-              compare_frame_coded_order_key);
+    finalize_frame_summaries();
 
     for (i = 0; i < g_vbs4.frame_count; ++i) {
         Vbs4FrameBuffer *frame = &g_vbs4.frames[i];
-
-        if (frame->summary.num_cus) {
-            frame->summary.avg_qp =
-                (uint8_t)((frame->qp_sum + frame->summary.num_cus / 2) / frame->summary.num_cus);
-        }
-        frame->summary.coded_order = i;
-        frame->summary.cu_index_entry = i;
-        if (g_vbs4.codec == VOIDPLAYER_VBS4_CODEC_H264 && frame->record_count > 1)
-            qsort(frame->records, frame->record_count, sizeof(*frame->records), compare_cu_raster);
 
         if (block.frame_count &&
             (block.frame_count >= 4096 || estimate_block_size(&block, frame) > 8ull * 1024ull * 1024ull)) {
@@ -1411,7 +1715,7 @@ void ff_voidplayer_vbs4_abort(void)
 
 int ff_voidplayer_vbs4_is_active(void)
 {
-    return g_vbs4.file && !g_vbs4.error;
+    return g_vbs4.active && !g_vbs4.error;
 }
 
 uint32_t ff_voidplayer_vbs4_frame_count(void)
