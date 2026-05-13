@@ -4,6 +4,7 @@
  * H.265 and H.264 use decoder-internal hooks to emit real VBS4 payloads.
  */
 
+#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,12 +31,16 @@ typedef struct AnalyzerOptions {
     const char *input;
     const char *vbs4;
     int probe_only;
+    int has_start_frame;
+    int has_end_frame;
+    uint64_t start_frame;
+    uint64_t end_frame;
 } AnalyzerOptions;
 
 static void print_usage(FILE *out)
 {
     fprintf(out,
-            "Usage: void_ffmpeg_analyzer --codec <codec> --input <path> [--probe-only | --vbs4 <path>]\n"
+            "Usage: void_ffmpeg_analyzer --codec <codec> --input <path> [--probe-only | --vbs4 <path> [--start-frame <n> --end-frame <n>]]\n"
             "\n"
             "Supported codec names: hevc, h265, h264\n"
             "\n"
@@ -77,6 +82,21 @@ static uint16_t vbs4_codec_from_avcodec(enum AVCodecID codec_id)
     }
 }
 
+static int parse_u64_arg(const char *text, uint64_t *out)
+{
+    char *end = NULL;
+    unsigned long long value;
+
+    if (!text || !out)
+        return -1;
+    errno = 0;
+    value = strtoull(text, &end, 10);
+    if (errno || !end || *end != '\0')
+        return -1;
+    *out = (uint64_t)value;
+    return 0;
+}
+
 static int parse_args(int argc, char **argv, AnalyzerOptions *options)
 {
     int i;
@@ -104,6 +124,22 @@ static int parse_args(int argc, char **argv, AnalyzerOptions *options)
             options->vbs4 = argv[++i];
             continue;
         }
+        if (!strcmp(argv[i], "--start-frame") && i + 1 < argc) {
+            if (parse_u64_arg(argv[++i], &options->start_frame) < 0) {
+                fprintf(stderr, "Invalid --start-frame value.\n");
+                return -1;
+            }
+            options->has_start_frame = 1;
+            continue;
+        }
+        if (!strcmp(argv[i], "--end-frame") && i + 1 < argc) {
+            if (parse_u64_arg(argv[++i], &options->end_frame) < 0) {
+                fprintf(stderr, "Invalid --end-frame value.\n");
+                return -1;
+            }
+            options->has_end_frame = 1;
+            continue;
+        }
 
         fprintf(stderr, "Unknown or incomplete argument: %s\n", argv[i]);
         print_usage(stderr);
@@ -113,6 +149,16 @@ static int parse_args(int argc, char **argv, AnalyzerOptions *options)
     if (!options->codec || !options->input || (!options->probe_only && !options->vbs4)) {
         fprintf(stderr, "Missing required arguments.\n");
         print_usage(stderr);
+        return -1;
+    }
+    if ((options->has_start_frame || options->has_end_frame) && options->probe_only) {
+        fprintf(stderr, "Frame windows require --vbs4 generation.\n");
+        print_usage(stderr);
+        return -1;
+    }
+    if (options->has_start_frame && options->has_end_frame &&
+        options->start_frame > options->end_frame) {
+        fprintf(stderr, "--start-frame must be <= --end-frame.\n");
         return -1;
     }
 
@@ -284,9 +330,22 @@ static int decode_vbs4(const AnalyzerOptions *options,
     if (ret < 0)
         goto done;
     writer_started = 1;
+    if (options->has_start_frame || options->has_end_frame) {
+        uint64_t start_frame = options->has_start_frame ? options->start_frame : 0;
+        uint64_t end_frame = options->has_end_frame ? options->end_frame : UINT64_MAX;
+        ret = ff_voidplayer_vbs4_set_frame_window(start_frame, end_frame);
+        if (ret < 0)
+            goto done;
+    }
 
     while ((ret = av_read_frame(format, packet)) >= 0) {
         if (packet->stream_index == stream_index) {
+            if (options->has_end_frame &&
+                options->end_frame <= UINT64_MAX - 64 &&
+                video_packet_index > options->end_frame + 64) {
+                av_packet_unref(packet);
+                break;
+            }
             packet->opaque = (void *)(uintptr_t)(video_packet_index + 1);
             ret = avcodec_send_packet(decoder, packet);
             video_packet_index++;
