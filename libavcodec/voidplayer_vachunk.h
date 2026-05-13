@@ -57,7 +57,8 @@ void ff_voidplayer_vachunk_write_intra_cu(const VoidPlayerVachunkFrameInfo *info
                                        uint8_t qp,
                                        uint8_t intra_mode,
                                        uint8_t mip_flag,
-                                       uint8_t isp_mode);
+                                       uint8_t isp_mode,
+                                       uint32_t bit_count);
 
 void ff_voidplayer_vachunk_write_inter_cu(const VoidPlayerVachunkFrameInfo *info,
                                        uint16_t x,
@@ -74,7 +75,8 @@ void ff_voidplayer_vachunk_write_inter_cu(const VoidPlayerVachunkFrameInfo *info
                                        int16_t mv_l1_x,
                                        int16_t mv_l1_y,
                                        int8_t ref_l0,
-                                       int8_t ref_l1);
+                                       int8_t ref_l1,
+                                       uint32_t bit_count);
 
 void ff_voidplayer_vachunk_write_h264_mb(const VoidPlayerVachunkFrameInfo *info,
                                       uint16_t x,
@@ -90,6 +92,7 @@ void ff_voidplayer_vachunk_write_h264_mb(const VoidPlayerVachunkFrameInfo *info,
                                       int16_t mv_l1_x,
                                       int16_t mv_l1_y,
                                       int8_t ref_l0,
-                                      int8_t ref_l1);
+                                      int8_t ref_l1,
+                                      uint32_t bit_count);
 
 #endif

@@ -2447,12 +2447,31 @@ static void voidplayer_hevc_ref_pocs(const HEVCContext *s,
                       ref_pic_list[list].ref[i]->poc : -1;
 }
 
+static uint32_t voidplayer_hevc_cabac_bitpos(const CABACContext *cc)
+{
+    int64_t bytes;
+    if (!cc || !cc->bytestream_start || !cc->bytestream)
+        return 0;
+    bytes = cc->bytestream - cc->bytestream_start;
+    if (bytes <= 0)
+        return 0;
+    if (bytes > UINT32_MAX / 8)
+        return UINT32_MAX;
+    return (uint32_t)bytes * 8u;
+}
+
+static uint32_t voidplayer_hevc_bit_delta(uint32_t start, uint32_t end)
+{
+    return end >= start ? end - start : 0;
+}
+
 static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
                                       const HEVCContext *s,
                                       const HEVCLayerContext *l,
                                       const HEVCSPS *sps,
                                       int x0, int y0,
-                                      int log2_cb_size)
+                                      int log2_cb_size,
+                                      uint32_t bit_count)
 {
     const int cb_size = 1 << log2_cb_size;
     const int frame_width = s->avctx->width > 0 ? s->avctx->width : sps->width;
@@ -2512,7 +2531,8 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
                                           qp,
                                           lc->pu.intra_pred_mode[0],
                                           0,
-                                          0);
+                                          0,
+                                          bit_count);
         return;
     }
 
@@ -2534,7 +2554,8 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
                                       (mvf && (mvf->pred_flag & PF_L1)) ? voidplayer_hevc_round_mv(mvf->mv[1].x) : 0,
                                       (mvf && (mvf->pred_flag & PF_L1)) ? voidplayer_hevc_round_mv(mvf->mv[1].y) : 0,
                                       (mvf && (mvf->pred_flag & PF_L0)) ? mvf->ref_idx[0] : -1,
-                                      (mvf && (mvf->pred_flag & PF_L1)) ? mvf->ref_idx[1] : -1);
+                                      (mvf && (mvf->pred_flag & PF_L1)) ? mvf->ref_idx[1] : -1,
+                                      bit_count);
 }
 
 static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
@@ -2551,6 +2572,7 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
     int idx              = log2_cb_size - 2;
     int qp_block_mask    = (1 << (sps->log2_ctb_size - pps->diff_cu_qp_delta_depth)) - 1;
     int x, y, ret;
+    uint32_t voidplayer_bit_start = voidplayer_hevc_cabac_bitpos(&lc->cc);
 
     lc->cu.x                = x0;
     lc->cu.y                = y0;
@@ -2720,7 +2742,15 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
     }
 
     set_ct_depth(sps, l->tab_ct_depth, x0, y0, log2_cb_size, lc->ct_depth);
-    voidplayer_hevc_record_cu(lc, s, l, sps, x0, y0, log2_cb_size);
+    voidplayer_hevc_record_cu(
+        lc,
+        s,
+        l,
+        sps,
+        x0,
+        y0,
+        log2_cb_size,
+        voidplayer_hevc_bit_delta(voidplayer_bit_start, voidplayer_hevc_cabac_bitpos(&lc->cc)));
 
     return 0;
 }

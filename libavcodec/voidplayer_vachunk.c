@@ -243,6 +243,7 @@ typedef struct VachunkPackedCuRecord {
     uint8_t  depth;
     uint8_t  qp;
     uint8_t  pred_mode;
+    uint32_t bit_count;
     union {
         VachunkCuIntra intra;
         VachunkCuInter inter;
@@ -260,7 +261,7 @@ typedef char VachunkArchiveStreamEntryMustBe20[(sizeof(VachunkArchiveStreamEntry
 typedef char VachunkChunkHeaderMustBe128[(sizeof(VachunkHeader) == 128) ? 1 : -1];
 typedef char VachunkChunkSectionMustBe56[(sizeof(VachunkSectionEntry) == 56) ? 1 : -1];
 typedef char VachunkOverlayFrameIndexMustBe24[(sizeof(VachunkOverlayFrameIndexEntry) == 24) ? 1 : -1];
-typedef char VachunkPackedCuRecordMustBe22[(sizeof(VachunkPackedCuRecord) == 22) ? 1 : -1];
+typedef char VachunkPackedCuRecordMustBe26[(sizeof(VachunkPackedCuRecord) == 26) ? 1 : -1];
 
 typedef struct VachunkCuRecord {
     uint16_t x;
@@ -270,6 +271,7 @@ typedef struct VachunkCuRecord {
     uint8_t  depth;
     uint8_t  qp;
     uint8_t  pred_mode;
+    uint32_t bit_count;
     uint8_t  intra_mode;
     uint8_t  mip_flag;
     uint8_t  isp_mode;
@@ -1415,6 +1417,7 @@ static VachunkPackedCuRecord make_vachunk_cu_record(const VachunkCuRecord *sourc
     out.depth = source->depth;
     out.qp = source->qp;
     out.pred_mode = source->pred_mode;
+    out.bit_count = source->bit_count;
     if (source->pred_mode == 1) {
         out.data.intra.intra_mode = source->intra_mode;
         out.data.intra.mip_flag = source->mip_flag;
@@ -1749,7 +1752,8 @@ void ff_voidplayer_vachunk_write_intra_cu(const VoidPlayerVachunkFrameInfo *info
                                        uint8_t qp,
                                        uint8_t intra_mode,
                                        uint8_t mip_flag,
-                                       uint8_t isp_mode)
+                                       uint8_t isp_mode,
+                                       uint32_t bit_count)
 {
     VachunkCuRecord record;
 
@@ -1761,6 +1765,7 @@ void ff_voidplayer_vachunk_write_intra_cu(const VoidPlayerVachunkFrameInfo *info
     record.depth = depth;
     record.qp = qp;
     record.pred_mode = 1;
+    record.bit_count = bit_count;
     record.intra_mode = intra_mode;
     record.mip_flag = mip_flag;
     record.isp_mode = isp_mode;
@@ -1784,7 +1789,8 @@ void ff_voidplayer_vachunk_write_inter_cu(const VoidPlayerVachunkFrameInfo *info
                                        int16_t mv_l1_x,
                                        int16_t mv_l1_y,
                                        int8_t ref_l0,
-                                       int8_t ref_l1)
+                                       int8_t ref_l1,
+                                       uint32_t bit_count)
 {
     VachunkCuRecord record;
 
@@ -1796,6 +1802,7 @@ void ff_voidplayer_vachunk_write_inter_cu(const VoidPlayerVachunkFrameInfo *info
     record.depth = depth;
     record.qp = qp;
     record.pred_mode = 0;
+    record.bit_count = bit_count;
     record.intra_mode = 255;
     record.skip = skip;
     record.merge_flag = merge_flag;
@@ -1823,7 +1830,8 @@ void ff_voidplayer_vachunk_write_h264_mb(const VoidPlayerVachunkFrameInfo *info,
                                       int16_t mv_l1_x,
                                       int16_t mv_l1_y,
                                       int8_t ref_l0,
-                                      int8_t ref_l1)
+                                      int8_t ref_l1,
+                                      uint32_t bit_count)
 {
     VachunkCuRecord record;
 
@@ -1834,6 +1842,7 @@ void ff_voidplayer_vachunk_write_h264_mb(const VoidPlayerVachunkFrameInfo *info,
     record.h = 16;
     record.qp = qp;
     record.pred_mode = is_intra ? 1 : 0;
+    record.bit_count = bit_count;
     record.intra_mode = is_intra ? intra_mode : 255;
     record.skip = skip;
     record.merge_flag = merge_flag;

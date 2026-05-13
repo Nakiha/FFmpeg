@@ -2240,7 +2240,27 @@ static void voidplayer_vvc_fill_frame_info(const VVCLocalContext *lc,
     }
 }
 
-static void voidplayer_vvc_record_cu(VVCLocalContext *lc, const CodingUnit *cu)
+static uint32_t voidplayer_vvc_cabac_bitpos(const CABACContext *cc)
+{
+    int64_t bytes;
+    if (!cc || !cc->bytestream_start || !cc->bytestream)
+        return 0;
+    bytes = cc->bytestream - cc->bytestream_start;
+    if (bytes <= 0)
+        return 0;
+    if (bytes > UINT32_MAX / 8)
+        return UINT32_MAX;
+    return (uint32_t)bytes * 8u;
+}
+
+static uint32_t voidplayer_vvc_bit_delta(uint32_t start, uint32_t end)
+{
+    return end >= start ? end - start : 0;
+}
+
+static void voidplayer_vvc_record_cu(VVCLocalContext *lc,
+                                     const CodingUnit *cu,
+                                     uint32_t bit_count)
 {
     const VVCFrameContext *fc = lc->fc;
     const MotionInfo *mi = &cu->pu.mi;
@@ -2275,7 +2295,8 @@ static void voidplayer_vvc_record_cu(VVCLocalContext *lc, const CodingUnit *cu)
                                              qp,
                                              cu->intra_pred_mode_y,
                                              cu->intra_mip_flag,
-                                             cu->isp_split_type);
+                                             cu->isp_split_type,
+                                             bit_count);
         return;
     }
 
@@ -2320,7 +2341,8 @@ static void voidplayer_vvc_record_cu(VVCLocalContext *lc, const CodingUnit *cu)
                                          mv_l1_x,
                                          mv_l1_y,
                                          ref_l0,
-                                         ref_l1);
+                                         ref_l1,
+                                         bit_count);
 }
 
 static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, int cb_height,
@@ -2331,6 +2353,7 @@ static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, in
     const H266RawSliceHeader *rsh = lc->sc->sh.r;
     const int is_128              = cb_width > 64 || cb_height > 64;
     int ret                       = 0;
+    uint32_t voidplayer_bit_start = voidplayer_vvc_cabac_bitpos(&lc->ep->cc);
 
     CodingUnit *cu = add_cu(lc, x0, y0, cb_width, cb_height, cqt_depth, tree_type);
 
@@ -2379,7 +2402,10 @@ static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, in
             return ret;
     }
     set_cu_tabs(lc, cu);
-    voidplayer_vvc_record_cu(lc, cu);
+    voidplayer_vvc_record_cu(
+        lc,
+        cu,
+        voidplayer_vvc_bit_delta(voidplayer_bit_start, voidplayer_vvc_cabac_bitpos(&lc->ep->cc)));
 
     return 0;
 }
