@@ -183,7 +183,7 @@ typedef struct VachunkHeader {
     uint64_t base_content_revision;
     uint64_t generator_revision;
     uint16_t track_index;
-    uint16_t reserved0;
+    uint16_t compression;
     uint32_t start_frame;
     uint32_t end_frame;
     uint32_t start_packet;
@@ -1503,6 +1503,7 @@ int ff_voidplayer_vachunk_finish_vachunk(const char *path,
     header.feature_flags = VACHUNK_OVERLAY_FEATURE_FLAGS;
     header.base_content_revision = base_content_revision;
     header.generator_revision = generator_revision;
+    header.compression = VACHUNK_COMPRESSION_NONE;
     header.start_frame = source_start_frame;
     header.end_frame = source_end_frame;
     header.start_packet = UINT32_MAX;
