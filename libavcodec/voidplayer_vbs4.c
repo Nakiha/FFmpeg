@@ -267,6 +267,9 @@ typedef struct VoidVbs4State {
     int error;
     AVMutex lock;
     int lock_initialized;
+    int has_frame_window;
+    uint64_t start_frame;
+    uint64_t end_frame;
 } VoidVbs4State;
 
 static VoidVbs4State g_vbs4;
@@ -1142,6 +1145,12 @@ static int append_cu_record(const VoidPlayerVbs4FrameInfo *info,
         ret = g_vbs4.error ? g_vbs4.error : AVERROR(EINVAL);
         goto done;
     }
+    if (g_vbs4.has_frame_window && info && info->has_coded_order_key &&
+        info->coded_order_key > 0) {
+        uint64_t source_frame = info->coded_order_key - 1;
+        if (source_frame < g_vbs4.start_frame || source_frame > g_vbs4.end_frame)
+            goto done;
+    }
 
     frame = get_or_create_frame(info, record->x, record->y, record->w, record->h, record->depth);
     if (!frame) {
@@ -1171,6 +1180,27 @@ static int append_cu_record(const VoidPlayerVbs4FrameInfo *info,
 
 fail:
     g_vbs4.error = ret;
+
+done:
+    vbs4_unlock();
+    return ret;
+}
+
+int ff_voidplayer_vbs4_set_frame_window(uint64_t start_frame, uint64_t end_frame)
+{
+    int ret = 0;
+
+    if (start_frame > end_frame)
+        return AVERROR(EINVAL);
+
+    vbs4_lock();
+    if (!g_vbs4.file || g_vbs4.error) {
+        ret = g_vbs4.error ? g_vbs4.error : AVERROR(EINVAL);
+        goto done;
+    }
+    g_vbs4.has_frame_window = 1;
+    g_vbs4.start_frame = start_frame;
+    g_vbs4.end_frame = end_frame;
 
 done:
     vbs4_unlock();
