@@ -1,4 +1,4 @@
-#include "voidplayer_vbs4.h"
+#include "voidplayer_vachunk.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -10,7 +10,7 @@
 #include <windows.h>
 #endif
 
-#if defined(VOIDPLAYER_VBS4_ZSTD)
+#if defined(VOIDPLAYER_VACHUNK_ZSTD)
 #include "zstd.h"
 #endif
 
@@ -18,50 +18,50 @@
 #include "libavutil/mem.h"
 #include "libavutil/thread.h"
 
-#define VBS4_PROFILE_FIRST 1u
-#define VBS4_COMPRESSION_NONE 0u
-#define VBS4_COMPRESSION_ZSTD 1u
+#define VACHUNK_PROFILE_FIRST 1u
+#define VACHUNK_COMPRESSION_NONE 0u
+#define VACHUNK_COMPRESSION_ZSTD 1u
 
-#define VBS4_ENC_RAW 0u
-#define VBS4_ENC_BITSET 1u
-#define VBS4_ENC_ULEB128 2u
-#define VBS4_ENC_SLEB128_ZIGZAG 3u
-#define VBS4_ENC_FRAME_PREFIX_U32 7u
+#define VACHUNK_ENC_RAW 0u
+#define VACHUNK_ENC_BITSET 1u
+#define VACHUNK_ENC_ULEB128 2u
+#define VACHUNK_ENC_SLEB128_ZIGZAG 3u
+#define VACHUNK_ENC_FRAME_PREFIX_U32 7u
 
-#define VBS4_STREAM_FRAME_PREFIX 1u
+#define VACHUNK_STREAM_FRAME_PREFIX 1u
 
-#define VBS4_HEVC_X 2u
-#define VBS4_HEVC_Y 3u
-#define VBS4_HEVC_LOG2_W 4u
-#define VBS4_HEVC_LOG2_H 5u
-#define VBS4_HEVC_DEPTH 6u
-#define VBS4_HEVC_PRED_MODE 7u
-#define VBS4_HEVC_QP_DELTA 8u
-#define VBS4_HEVC_INTRA_MODE 9u
-#define VBS4_HEVC_MIP_FLAG 10u
-#define VBS4_HEVC_ISP_MODE 11u
-#define VBS4_HEVC_SKIP_FLAG 12u
-#define VBS4_HEVC_MERGE_FLAG 13u
-#define VBS4_HEVC_INTER_DIR 14u
-#define VBS4_HEVC_MV_L0_X 15u
-#define VBS4_HEVC_MV_L0_Y 16u
-#define VBS4_HEVC_MV_L1_X 17u
-#define VBS4_HEVC_MV_L1_Y 18u
-#define VBS4_HEVC_REF_L0 19u
-#define VBS4_HEVC_REF_L1 20u
+#define VACHUNK_HEVC_X 2u
+#define VACHUNK_HEVC_Y 3u
+#define VACHUNK_HEVC_LOG2_W 4u
+#define VACHUNK_HEVC_LOG2_H 5u
+#define VACHUNK_HEVC_DEPTH 6u
+#define VACHUNK_HEVC_PRED_MODE 7u
+#define VACHUNK_HEVC_QP_DELTA 8u
+#define VACHUNK_HEVC_INTRA_MODE 9u
+#define VACHUNK_HEVC_MIP_FLAG 10u
+#define VACHUNK_HEVC_ISP_MODE 11u
+#define VACHUNK_HEVC_SKIP_FLAG 12u
+#define VACHUNK_HEVC_MERGE_FLAG 13u
+#define VACHUNK_HEVC_INTER_DIR 14u
+#define VACHUNK_HEVC_MV_L0_X 15u
+#define VACHUNK_HEVC_MV_L0_Y 16u
+#define VACHUNK_HEVC_MV_L1_X 17u
+#define VACHUNK_HEVC_MV_L1_Y 18u
+#define VACHUNK_HEVC_REF_L0 19u
+#define VACHUNK_HEVC_REF_L1 20u
 
-#define VBS4_H264_IS_INTRA 2u
-#define VBS4_H264_SKIP_FLAG 3u
-#define VBS4_H264_MERGE_FLAG 4u
-#define VBS4_H264_INTER_DIR 5u
-#define VBS4_H264_QP_DELTA 6u
-#define VBS4_H264_INTRA_MODE 7u
-#define VBS4_H264_REF_L0 8u
-#define VBS4_H264_REF_L1 9u
-#define VBS4_H264_MV_L0_X 10u
-#define VBS4_H264_MV_L0_Y 11u
-#define VBS4_H264_MV_L1_X 12u
-#define VBS4_H264_MV_L1_Y 13u
+#define VACHUNK_H264_IS_INTRA 2u
+#define VACHUNK_H264_SKIP_FLAG 3u
+#define VACHUNK_H264_MERGE_FLAG 4u
+#define VACHUNK_H264_INTER_DIR 5u
+#define VACHUNK_H264_QP_DELTA 6u
+#define VACHUNK_H264_INTRA_MODE 7u
+#define VACHUNK_H264_REF_L0 8u
+#define VACHUNK_H264_REF_L1 9u
+#define VACHUNK_H264_MV_L0_X 10u
+#define VACHUNK_H264_MV_L0_Y 11u
+#define VACHUNK_H264_MV_L1_X 12u
+#define VACHUNK_H264_MV_L1_Y 13u
 
 #define VACHUNK_VERSION_MAJOR 1u
 #define VACHUNK_VERSION_MINOR 0u
@@ -71,7 +71,7 @@
 #define VACHUNK_OVERLAY_FEATURE_FLAGS 0x000000000000011full
 
 #pragma pack(push, 1)
-typedef struct Vbs4Header {
+typedef struct VachunkArchiveHeader {
     char     magic[4];
     uint16_t version_major;
     uint16_t version_minor;
@@ -91,9 +91,9 @@ typedef struct Vbs4Header {
     uint64_t content_revision;
     uint64_t reserved1;
     uint32_t reserved2;
-} Vbs4Header;
+} VachunkArchiveHeader;
 
-typedef struct Vbs4SectionEntry {
+typedef struct VachunkArchiveSectionEntry {
     char     type[4];
     uint32_t flags;
     uint64_t offset;
@@ -103,12 +103,12 @@ typedef struct Vbs4SectionEntry {
     uint64_t checksum;
     uint64_t reserved0;
     uint64_t reserved1;
-} Vbs4SectionEntry;
+} VachunkArchiveSectionEntry;
 
-typedef struct Vbs4FrameSummary {
+typedef struct VachunkFrameSummary {
     int32_t  poc;
     uint32_t coded_order;
-    uint32_t vcl_nalu_index;
+    uint32_t vcl_unit_index;
     uint32_t flags;
     uint8_t  temporal_id;
     uint8_t  slice_type;
@@ -123,18 +123,18 @@ typedef struct Vbs4FrameSummary {
     uint32_t num_cus;
     uint32_t cu_index_entry;
     uint32_t reserved[2];
-} Vbs4FrameSummary;
+} VachunkFrameSummary;
 
-typedef struct Vbs4FrameIndexEntry {
+typedef struct VachunkArchiveFrameIndexEntry {
     uint32_t block_index;
     uint32_t local_frame;
     uint32_t first_record;
     uint32_t record_count;
     uint32_t flags;
     uint32_t reserved;
-} Vbs4FrameIndexEntry;
+} VachunkArchiveFrameIndexEntry;
 
-typedef struct Vbs4BlockIndexEntry {
+typedef struct VachunkArchiveBlockIndexEntry {
     uint32_t first_frame;
     uint32_t frame_count;
     uint32_t first_record;
@@ -147,9 +147,9 @@ typedef struct Vbs4BlockIndexEntry {
     uint32_t flags;
     uint64_t checksum;
     uint64_t reserved;
-} Vbs4BlockIndexEntry;
+} VachunkArchiveBlockIndexEntry;
 
-typedef struct Vbs4DecodedBlockHeader {
+typedef struct VachunkArchiveDecodedBlockHeader {
     char     magic[4];
     uint16_t header_size;
     uint16_t stream_entry_size;
@@ -159,16 +159,16 @@ typedef struct Vbs4DecodedBlockHeader {
     uint32_t record_count;
     uint32_t flags;
     uint64_t reserved;
-} Vbs4DecodedBlockHeader;
+} VachunkArchiveDecodedBlockHeader;
 
-typedef struct Vbs4StreamEntry {
+typedef struct VachunkArchiveStreamEntry {
     uint16_t stream_id;
     uint16_t encoding;
     uint32_t offset;
     uint32_t size;
     uint32_t value_count;
     uint32_t flags;
-} Vbs4StreamEntry;
+} VachunkArchiveStreamEntry;
 
 typedef struct VachunkHeader {
     char     magic[4];
@@ -235,7 +235,7 @@ typedef struct VachunkCuInter {
     int8_t   ref_l1;
 } VachunkCuInter;
 
-typedef struct VachunkCuRecord {
+typedef struct VachunkPackedCuRecord {
     uint16_t x;
     uint16_t y;
     uint8_t  w;
@@ -247,22 +247,22 @@ typedef struct VachunkCuRecord {
         VachunkCuIntra intra;
         VachunkCuInter inter;
     } data;
-} VachunkCuRecord;
+} VachunkPackedCuRecord;
 #pragma pack(pop)
 
-typedef char Vbs4HeaderMustBe80[(sizeof(Vbs4Header) == 80) ? 1 : -1];
-typedef char Vbs4SectionMustBe56[(sizeof(Vbs4SectionEntry) == 56) ? 1 : -1];
-typedef char Vbs4SummaryMustBe160[(sizeof(Vbs4FrameSummary) == 160) ? 1 : -1];
-typedef char Vbs4FidxMustBe24[(sizeof(Vbs4FrameIndexEntry) == 24) ? 1 : -1];
-typedef char Vbs4BidxMustBe64[(sizeof(Vbs4BlockIndexEntry) == 64) ? 1 : -1];
-typedef char Vbs4BlockHeaderMustBe32[(sizeof(Vbs4DecodedBlockHeader) == 32) ? 1 : -1];
-typedef char Vbs4StreamEntryMustBe20[(sizeof(Vbs4StreamEntry) == 20) ? 1 : -1];
-typedef char VachunkHeaderMustBe128[(sizeof(VachunkHeader) == 128) ? 1 : -1];
-typedef char VachunkSectionMustBe56[(sizeof(VachunkSectionEntry) == 56) ? 1 : -1];
+typedef char VachunkArchiveHeaderMustBe80[(sizeof(VachunkArchiveHeader) == 80) ? 1 : -1];
+typedef char VachunkArchiveSectionMustBe56[(sizeof(VachunkArchiveSectionEntry) == 56) ? 1 : -1];
+typedef char VachunkSummaryMustBe160[(sizeof(VachunkFrameSummary) == 160) ? 1 : -1];
+typedef char VachunkFidxMustBe24[(sizeof(VachunkArchiveFrameIndexEntry) == 24) ? 1 : -1];
+typedef char VachunkBidxMustBe64[(sizeof(VachunkArchiveBlockIndexEntry) == 64) ? 1 : -1];
+typedef char VachunkBlockHeaderMustBe32[(sizeof(VachunkArchiveDecodedBlockHeader) == 32) ? 1 : -1];
+typedef char VachunkArchiveStreamEntryMustBe20[(sizeof(VachunkArchiveStreamEntry) == 20) ? 1 : -1];
+typedef char VachunkChunkHeaderMustBe128[(sizeof(VachunkHeader) == 128) ? 1 : -1];
+typedef char VachunkChunkSectionMustBe56[(sizeof(VachunkSectionEntry) == 56) ? 1 : -1];
 typedef char VachunkOverlayFrameIndexMustBe24[(sizeof(VachunkOverlayFrameIndexEntry) == 24) ? 1 : -1];
-typedef char VachunkCuRecordMustBe22[(sizeof(VachunkCuRecord) == 22) ? 1 : -1];
+typedef char VachunkPackedCuRecordMustBe22[(sizeof(VachunkPackedCuRecord) == 22) ? 1 : -1];
 
-typedef struct Vbs4CuRecord {
+typedef struct VachunkCuRecord {
     uint16_t x;
     uint16_t y;
     uint8_t  w;
@@ -282,11 +282,11 @@ typedef struct Vbs4CuRecord {
     int16_t  mv_l1_y;
     int8_t   ref_l0;
     int8_t   ref_l1;
-} Vbs4CuRecord;
+} VachunkCuRecord;
 
-typedef struct Vbs4FrameBuffer {
-    Vbs4FrameSummary summary;
-    Vbs4CuRecord *records;
+typedef struct VachunkFrameBuffer {
+    VachunkFrameSummary summary;
+    VachunkCuRecord *records;
     uint32_t record_count;
     uint32_t record_capacity;
     uint64_t qp_sum;
@@ -299,56 +299,56 @@ typedef struct Vbs4FrameBuffer {
     uintptr_t frame_identity;
     uint64_t coded_order_key;
     int has_coded_order_key;
-} Vbs4FrameBuffer;
+} VachunkFrameBuffer;
 
-typedef struct Vbs4BlockFrame {
+typedef struct VachunkBlockFrame {
     uint32_t first_record;
     uint32_t record_count;
-} Vbs4BlockFrame;
+} VachunkBlockFrame;
 
-typedef struct Vbs4PendingBlock {
+typedef struct VachunkPendingBlock {
     uint32_t first_frame;
     uint32_t first_record;
-    Vbs4BlockFrame *frames;
+    VachunkBlockFrame *frames;
     uint32_t frame_count;
     uint32_t frame_capacity;
-    Vbs4CuRecord *records;
+    VachunkCuRecord *records;
     uint32_t record_count;
     uint32_t record_capacity;
-} Vbs4PendingBlock;
+} VachunkPendingBlock;
 
-typedef struct Vbs4Buffer {
+typedef struct VachunkBuffer {
     uint8_t *data;
     size_t size;
     size_t capacity;
-} Vbs4Buffer;
+} VachunkBuffer;
 
-typedef struct Vbs4StreamData {
+typedef struct VachunkStreamData {
     uint16_t id;
     uint16_t encoding;
     uint32_t value_count;
-    Vbs4Buffer bytes;
-} Vbs4StreamData;
+    VachunkBuffer bytes;
+} VachunkStreamData;
 
-typedef struct Vbs4StreamList {
-    Vbs4StreamData *items;
+typedef struct VachunkStreamList {
+    VachunkStreamData *items;
     uint32_t count;
     uint32_t capacity;
-} Vbs4StreamList;
+} VachunkStreamList;
 
-typedef struct VoidVbs4State {
+typedef struct VoidVachunkState {
     FILE *file;
     uint16_t codec;
     uint16_t profile;
     uint32_t width;
     uint32_t height;
-    Vbs4FrameBuffer *frames;
+    VachunkFrameBuffer *frames;
     uint32_t frame_count;
     uint32_t frame_capacity;
-    Vbs4FrameIndexEntry *frame_index;
+    VachunkArchiveFrameIndexEntry *frame_index;
     uint32_t frame_index_count;
     uint32_t frame_index_capacity;
-    Vbs4BlockIndexEntry *block_index;
+    VachunkArchiveBlockIndexEntry *block_index;
     uint32_t block_index_count;
     uint32_t block_index_capacity;
     uint64_t total_records;
@@ -361,9 +361,9 @@ typedef struct VoidVbs4State {
     int has_frame_window;
     uint64_t start_frame;
     uint64_t end_frame;
-} VoidVbs4State;
+} VoidVachunkState;
 
-static VoidVbs4State g_vbs4;
+static VoidVachunkState g_vachunk;
 
 static FILE *open_utf8_file(const char *path, const char *mode)
 {
@@ -403,16 +403,16 @@ done:
 #endif
 }
 
-static void vbs4_lock(void)
+static void vachunk_lock(void)
 {
-    if (g_vbs4.lock_initialized)
-        ff_mutex_lock(&g_vbs4.lock);
+    if (g_vachunk.lock_initialized)
+        ff_mutex_lock(&g_vachunk.lock);
 }
 
-static void vbs4_unlock(void)
+static void vachunk_unlock(void)
 {
-    if (g_vbs4.lock_initialized)
-        ff_mutex_unlock(&g_vbs4.lock);
+    if (g_vachunk.lock_initialized)
+        ff_mutex_unlock(&g_vachunk.lock);
 }
 
 static void set_fourcc(char dst[4], const char src[4])
@@ -448,7 +448,7 @@ static int64_t tell_file(FILE *file)
 #endif
 }
 
-static int buffer_reserve(Vbs4Buffer *buffer, size_t additional)
+static int buffer_reserve(VachunkBuffer *buffer, size_t additional)
 {
     size_t required;
     size_t new_capacity;
@@ -477,7 +477,7 @@ static int buffer_reserve(Vbs4Buffer *buffer, size_t additional)
     return 0;
 }
 
-static int buffer_append(Vbs4Buffer *buffer, const void *data, size_t size)
+static int buffer_append(VachunkBuffer *buffer, const void *data, size_t size)
 {
     int ret;
 
@@ -491,12 +491,12 @@ static int buffer_append(Vbs4Buffer *buffer, const void *data, size_t size)
     return 0;
 }
 
-static int buffer_append_u8(Vbs4Buffer *buffer, uint8_t value)
+static int buffer_append_u8(VachunkBuffer *buffer, uint8_t value)
 {
     return buffer_append(buffer, &value, sizeof(value));
 }
 
-static int buffer_append_u32(Vbs4Buffer *buffer, uint32_t value)
+static int buffer_append_u32(VachunkBuffer *buffer, uint32_t value)
 {
     uint8_t bytes[4];
 
@@ -507,7 +507,7 @@ static int buffer_append_u32(Vbs4Buffer *buffer, uint32_t value)
     return buffer_append(buffer, bytes, sizeof(bytes));
 }
 
-static int buffer_append_uleb(Vbs4Buffer *buffer, uint32_t value)
+static int buffer_append_uleb(VachunkBuffer *buffer, uint32_t value)
 {
     int ret;
 
@@ -523,13 +523,13 @@ static int buffer_append_uleb(Vbs4Buffer *buffer, uint32_t value)
     return 0;
 }
 
-static int buffer_append_sleb_zigzag(Vbs4Buffer *buffer, int32_t value)
+static int buffer_append_sleb_zigzag(VachunkBuffer *buffer, int32_t value)
 {
     uint32_t zigzag = ((uint32_t)value << 1) ^ (uint32_t)(value >> 31);
     return buffer_append_uleb(buffer, zigzag);
 }
 
-static int buffer_append_bit(Vbs4Buffer *buffer, uint32_t index, int value)
+static int buffer_append_bit(VachunkBuffer *buffer, uint32_t index, int value)
 {
     size_t byte_index = index >> 3;
     int ret;
@@ -557,13 +557,13 @@ static uint8_t log2_size(uint8_t value)
     return result;
 }
 
-static int stream_list_push(Vbs4StreamList *streams,
+static int stream_list_push(VachunkStreamList *streams,
                             uint16_t id,
                             uint16_t encoding,
                             uint32_t value_count,
-                            Vbs4Buffer *bytes)
+                            VachunkBuffer *bytes)
 {
-    Vbs4StreamData *new_items;
+    VachunkStreamData *new_items;
     uint32_t new_capacity;
 
     if (streams->count == streams->capacity) {
@@ -588,7 +588,7 @@ static int stream_list_push(Vbs4StreamList *streams,
     return 0;
 }
 
-static void stream_list_free(Vbs4StreamList *streams)
+static void stream_list_free(VachunkStreamList *streams)
 {
     uint32_t i;
 
@@ -598,41 +598,41 @@ static void stream_list_free(Vbs4StreamList *streams)
     memset(streams, 0, sizeof(*streams));
 }
 
-static int append_frame_index(Vbs4FrameIndexEntry entry)
+static int append_frame_index(VachunkArchiveFrameIndexEntry entry)
 {
-    Vbs4FrameIndexEntry *new_items;
+    VachunkArchiveFrameIndexEntry *new_items;
     uint32_t new_capacity;
 
-    if (g_vbs4.frame_index_count == g_vbs4.frame_index_capacity) {
-        new_capacity = g_vbs4.frame_index_capacity ? g_vbs4.frame_index_capacity * 2 : 256;
-        if (new_capacity < g_vbs4.frame_index_capacity)
+    if (g_vachunk.frame_index_count == g_vachunk.frame_index_capacity) {
+        new_capacity = g_vachunk.frame_index_capacity ? g_vachunk.frame_index_capacity * 2 : 256;
+        if (new_capacity < g_vachunk.frame_index_capacity)
             return AVERROR(ENOMEM);
-        new_items = av_realloc_array(g_vbs4.frame_index, new_capacity, sizeof(*new_items));
+        new_items = av_realloc_array(g_vachunk.frame_index, new_capacity, sizeof(*new_items));
         if (!new_items)
             return AVERROR(ENOMEM);
-        g_vbs4.frame_index = new_items;
-        g_vbs4.frame_index_capacity = new_capacity;
+        g_vachunk.frame_index = new_items;
+        g_vachunk.frame_index_capacity = new_capacity;
     }
-    g_vbs4.frame_index[g_vbs4.frame_index_count++] = entry;
+    g_vachunk.frame_index[g_vachunk.frame_index_count++] = entry;
     return 0;
 }
 
-static int append_block_index(Vbs4BlockIndexEntry entry)
+static int append_block_index(VachunkArchiveBlockIndexEntry entry)
 {
-    Vbs4BlockIndexEntry *new_items;
+    VachunkArchiveBlockIndexEntry *new_items;
     uint32_t new_capacity;
 
-    if (g_vbs4.block_index_count == g_vbs4.block_index_capacity) {
-        new_capacity = g_vbs4.block_index_capacity ? g_vbs4.block_index_capacity * 2 : 64;
-        if (new_capacity < g_vbs4.block_index_capacity)
+    if (g_vachunk.block_index_count == g_vachunk.block_index_capacity) {
+        new_capacity = g_vachunk.block_index_capacity ? g_vachunk.block_index_capacity * 2 : 64;
+        if (new_capacity < g_vachunk.block_index_capacity)
             return AVERROR(ENOMEM);
-        new_items = av_realloc_array(g_vbs4.block_index, new_capacity, sizeof(*new_items));
+        new_items = av_realloc_array(g_vachunk.block_index, new_capacity, sizeof(*new_items));
         if (!new_items)
             return AVERROR(ENOMEM);
-        g_vbs4.block_index = new_items;
-        g_vbs4.block_index_capacity = new_capacity;
+        g_vachunk.block_index = new_items;
+        g_vachunk.block_index_capacity = new_capacity;
     }
-    g_vbs4.block_index[g_vbs4.block_index_count++] = entry;
+    g_vachunk.block_index[g_vachunk.block_index_count++] = entry;
     return 0;
 }
 
@@ -640,51 +640,51 @@ static void free_frames(void)
 {
     uint32_t i;
 
-    for (i = 0; i < g_vbs4.frame_count; ++i)
-        av_freep(&g_vbs4.frames[i].records);
-    av_freep(&g_vbs4.frames);
-    g_vbs4.frame_count = 0;
-    g_vbs4.frame_capacity = 0;
+    for (i = 0; i < g_vachunk.frame_count; ++i)
+        av_freep(&g_vachunk.frames[i].records);
+    av_freep(&g_vachunk.frames);
+    g_vachunk.frame_count = 0;
+    g_vachunk.frame_capacity = 0;
 }
 
 static void reset_state(void)
 {
-    int had_lock = g_vbs4.lock_initialized;
+    int had_lock = g_vachunk.lock_initialized;
 
-    if (g_vbs4.file)
-        fclose(g_vbs4.file);
+    if (g_vachunk.file)
+        fclose(g_vachunk.file);
     free_frames();
-    av_freep(&g_vbs4.frame_index);
-    av_freep(&g_vbs4.block_index);
+    av_freep(&g_vachunk.frame_index);
+    av_freep(&g_vachunk.block_index);
     if (had_lock)
-        ff_mutex_destroy(&g_vbs4.lock);
-    memset(&g_vbs4, 0, sizeof(g_vbs4));
+        ff_mutex_destroy(&g_vachunk.lock);
+    memset(&g_vachunk, 0, sizeof(g_vachunk));
 }
 
 static int ensure_frame_capacity(void)
 {
-    Vbs4FrameBuffer *new_frames;
+    VachunkFrameBuffer *new_frames;
     uint32_t new_capacity;
 
-    if (g_vbs4.frame_count < g_vbs4.frame_capacity)
+    if (g_vachunk.frame_count < g_vachunk.frame_capacity)
         return 0;
 
-    new_capacity = g_vbs4.frame_capacity ? g_vbs4.frame_capacity * 2 : 256;
-    if (new_capacity < g_vbs4.frame_capacity)
+    new_capacity = g_vachunk.frame_capacity ? g_vachunk.frame_capacity * 2 : 256;
+    if (new_capacity < g_vachunk.frame_capacity)
         return AVERROR(ENOMEM);
-    new_frames = av_realloc_array(g_vbs4.frames, new_capacity, sizeof(*g_vbs4.frames));
+    new_frames = av_realloc_array(g_vachunk.frames, new_capacity, sizeof(*g_vachunk.frames));
     if (!new_frames)
         return AVERROR(ENOMEM);
-    memset(new_frames + g_vbs4.frame_capacity, 0,
-           (new_capacity - g_vbs4.frame_capacity) * sizeof(*new_frames));
-    g_vbs4.frames = new_frames;
-    g_vbs4.frame_capacity = new_capacity;
+    memset(new_frames + g_vachunk.frame_capacity, 0,
+           (new_capacity - g_vachunk.frame_capacity) * sizeof(*new_frames));
+    g_vachunk.frames = new_frames;
+    g_vachunk.frame_capacity = new_capacity;
     return 0;
 }
 
-static int ensure_record_capacity(Vbs4FrameBuffer *frame)
+static int ensure_record_capacity(VachunkFrameBuffer *frame)
 {
-    Vbs4CuRecord *new_records;
+    VachunkCuRecord *new_records;
     uint32_t new_capacity;
 
     if (frame->record_count < frame->record_capacity)
@@ -701,28 +701,28 @@ static int ensure_record_capacity(Vbs4FrameBuffer *frame)
     return 0;
 }
 
-static void fill_summary(Vbs4FrameSummary *summary, const VoidPlayerVbs4FrameInfo *info)
+static void fill_summary(VachunkFrameSummary *summary, const VoidPlayerVachunkFrameInfo *info)
 {
     int i;
 
     memset(summary, 0, sizeof(*summary));
     summary->poc = info->poc;
-    summary->coded_order = g_vbs4.frame_count;
-    summary->vcl_nalu_index = 0xFFFFFFFFu;
+    summary->coded_order = g_vachunk.frame_count;
+    summary->vcl_unit_index = 0xFFFFFFFFu;
     summary->temporal_id = info->temporal_id;
     summary->slice_type = info->slice_type;
     summary->nal_unit_type = info->nal_unit_type;
     summary->num_ref_l0 = info->num_ref_l0 > 15 ? 15 : info->num_ref_l0;
     summary->num_ref_l1 = info->num_ref_l1 > 15 ? 15 : info->num_ref_l1;
-    summary->cu_index_entry = g_vbs4.frame_count;
+    summary->cu_index_entry = g_vachunk.frame_count;
     for (i = 0; i < 15; ++i) {
         summary->ref_pocs_l0[i] = i < summary->num_ref_l0 ? info->ref_pocs_l0[i] : -1;
         summary->ref_pocs_l1[i] = i < summary->num_ref_l1 ? info->ref_pocs_l1[i] : -1;
     }
 }
 
-static int frame_can_accept_cu(const Vbs4FrameBuffer *frame,
-                               const VoidPlayerVbs4FrameInfo *info,
+static int frame_can_accept_cu(const VachunkFrameBuffer *frame,
+                               const VoidPlayerVachunkFrameInfo *info,
                                uint16_t x,
                                uint16_t y,
                                uint8_t w,
@@ -743,7 +743,7 @@ static int frame_can_accept_cu(const Vbs4FrameBuffer *frame,
     return 1;
 }
 
-static Vbs4FrameBuffer *find_frame(const VoidPlayerVbs4FrameInfo *info,
+static VachunkFrameBuffer *find_frame(const VoidPlayerVachunkFrameInfo *info,
                                    uint16_t x,
                                    uint16_t y,
                                    uint8_t w,
@@ -752,8 +752,8 @@ static Vbs4FrameBuffer *find_frame(const VoidPlayerVbs4FrameInfo *info,
 {
     uint32_t i;
 
-    for (i = g_vbs4.frame_count; i > 0; --i) {
-        Vbs4FrameBuffer *frame = &g_vbs4.frames[i - 1];
+    for (i = g_vachunk.frame_count; i > 0; --i) {
+        VachunkFrameBuffer *frame = &g_vachunk.frames[i - 1];
         if (frame->summary.poc == info->poc &&
             frame_can_accept_cu(frame, info, x, y, w, h, depth))
             return frame;
@@ -761,17 +761,17 @@ static Vbs4FrameBuffer *find_frame(const VoidPlayerVbs4FrameInfo *info,
     return NULL;
 }
 
-static Vbs4FrameBuffer *get_or_create_frame(const VoidPlayerVbs4FrameInfo *info,
+static VachunkFrameBuffer *get_or_create_frame(const VoidPlayerVachunkFrameInfo *info,
                                             uint16_t x,
                                             uint16_t y,
                                             uint8_t w,
                                             uint8_t h,
                                             uint8_t depth)
 {
-    Vbs4FrameBuffer *frame;
+    VachunkFrameBuffer *frame;
 
     if (!info) {
-        g_vbs4.error = AVERROR(EINVAL);
+        g_vachunk.error = AVERROR(EINVAL);
         return NULL;
     }
 
@@ -779,28 +779,28 @@ static Vbs4FrameBuffer *get_or_create_frame(const VoidPlayerVbs4FrameInfo *info,
     if (frame)
         return frame;
 
-    g_vbs4.error = ensure_frame_capacity();
-    if (g_vbs4.error)
+    g_vachunk.error = ensure_frame_capacity();
+    if (g_vachunk.error)
         return NULL;
 
-    frame = &g_vbs4.frames[g_vbs4.frame_count];
+    frame = &g_vachunk.frames[g_vachunk.frame_count];
     memset(frame, 0, sizeof(*frame));
     fill_summary(&frame->summary, info);
     frame->frame_identity = info->frame_identity;
     frame->coded_order_key = info->coded_order_key;
     frame->has_coded_order_key = info->has_coded_order_key;
-    g_vbs4.frame_count++;
+    g_vachunk.frame_count++;
     if (info->width)
-        g_vbs4.width = info->width;
+        g_vachunk.width = info->width;
     if (info->height)
-        g_vbs4.height = info->height;
+        g_vachunk.height = info->height;
     return frame;
 }
 
 static int compare_cu_raster(const void *lhs, const void *rhs)
 {
-    const Vbs4CuRecord *a = lhs;
-    const Vbs4CuRecord *b = rhs;
+    const VachunkCuRecord *a = lhs;
+    const VachunkCuRecord *b = rhs;
 
     if (a->y != b->y)
         return a->y < b->y ? -1 : 1;
@@ -811,8 +811,8 @@ static int compare_cu_raster(const void *lhs, const void *rhs)
 
 static int compare_frame_coded_order_key(const void *lhs, const void *rhs)
 {
-    const Vbs4FrameBuffer *a = lhs;
-    const Vbs4FrameBuffer *b = rhs;
+    const VachunkFrameBuffer *a = lhs;
+    const VachunkFrameBuffer *b = rhs;
 
     if (a->coded_order_key != b->coded_order_key)
         return a->coded_order_key < b->coded_order_key ? -1 : 1;
@@ -825,16 +825,16 @@ static int all_frames_have_coded_order_keys(void)
 {
     uint32_t i;
 
-    for (i = 0; i < g_vbs4.frame_count; ++i) {
-        if (!g_vbs4.frames[i].has_coded_order_key)
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
+        if (!g_vachunk.frames[i].has_coded_order_key)
             return 0;
     }
-    return g_vbs4.frame_count > 0;
+    return g_vachunk.frame_count > 0;
 }
 
-static int pending_reserve_frames(Vbs4PendingBlock *block, uint32_t count)
+static int pending_reserve_frames(VachunkPendingBlock *block, uint32_t count)
 {
-    Vbs4BlockFrame *new_frames;
+    VachunkBlockFrame *new_frames;
     uint32_t new_capacity;
 
     if (count <= block->frame_capacity)
@@ -855,9 +855,9 @@ static int pending_reserve_frames(Vbs4PendingBlock *block, uint32_t count)
     return 0;
 }
 
-static int pending_reserve_records(Vbs4PendingBlock *block, uint32_t count)
+static int pending_reserve_records(VachunkPendingBlock *block, uint32_t count)
 {
-    Vbs4CuRecord *new_records;
+    VachunkCuRecord *new_records;
     uint32_t new_capacity;
 
     if (count <= block->record_capacity)
@@ -878,7 +878,7 @@ static int pending_reserve_records(Vbs4PendingBlock *block, uint32_t count)
     return 0;
 }
 
-static void pending_clear(Vbs4PendingBlock *block)
+static void pending_clear(VachunkPendingBlock *block)
 {
     block->first_frame = 0;
     block->first_record = 0;
@@ -886,27 +886,27 @@ static void pending_clear(Vbs4PendingBlock *block)
     block->record_count = 0;
 }
 
-static void pending_free(Vbs4PendingBlock *block)
+static void pending_free(VachunkPendingBlock *block)
 {
     av_freep(&block->frames);
     av_freep(&block->records);
     memset(block, 0, sizeof(*block));
 }
 
-static uint64_t estimate_block_size(const Vbs4PendingBlock *block, const Vbs4FrameBuffer *frame)
+static uint64_t estimate_block_size(const VachunkPendingBlock *block, const VachunkFrameBuffer *frame)
 {
     uint64_t records = (uint64_t)block->record_count + frame->record_count;
-    uint64_t streams = g_vbs4.codec == VOIDPLAYER_VBS4_CODEC_H264 ? 13 : 20;
+    uint64_t streams = g_vachunk.codec == VOIDPLAYER_VACHUNK_CODEC_H264 ? 13 : 20;
 
-    return sizeof(Vbs4DecodedBlockHeader) +
-           streams * sizeof(Vbs4StreamEntry) +
+    return sizeof(VachunkArchiveDecodedBlockHeader) +
+           streams * sizeof(VachunkArchiveStreamEntry) +
            records * 24u;
 }
 
-static int append_frame_to_pending(Vbs4PendingBlock *block, uint32_t frame_index)
+static int append_frame_to_pending(VachunkPendingBlock *block, uint32_t frame_index)
 {
-    Vbs4FrameBuffer *frame = &g_vbs4.frames[frame_index];
-    Vbs4BlockFrame block_frame;
+    VachunkFrameBuffer *frame = &g_vachunk.frames[frame_index];
+    VachunkBlockFrame block_frame;
     int ret;
 
     ret = pending_reserve_frames(block, block->frame_count + 1);
@@ -918,7 +918,7 @@ static int append_frame_to_pending(Vbs4PendingBlock *block, uint32_t frame_index
 
     if (block->frame_count == 0) {
         block->first_frame = frame_index;
-        block->first_record = (uint32_t)g_vbs4.total_records;
+        block->first_record = (uint32_t)g_vachunk.total_records;
     }
 
     block_frame.first_record = block->first_record + block->record_count;
@@ -929,41 +929,41 @@ static int append_frame_to_pending(Vbs4PendingBlock *block, uint32_t frame_index
                (size_t)frame->record_count * sizeof(*frame->records));
         block->record_count += frame->record_count;
     }
-    g_vbs4.total_records += frame->record_count;
+    g_vachunk.total_records += frame->record_count;
     return 0;
 }
 
-static int add_common_inter_streams(Vbs4StreamList *streams,
-                                    const Vbs4CuRecord *records,
+static int add_common_inter_streams(VachunkStreamList *streams,
+                                    const VachunkCuRecord *records,
                                     uint32_t record_count,
                                     int include_hevc_shape)
 {
-    Vbs4Buffer x = { 0 };
-    Vbs4Buffer y = { 0 };
-    Vbs4Buffer log2w = { 0 };
-    Vbs4Buffer log2h = { 0 };
-    Vbs4Buffer depth = { 0 };
-    Vbs4Buffer pred_mode = { 0 };
-    Vbs4Buffer qp_delta = { 0 };
-    Vbs4Buffer intra_mode = { 0 };
-    Vbs4Buffer mip_flag = { 0 };
-    Vbs4Buffer isp_mode = { 0 };
-    Vbs4Buffer skip_flag = { 0 };
-    Vbs4Buffer merge_flag = { 0 };
-    Vbs4Buffer inter_dir = { 0 };
-    Vbs4Buffer mv_l0_x = { 0 };
-    Vbs4Buffer mv_l0_y = { 0 };
-    Vbs4Buffer mv_l1_x = { 0 };
-    Vbs4Buffer mv_l1_y = { 0 };
-    Vbs4Buffer ref_l0 = { 0 };
-    Vbs4Buffer ref_l1 = { 0 };
+    VachunkBuffer x = { 0 };
+    VachunkBuffer y = { 0 };
+    VachunkBuffer log2w = { 0 };
+    VachunkBuffer log2h = { 0 };
+    VachunkBuffer depth = { 0 };
+    VachunkBuffer pred_mode = { 0 };
+    VachunkBuffer qp_delta = { 0 };
+    VachunkBuffer intra_mode = { 0 };
+    VachunkBuffer mip_flag = { 0 };
+    VachunkBuffer isp_mode = { 0 };
+    VachunkBuffer skip_flag = { 0 };
+    VachunkBuffer merge_flag = { 0 };
+    VachunkBuffer inter_dir = { 0 };
+    VachunkBuffer mv_l0_x = { 0 };
+    VachunkBuffer mv_l0_y = { 0 };
+    VachunkBuffer mv_l1_x = { 0 };
+    VachunkBuffer mv_l1_y = { 0 };
+    VachunkBuffer ref_l0 = { 0 };
+    VachunkBuffer ref_l1 = { 0 };
     int32_t prev_qp = 0;
     uint32_t i;
     int ret = 0;
 
 #define CHECK(EXPR) do { ret = (EXPR); if (ret < 0) goto fail; } while (0)
     for (i = 0; i < record_count; ++i) {
-        const Vbs4CuRecord *cu = &records[i];
+        const VachunkCuRecord *cu = &records[i];
         if (include_hevc_shape) {
             CHECK(buffer_append_uleb(&x, cu->x));
             CHECK(buffer_append_uleb(&y, cu->y));
@@ -991,41 +991,41 @@ static int add_common_inter_streams(Vbs4StreamList *streams,
     }
 
     if (include_hevc_shape) {
-        CHECK(stream_list_push(streams, VBS4_HEVC_X, VBS4_ENC_ULEB128, record_count, &x));
-        CHECK(stream_list_push(streams, VBS4_HEVC_Y, VBS4_ENC_ULEB128, record_count, &y));
-        CHECK(stream_list_push(streams, VBS4_HEVC_LOG2_W, VBS4_ENC_RAW, record_count, &log2w));
-        CHECK(stream_list_push(streams, VBS4_HEVC_LOG2_H, VBS4_ENC_RAW, record_count, &log2h));
-        CHECK(stream_list_push(streams, VBS4_HEVC_DEPTH, VBS4_ENC_RAW, record_count, &depth));
-        CHECK(stream_list_push(streams, VBS4_HEVC_PRED_MODE, VBS4_ENC_RAW, record_count, &pred_mode));
-        CHECK(stream_list_push(streams, VBS4_HEVC_QP_DELTA, VBS4_ENC_SLEB128_ZIGZAG, record_count, &qp_delta));
-        CHECK(stream_list_push(streams, VBS4_HEVC_INTRA_MODE, VBS4_ENC_RAW, record_count, &intra_mode));
-        CHECK(stream_list_push(streams, VBS4_HEVC_MIP_FLAG, VBS4_ENC_BITSET, record_count, &mip_flag));
-        CHECK(stream_list_push(streams, VBS4_HEVC_ISP_MODE, VBS4_ENC_RAW, record_count, &isp_mode));
-        CHECK(stream_list_push(streams, VBS4_HEVC_SKIP_FLAG, VBS4_ENC_BITSET, record_count, &skip_flag));
-        CHECK(stream_list_push(streams, VBS4_HEVC_MERGE_FLAG, VBS4_ENC_BITSET, record_count, &merge_flag));
-        CHECK(stream_list_push(streams, VBS4_HEVC_INTER_DIR, VBS4_ENC_RAW, record_count, &inter_dir));
-        CHECK(stream_list_push(streams, VBS4_HEVC_MV_L0_X, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_x));
-        CHECK(stream_list_push(streams, VBS4_HEVC_MV_L0_Y, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_y));
-        CHECK(stream_list_push(streams, VBS4_HEVC_MV_L1_X, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_x));
-        CHECK(stream_list_push(streams, VBS4_HEVC_MV_L1_Y, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_y));
-        CHECK(stream_list_push(streams, VBS4_HEVC_REF_L0, VBS4_ENC_RAW, record_count, &ref_l0));
-        CHECK(stream_list_push(streams, VBS4_HEVC_REF_L1, VBS4_ENC_RAW, record_count, &ref_l1));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_X, VACHUNK_ENC_ULEB128, record_count, &x));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_Y, VACHUNK_ENC_ULEB128, record_count, &y));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_LOG2_W, VACHUNK_ENC_RAW, record_count, &log2w));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_LOG2_H, VACHUNK_ENC_RAW, record_count, &log2h));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_DEPTH, VACHUNK_ENC_RAW, record_count, &depth));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_PRED_MODE, VACHUNK_ENC_RAW, record_count, &pred_mode));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_QP_DELTA, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &qp_delta));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_INTRA_MODE, VACHUNK_ENC_RAW, record_count, &intra_mode));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_MIP_FLAG, VACHUNK_ENC_BITSET, record_count, &mip_flag));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_ISP_MODE, VACHUNK_ENC_RAW, record_count, &isp_mode));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_SKIP_FLAG, VACHUNK_ENC_BITSET, record_count, &skip_flag));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_MERGE_FLAG, VACHUNK_ENC_BITSET, record_count, &merge_flag));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_INTER_DIR, VACHUNK_ENC_RAW, record_count, &inter_dir));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_MV_L0_X, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_x));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_MV_L0_Y, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_y));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_MV_L1_X, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_x));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_MV_L1_Y, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_y));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_REF_L0, VACHUNK_ENC_RAW, record_count, &ref_l0));
+        CHECK(stream_list_push(streams, VACHUNK_HEVC_REF_L1, VACHUNK_ENC_RAW, record_count, &ref_l1));
     } else {
-        Vbs4Buffer is_intra = { 0 };
+        VachunkBuffer is_intra = { 0 };
         for (i = 0; i < record_count; ++i)
             CHECK(buffer_append_bit(&is_intra, i, records[i].pred_mode != 0));
-        CHECK(stream_list_push(streams, VBS4_H264_IS_INTRA, VBS4_ENC_BITSET, record_count, &is_intra));
-        CHECK(stream_list_push(streams, VBS4_H264_SKIP_FLAG, VBS4_ENC_BITSET, record_count, &skip_flag));
-        CHECK(stream_list_push(streams, VBS4_H264_MERGE_FLAG, VBS4_ENC_BITSET, record_count, &merge_flag));
-        CHECK(stream_list_push(streams, VBS4_H264_INTER_DIR, VBS4_ENC_RAW, record_count, &inter_dir));
-        CHECK(stream_list_push(streams, VBS4_H264_QP_DELTA, VBS4_ENC_SLEB128_ZIGZAG, record_count, &qp_delta));
-        CHECK(stream_list_push(streams, VBS4_H264_INTRA_MODE, VBS4_ENC_RAW, record_count, &intra_mode));
-        CHECK(stream_list_push(streams, VBS4_H264_REF_L0, VBS4_ENC_RAW, record_count, &ref_l0));
-        CHECK(stream_list_push(streams, VBS4_H264_REF_L1, VBS4_ENC_RAW, record_count, &ref_l1));
-        CHECK(stream_list_push(streams, VBS4_H264_MV_L0_X, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_x));
-        CHECK(stream_list_push(streams, VBS4_H264_MV_L0_Y, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_y));
-        CHECK(stream_list_push(streams, VBS4_H264_MV_L1_X, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_x));
-        CHECK(stream_list_push(streams, VBS4_H264_MV_L1_Y, VBS4_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_y));
+        CHECK(stream_list_push(streams, VACHUNK_H264_IS_INTRA, VACHUNK_ENC_BITSET, record_count, &is_intra));
+        CHECK(stream_list_push(streams, VACHUNK_H264_SKIP_FLAG, VACHUNK_ENC_BITSET, record_count, &skip_flag));
+        CHECK(stream_list_push(streams, VACHUNK_H264_MERGE_FLAG, VACHUNK_ENC_BITSET, record_count, &merge_flag));
+        CHECK(stream_list_push(streams, VACHUNK_H264_INTER_DIR, VACHUNK_ENC_RAW, record_count, &inter_dir));
+        CHECK(stream_list_push(streams, VACHUNK_H264_QP_DELTA, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &qp_delta));
+        CHECK(stream_list_push(streams, VACHUNK_H264_INTRA_MODE, VACHUNK_ENC_RAW, record_count, &intra_mode));
+        CHECK(stream_list_push(streams, VACHUNK_H264_REF_L0, VACHUNK_ENC_RAW, record_count, &ref_l0));
+        CHECK(stream_list_push(streams, VACHUNK_H264_REF_L1, VACHUNK_ENC_RAW, record_count, &ref_l1));
+        CHECK(stream_list_push(streams, VACHUNK_H264_MV_L0_X, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_x));
+        CHECK(stream_list_push(streams, VACHUNK_H264_MV_L0_Y, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l0_y));
+        CHECK(stream_list_push(streams, VACHUNK_H264_MV_L1_X, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_x));
+        CHECK(stream_list_push(streams, VACHUNK_H264_MV_L1_Y, VACHUNK_ENC_SLEB128_ZIGZAG, record_count, &mv_l1_y));
     }
 #undef CHECK
     return 0;
@@ -1053,11 +1053,11 @@ fail:
     return ret;
 }
 
-static int build_decoded_block(const Vbs4PendingBlock *block, Vbs4Buffer *out)
+static int build_decoded_block(const VachunkPendingBlock *block, VachunkBuffer *out)
 {
-    Vbs4StreamList streams = { 0 };
-    Vbs4Buffer frame_prefix = { 0 };
-    Vbs4DecodedBlockHeader header;
+    VachunkStreamList streams = { 0 };
+    VachunkBuffer frame_prefix = { 0 };
+    VachunkArchiveDecodedBlockHeader header;
     uint32_t prefix = 0;
     uint32_t payload_offset;
     uint32_t i;
@@ -1069,28 +1069,28 @@ static int build_decoded_block(const Vbs4PendingBlock *block, Vbs4Buffer *out)
         prefix += block->frames[i].record_count;
     }
     CHECK(buffer_append_u32(&frame_prefix, prefix));
-    CHECK(stream_list_push(&streams, VBS4_STREAM_FRAME_PREFIX, VBS4_ENC_FRAME_PREFIX_U32,
+    CHECK(stream_list_push(&streams, VACHUNK_STREAM_FRAME_PREFIX, VACHUNK_ENC_FRAME_PREFIX_U32,
                            block->frame_count + 1, &frame_prefix));
 
     CHECK(add_common_inter_streams(&streams, block->records, block->record_count,
-                                   g_vbs4.codec == VOIDPLAYER_VBS4_CODEC_HEVC));
+                                   g_vachunk.codec == VOIDPLAYER_VACHUNK_CODEC_HEVC));
 
     memset(&header, 0, sizeof(header));
     set_fourcc(header.magic, "BLK4");
-    header.header_size = sizeof(Vbs4DecodedBlockHeader);
-    header.stream_entry_size = sizeof(Vbs4StreamEntry);
-    header.codec_profile = g_vbs4.profile;
+    header.header_size = sizeof(VachunkArchiveDecodedBlockHeader);
+    header.stream_entry_size = sizeof(VachunkArchiveStreamEntry);
+    header.codec_profile = g_vachunk.profile;
     header.stream_count = (uint16_t)streams.count;
     header.frame_count = block->frame_count;
     header.record_count = block->record_count;
     CHECK(buffer_append(out, &header, sizeof(header)));
-    CHECK(buffer_reserve(out, streams.count * sizeof(Vbs4StreamEntry)));
-    memset(out->data + out->size, 0, streams.count * sizeof(Vbs4StreamEntry));
-    out->size += streams.count * sizeof(Vbs4StreamEntry);
+    CHECK(buffer_reserve(out, streams.count * sizeof(VachunkArchiveStreamEntry)));
+    memset(out->data + out->size, 0, streams.count * sizeof(VachunkArchiveStreamEntry));
+    out->size += streams.count * sizeof(VachunkArchiveStreamEntry);
 
     payload_offset = (uint32_t)out->size;
     for (i = 0; i < streams.count; ++i) {
-        Vbs4StreamEntry entry;
+        VachunkArchiveStreamEntry entry;
 
         memset(&entry, 0, sizeof(entry));
         entry.stream_id = streams.items[i].id;
@@ -1098,7 +1098,7 @@ static int build_decoded_block(const Vbs4PendingBlock *block, Vbs4Buffer *out)
         entry.offset = payload_offset;
         entry.size = (uint32_t)streams.items[i].bytes.size;
         entry.value_count = streams.items[i].value_count;
-        memcpy(out->data + sizeof(Vbs4DecodedBlockHeader) + i * sizeof(Vbs4StreamEntry),
+        memcpy(out->data + sizeof(VachunkArchiveDecodedBlockHeader) + i * sizeof(VachunkArchiveStreamEntry),
                &entry, sizeof(entry));
         CHECK(buffer_append(out, streams.items[i].bytes.data, streams.items[i].bytes.size));
         payload_offset += entry.size;
@@ -1113,13 +1113,13 @@ done:
 
 static int no_compression_requested(void)
 {
-    const char *env = getenv("VOIDPLAYER_VBS4_NO_COMPRESSION");
+    const char *env = getenv("VOIDPLAYER_VACHUNK_NO_COMPRESSION");
     return env && env[0] && strcmp(env, "0");
 }
 
-static int compress_zstd(const Vbs4Buffer *decoded, Vbs4Buffer *compressed)
+static int compress_zstd(const VachunkBuffer *decoded, VachunkBuffer *compressed)
 {
-#if defined(VOIDPLAYER_VBS4_ZSTD)
+#if defined(VOIDPLAYER_VACHUNK_ZSTD)
     size_t bound;
     size_t size;
 
@@ -1143,12 +1143,12 @@ static int compress_zstd(const Vbs4Buffer *decoded, Vbs4Buffer *compressed)
 #endif
 }
 
-static int flush_block(Vbs4PendingBlock *block)
+static int flush_block(VachunkPendingBlock *block)
 {
-    Vbs4Buffer decoded = { 0 };
-    Vbs4Buffer compressed = { 0 };
-    const Vbs4Buffer *payload;
-    Vbs4BlockIndexEntry bidx;
+    VachunkBuffer decoded = { 0 };
+    VachunkBuffer compressed = { 0 };
+    const VachunkBuffer *payload;
+    VachunkArchiveBlockIndexEntry bidx;
     uint32_t block_idx;
     uint32_t i;
     int compressed_used;
@@ -1172,24 +1172,24 @@ static int flush_block(Vbs4PendingBlock *block)
     bidx.frame_count = block->frame_count;
     bidx.first_record = block->first_record;
     bidx.record_count = block->record_count;
-    bidx.payload_offset = g_vbs4.cpay_bytes;
+    bidx.payload_offset = g_vachunk.cpay_bytes;
     bidx.payload_size = (uint64_t)payload->size;
     bidx.decoded_size = (uint64_t)decoded.size;
-    bidx.codec_profile = g_vbs4.profile;
-    bidx.compression = compressed_used ? VBS4_COMPRESSION_ZSTD : VBS4_COMPRESSION_NONE;
+    bidx.codec_profile = g_vachunk.profile;
+    bidx.compression = compressed_used ? VACHUNK_COMPRESSION_ZSTD : VACHUNK_COMPRESSION_NONE;
 
-    if (write_exact(g_vbs4.file, payload->data, payload->size) < 0) {
+    if (write_exact(g_vachunk.file, payload->data, payload->size) < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
-    g_vbs4.cpay_bytes += payload->size;
-    block_idx = g_vbs4.block_index_count;
+    g_vachunk.cpay_bytes += payload->size;
+    block_idx = g_vachunk.block_index_count;
     ret = append_block_index(bidx);
     if (ret < 0)
         goto done;
 
     for (i = 0; i < block->frame_count; ++i) {
-        Vbs4FrameIndexEntry fidx;
+        VachunkArchiveFrameIndexEntry fidx;
 
         memset(&fidx, 0, sizeof(fidx));
         fidx.block_index = block_idx;
@@ -1208,13 +1208,13 @@ done:
     return ret;
 }
 
-static Vbs4SectionEntry make_section(const char type[4],
-                                     uint64_t offset,
-                                     uint64_t size,
-                                     uint32_t entry_size,
-                                     uint32_t entry_count)
+static VachunkArchiveSectionEntry make_section(const char type[4],
+                                               uint64_t offset,
+                                               uint64_t size,
+                                               uint32_t entry_size,
+                                               uint32_t entry_count)
 {
-    Vbs4SectionEntry entry;
+    VachunkArchiveSectionEntry entry;
 
     memset(&entry, 0, sizeof(entry));
     set_fourcc(entry.type, type);
@@ -1225,27 +1225,27 @@ static Vbs4SectionEntry make_section(const char type[4],
     return entry;
 }
 
-static int append_cu_record(const VoidPlayerVbs4FrameInfo *info,
-                            const Vbs4CuRecord *record)
+static int append_cu_record(const VoidPlayerVachunkFrameInfo *info,
+                            const VachunkCuRecord *record)
 {
-    Vbs4FrameBuffer *frame;
+    VachunkFrameBuffer *frame;
     int ret = 0;
 
-    vbs4_lock();
-    if (!g_vbs4.active || g_vbs4.error) {
-        ret = g_vbs4.error ? g_vbs4.error : AVERROR(EINVAL);
+    vachunk_lock();
+    if (!g_vachunk.active || g_vachunk.error) {
+        ret = g_vachunk.error ? g_vachunk.error : AVERROR(EINVAL);
         goto done;
     }
-    if (g_vbs4.has_frame_window && info && info->has_coded_order_key &&
+    if (g_vachunk.has_frame_window && info && info->has_coded_order_key &&
         info->coded_order_key > 0) {
         uint64_t source_frame = info->coded_order_key - 1;
-        if (source_frame < g_vbs4.start_frame || source_frame > g_vbs4.end_frame)
+        if (source_frame < g_vachunk.start_frame || source_frame > g_vachunk.end_frame)
             goto done;
     }
 
     frame = get_or_create_frame(info, record->x, record->y, record->w, record->h, record->depth);
     if (!frame) {
-        ret = g_vbs4.error ? g_vbs4.error : AVERROR(EINVAL);
+        ret = g_vachunk.error ? g_vachunk.error : AVERROR(EINVAL);
         goto done;
     }
 
@@ -1270,31 +1270,31 @@ static int append_cu_record(const VoidPlayerVbs4FrameInfo *info,
     goto done;
 
 fail:
-    g_vbs4.error = ret;
+    g_vachunk.error = ret;
 
 done:
-    vbs4_unlock();
+    vachunk_unlock();
     return ret;
 }
 
-int ff_voidplayer_vbs4_set_frame_window(uint64_t start_frame, uint64_t end_frame)
+int ff_voidplayer_vachunk_set_frame_window(uint64_t start_frame, uint64_t end_frame)
 {
     int ret = 0;
 
     if (start_frame > end_frame)
         return AVERROR(EINVAL);
 
-    vbs4_lock();
-    if (!g_vbs4.active || g_vbs4.error) {
-        ret = g_vbs4.error ? g_vbs4.error : AVERROR(EINVAL);
+    vachunk_lock();
+    if (!g_vachunk.active || g_vachunk.error) {
+        ret = g_vachunk.error ? g_vachunk.error : AVERROR(EINVAL);
         goto done;
     }
-    g_vbs4.has_frame_window = 1;
-    g_vbs4.start_frame = start_frame;
-    g_vbs4.end_frame = end_frame;
+    g_vachunk.has_frame_window = 1;
+    g_vachunk.start_frame = start_frame;
+    g_vachunk.end_frame = end_frame;
 
 done:
-    vbs4_unlock();
+    vachunk_unlock();
     return ret;
 }
 
@@ -1302,31 +1302,32 @@ static int start_common(uint32_t width, uint32_t height, uint16_t codec)
 {
     int ret;
 
-    ff_voidplayer_vbs4_abort();
-    if (codec != VOIDPLAYER_VBS4_CODEC_H264 &&
-        codec != VOIDPLAYER_VBS4_CODEC_HEVC)
+    ff_voidplayer_vachunk_abort();
+    if (codec != VOIDPLAYER_VACHUNK_CODEC_H264 &&
+        codec != VOIDPLAYER_VACHUNK_CODEC_HEVC &&
+        codec != VOIDPLAYER_VACHUNK_CODEC_VVC)
         return AVERROR(ENOSYS);
 
-    ret = ff_mutex_init(&g_vbs4.lock, NULL);
+    ret = ff_mutex_init(&g_vachunk.lock, NULL);
     if (ret)
         return AVERROR(EINVAL);
-    g_vbs4.lock_initialized = 1;
-    g_vbs4.active = 1;
-    g_vbs4.codec = codec;
-    g_vbs4.profile = VBS4_PROFILE_FIRST;
-    g_vbs4.width = width;
-    g_vbs4.height = height;
+    g_vachunk.lock_initialized = 1;
+    g_vachunk.active = 1;
+    g_vachunk.codec = codec;
+    g_vachunk.profile = VACHUNK_PROFILE_FIRST;
+    g_vachunk.width = width;
+    g_vachunk.height = height;
     return 0;
 }
 
-int ff_voidplayer_vbs4_start_memory(uint32_t width, uint32_t height, uint16_t codec)
+int ff_voidplayer_vachunk_start_memory(uint32_t width, uint32_t height, uint16_t codec)
 {
     return start_common(width, height, codec);
 }
 
-int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, uint16_t codec)
+int ff_voidplayer_vachunk_start(const char *path, uint32_t width, uint32_t height, uint16_t codec)
 {
-    Vbs4Header header;
+    VachunkArchiveHeader header;
     int ret;
 
     if (!path)
@@ -1336,16 +1337,16 @@ int ff_voidplayer_vbs4_start(const char *path, uint32_t width, uint32_t height, 
     if (ret < 0)
         return ret;
 
-    g_vbs4.file = open_utf8_file(path, "w+b");
-    if (!g_vbs4.file) {
+    g_vachunk.file = open_utf8_file(path, "w+b");
+    if (!g_vachunk.file) {
         ret = AVERROR(errno ? errno : EIO);
         reset_state();
         return ret;
     }
 
-    g_vbs4.cpay_payload_offset = sizeof(Vbs4Header);
+    g_vachunk.cpay_payload_offset = sizeof(VachunkArchiveHeader);
     memset(&header, 0, sizeof(header));
-    if (write_exact(g_vbs4.file, &header, sizeof(header)) < 0) {
+    if (write_exact(g_vachunk.file, &header, sizeof(header)) < 0) {
         reset_state();
         return AVERROR(EIO);
     }
@@ -1357,11 +1358,11 @@ static void finalize_frame_summaries(void)
     uint32_t i;
 
     if (all_frames_have_coded_order_keys())
-        qsort(g_vbs4.frames, g_vbs4.frame_count, sizeof(*g_vbs4.frames),
+        qsort(g_vachunk.frames, g_vachunk.frame_count, sizeof(*g_vachunk.frames),
               compare_frame_coded_order_key);
 
-    for (i = 0; i < g_vbs4.frame_count; ++i) {
-        Vbs4FrameBuffer *frame = &g_vbs4.frames[i];
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
+        VachunkFrameBuffer *frame = &g_vachunk.frames[i];
 
         if (frame->summary.num_cus) {
             frame->summary.avg_qp =
@@ -1369,7 +1370,7 @@ static void finalize_frame_summaries(void)
         }
         frame->summary.coded_order = i;
         frame->summary.cu_index_entry = i;
-        if (g_vbs4.codec == VOIDPLAYER_VBS4_CODEC_H264 && frame->record_count > 1)
+        if (g_vachunk.codec == VOIDPLAYER_VACHUNK_CODEC_H264 && frame->record_count > 1)
             qsort(frame->records, frame->record_count, sizeof(*frame->records), compare_cu_raster);
     }
 }
@@ -1397,14 +1398,14 @@ static uint64_t total_frame_records(void)
     uint64_t total = 0;
     uint32_t i;
 
-    for (i = 0; i < g_vbs4.frame_count; ++i)
-        total += g_vbs4.frames[i].record_count;
+    for (i = 0; i < g_vachunk.frame_count; ++i)
+        total += g_vachunk.frames[i].record_count;
     return total;
 }
 
-static VachunkCuRecord make_vachunk_cu_record(const Vbs4CuRecord *source)
+static VachunkPackedCuRecord make_vachunk_cu_record(const VachunkCuRecord *source)
 {
-    VachunkCuRecord out;
+    VachunkPackedCuRecord out;
 
     memset(&out, 0, sizeof(out));
     out.x = source->x;
@@ -1432,7 +1433,7 @@ static VachunkCuRecord make_vachunk_cu_record(const Vbs4CuRecord *source)
     return out;
 }
 
-int ff_voidplayer_vbs4_finish_vachunk(const char *path,
+int ff_voidplayer_vachunk_finish_vachunk(const char *path,
                                       uint32_t source_start_frame,
                                       uint32_t source_end_frame,
                                       uint64_t base_content_revision,
@@ -1454,14 +1455,14 @@ int ff_voidplayer_vbs4_finish_vachunk(const char *path,
     uint32_t i;
     int ret = 0;
 
-    if (!path || !g_vbs4.active || g_vbs4.file || source_start_frame > source_end_frame)
+    if (!path || !g_vachunk.active || g_vachunk.file || source_start_frame > source_end_frame)
         return AVERROR(EINVAL);
-    if (g_vbs4.error) {
-        ret = g_vbs4.error;
+    if (g_vachunk.error) {
+        ret = g_vachunk.error;
         goto done;
     }
-    if (g_vbs4.frame_count == 0 ||
-        (uint64_t)source_end_frame - source_start_frame + 1 != g_vbs4.frame_count) {
+    if (g_vachunk.frame_count == 0 ||
+        (uint64_t)source_end_frame - source_start_frame + 1 != g_vachunk.frame_count) {
         ret = AVERROR(EINVAL);
         goto done;
     }
@@ -1473,18 +1474,18 @@ int ff_voidplayer_vbs4_finish_vachunk(const char *path,
         goto done;
     }
 
-    fsum_size = (uint64_t)g_vbs4.frame_count * sizeof(Vbs4FrameSummary);
-    fidx_size = (uint64_t)g_vbs4.frame_count * sizeof(VachunkOverlayFrameIndexEntry);
-    cu4r_size = record_count * sizeof(VachunkCuRecord);
+    fsum_size = (uint64_t)g_vachunk.frame_count * sizeof(VachunkFrameSummary);
+    fidx_size = (uint64_t)g_vachunk.frame_count * sizeof(VachunkOverlayFrameIndexEntry);
+    cu4r_size = record_count * sizeof(VachunkPackedCuRecord);
     cursor = payload_offset;
     sections[0] = make_vachunk_section("FSUM", cursor, fsum_size,
-                                       sizeof(Vbs4FrameSummary), g_vbs4.frame_count);
+                                       sizeof(VachunkFrameSummary), g_vachunk.frame_count);
     cursor += fsum_size;
     sections[1] = make_vachunk_section("FIDX", cursor, fidx_size,
-                                       sizeof(VachunkOverlayFrameIndexEntry), g_vbs4.frame_count);
+                                       sizeof(VachunkOverlayFrameIndexEntry), g_vachunk.frame_count);
     cursor += fidx_size;
     sections[2] = make_vachunk_section("CU4R", cursor, cu4r_size,
-                                       sizeof(VachunkCuRecord), (uint32_t)record_count);
+                                       sizeof(VachunkPackedCuRecord), (uint32_t)record_count);
     cursor += cu4r_size;
 
     memset(&header, 0, sizeof(header));
@@ -1495,7 +1496,7 @@ int ff_voidplayer_vbs4_finish_vachunk(const char *path,
     header.section_entry_size = sizeof(VachunkSectionEntry);
     header.section_count = section_count;
     header.kind = VACHUNK_KIND_OVERLAY;
-    header.codec = g_vbs4.codec;
+    header.codec = g_vachunk.codec;
     header.feature_flags = VACHUNK_OVERLAY_FEATURE_FLAGS;
     header.base_content_revision = base_content_revision;
     header.generator_revision = generator_revision;
@@ -1518,33 +1519,33 @@ int ff_voidplayer_vbs4_finish_vachunk(const char *path,
         ret = AVERROR(EIO);
         goto done;
     }
-    for (i = 0; i < g_vbs4.frame_count; ++i) {
-        if (write_exact(out, &g_vbs4.frames[i].summary,
-                        sizeof(g_vbs4.frames[i].summary)) < 0) {
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
+        if (write_exact(out, &g_vachunk.frames[i].summary,
+                        sizeof(g_vachunk.frames[i].summary)) < 0) {
             ret = AVERROR(EIO);
             goto done;
         }
     }
-    for (i = 0; i < g_vbs4.frame_count; ++i) {
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
         VachunkOverlayFrameIndexEntry entry;
         memset(&entry, 0, sizeof(entry));
         entry.frame_index = source_start_frame + i;
         entry.first_unit = (uint32_t)first_unit;
-        entry.unit_count = g_vbs4.frames[i].record_count;
+        entry.unit_count = g_vachunk.frames[i].record_count;
         entry.flags =
             VACHUNK_OVERLAY_FRAME_FLAG_COMPLETE |
             VACHUNK_OVERLAY_FRAME_FLAG_EXACT;
-        first_unit += g_vbs4.frames[i].record_count;
+        first_unit += g_vachunk.frames[i].record_count;
         if (write_exact(out, &entry, sizeof(entry)) < 0) {
             ret = AVERROR(EIO);
             goto done;
         }
     }
-    for (i = 0; i < g_vbs4.frame_count; ++i) {
-        Vbs4FrameBuffer *frame = &g_vbs4.frames[i];
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
+        VachunkFrameBuffer *frame = &g_vachunk.frames[i];
         uint32_t j;
         for (j = 0; j < frame->record_count; ++j) {
-            VachunkCuRecord record = make_vachunk_cu_record(&frame->records[j]);
+            VachunkPackedCuRecord record = make_vachunk_cu_record(&frame->records[j]);
             if (write_exact(out, &record, sizeof(record)) < 0) {
                 ret = AVERROR(EIO);
                 goto done;
@@ -1559,12 +1560,12 @@ done:
     return ret;
 }
 
-int ff_voidplayer_vbs4_finish(void)
+int ff_voidplayer_vachunk_finish(void)
 {
     const uint32_t section_count = 4;
-    Vbs4PendingBlock block = { 0 };
-    Vbs4SectionEntry sections[4];
-    Vbs4Header header;
+    VachunkPendingBlock block = { 0 };
+    VachunkArchiveSectionEntry sections[4];
+    VachunkArchiveHeader header;
     uint64_t fsum_offset;
     uint64_t fsum_size;
     uint64_t fidx_offset;
@@ -1577,21 +1578,21 @@ int ff_voidplayer_vbs4_finish(void)
     int64_t pos;
     int ret = 0;
 
-    if (!g_vbs4.file)
+    if (!g_vachunk.file)
         return AVERROR(EINVAL);
-    if (g_vbs4.error) {
-        ret = g_vbs4.error;
+    if (g_vachunk.error) {
+        ret = g_vachunk.error;
         goto done;
     }
-    if (seek_file(g_vbs4.file, sizeof(Vbs4Header)) != 0) {
+    if (seek_file(g_vachunk.file, sizeof(VachunkArchiveHeader)) != 0) {
         ret = AVERROR(EIO);
         goto done;
     }
 
     finalize_frame_summaries();
 
-    for (i = 0; i < g_vbs4.frame_count; ++i) {
-        Vbs4FrameBuffer *frame = &g_vbs4.frames[i];
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
+        VachunkFrameBuffer *frame = &g_vachunk.frames[i];
 
         if (block.frame_count &&
             (block.frame_count >= 4096 || estimate_block_size(&block, frame) > 8ull * 1024ull * 1024ull)) {
@@ -1607,66 +1608,66 @@ int ff_voidplayer_vbs4_finish(void)
     if (ret < 0)
         goto done;
 
-    pos = tell_file(g_vbs4.file);
+    pos = tell_file(g_vachunk.file);
     if (pos < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
     fsum_offset = (uint64_t)pos;
-    for (i = 0; i < g_vbs4.frame_count; ++i) {
-        if (write_exact(g_vbs4.file, &g_vbs4.frames[i].summary,
-                        sizeof(g_vbs4.frames[i].summary)) < 0) {
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
+        if (write_exact(g_vachunk.file, &g_vachunk.frames[i].summary,
+                        sizeof(g_vachunk.frames[i].summary)) < 0) {
             ret = AVERROR(EIO);
             goto done;
         }
     }
 
-    pos = tell_file(g_vbs4.file);
+    pos = tell_file(g_vachunk.file);
     if (pos < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
     fidx_offset = (uint64_t)pos;
-    fidx_size = (uint64_t)g_vbs4.frame_index_count * sizeof(Vbs4FrameIndexEntry);
-    if (write_exact(g_vbs4.file, g_vbs4.frame_index, (size_t)fidx_size) < 0) {
+    fidx_size = (uint64_t)g_vachunk.frame_index_count * sizeof(VachunkArchiveFrameIndexEntry);
+    if (write_exact(g_vachunk.file, g_vachunk.frame_index, (size_t)fidx_size) < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
 
-    pos = tell_file(g_vbs4.file);
+    pos = tell_file(g_vachunk.file);
     if (pos < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
     bidx_offset = (uint64_t)pos;
-    bidx_size = (uint64_t)g_vbs4.block_index_count * sizeof(Vbs4BlockIndexEntry);
-    if (write_exact(g_vbs4.file, g_vbs4.block_index, (size_t)bidx_size) < 0) {
+    bidx_size = (uint64_t)g_vachunk.block_index_count * sizeof(VachunkArchiveBlockIndexEntry);
+    if (write_exact(g_vachunk.file, g_vachunk.block_index, (size_t)bidx_size) < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
 
-    pos = tell_file(g_vbs4.file);
+    pos = tell_file(g_vachunk.file);
     if (pos < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
     section_table_offset = (uint64_t)pos;
-    fsum_size = (uint64_t)g_vbs4.frame_count * sizeof(Vbs4FrameSummary);
+    fsum_size = (uint64_t)g_vachunk.frame_count * sizeof(VachunkFrameSummary);
     sections[0] = make_section("FSUM", fsum_offset, fsum_size,
-                               sizeof(Vbs4FrameSummary), g_vbs4.frame_count);
+                               sizeof(VachunkFrameSummary), g_vachunk.frame_count);
     sections[1] = make_section("FIDX", fidx_offset, fidx_size,
-                               sizeof(Vbs4FrameIndexEntry), g_vbs4.frame_index_count);
+                               sizeof(VachunkArchiveFrameIndexEntry), g_vachunk.frame_index_count);
     sections[2] = make_section("BIDX", bidx_offset, bidx_size,
-                               sizeof(Vbs4BlockIndexEntry), g_vbs4.block_index_count);
-    sections[3] = make_section("CPAY", g_vbs4.cpay_payload_offset, g_vbs4.cpay_bytes,
-                               0, g_vbs4.block_index_count);
+                               sizeof(VachunkArchiveBlockIndexEntry), g_vachunk.block_index_count);
+    sections[3] = make_section("CPAY", g_vachunk.cpay_payload_offset, g_vachunk.cpay_bytes,
+                               0, g_vachunk.block_index_count);
 
-    if (write_exact(g_vbs4.file, sections, sizeof(sections)) < 0) {
+    if (write_exact(g_vachunk.file, sections, sizeof(sections)) < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
 
-    pos = tell_file(g_vbs4.file);
+    pos = tell_file(g_vachunk.file);
     if (pos < 0) {
         ret = AVERROR(EIO);
         goto done;
@@ -1674,72 +1675,72 @@ int ff_voidplayer_vbs4_finish(void)
     file_size = (uint64_t)pos;
 
     memset(&header, 0, sizeof(header));
-    set_fourcc(header.magic, "VBS4");
+    set_fourcc(header.magic, "VACHUNK");
     header.version_major = 4;
-    header.header_size = sizeof(Vbs4Header);
-    header.section_entry_size = sizeof(Vbs4SectionEntry);
-    header.codec = g_vbs4.codec;
-    header.profile = g_vbs4.profile;
-    header.width = g_vbs4.width;
-    header.height = g_vbs4.height;
-    header.frame_count = g_vbs4.frame_count;
-    header.block_count = g_vbs4.block_index_count;
+    header.header_size = sizeof(VachunkArchiveHeader);
+    header.section_entry_size = sizeof(VachunkArchiveSectionEntry);
+    header.codec = g_vachunk.codec;
+    header.profile = g_vachunk.profile;
+    header.width = g_vachunk.width;
+    header.height = g_vachunk.height;
+    header.frame_count = g_vachunk.frame_count;
+    header.block_count = g_vachunk.block_index_count;
     header.section_count = section_count;
     header.section_table_offset = section_table_offset;
     header.file_size = file_size;
 
-    if (seek_file(g_vbs4.file, 0) != 0 ||
-        write_exact(g_vbs4.file, &header, sizeof(header)) < 0) {
+    if (seek_file(g_vachunk.file, 0) != 0 ||
+        write_exact(g_vachunk.file, &header, sizeof(header)) < 0) {
         ret = AVERROR(EIO);
         goto done;
     }
 
 done:
     pending_free(&block);
-    if (g_vbs4.file && fclose(g_vbs4.file) != 0 && ret == 0)
+    if (g_vachunk.file && fclose(g_vachunk.file) != 0 && ret == 0)
         ret = AVERROR(EIO);
-    g_vbs4.file = NULL;
+    g_vachunk.file = NULL;
     free_frames();
-    av_freep(&g_vbs4.frame_index);
-    av_freep(&g_vbs4.block_index);
-    if (g_vbs4.lock_initialized)
-        ff_mutex_destroy(&g_vbs4.lock);
-    memset(&g_vbs4, 0, sizeof(g_vbs4));
+    av_freep(&g_vachunk.frame_index);
+    av_freep(&g_vachunk.block_index);
+    if (g_vachunk.lock_initialized)
+        ff_mutex_destroy(&g_vachunk.lock);
+    memset(&g_vachunk, 0, sizeof(g_vachunk));
     return ret;
 }
 
-void ff_voidplayer_vbs4_abort(void)
+void ff_voidplayer_vachunk_abort(void)
 {
     reset_state();
 }
 
-int ff_voidplayer_vbs4_is_active(void)
+int ff_voidplayer_vachunk_is_active(void)
 {
-    return g_vbs4.active && !g_vbs4.error;
+    return g_vachunk.active && !g_vachunk.error;
 }
 
-uint32_t ff_voidplayer_vbs4_frame_count(void)
+uint32_t ff_voidplayer_vachunk_frame_count(void)
 {
     uint32_t frame_count;
 
-    vbs4_lock();
-    frame_count = g_vbs4.frame_count;
-    vbs4_unlock();
+    vachunk_lock();
+    frame_count = g_vachunk.frame_count;
+    vachunk_unlock();
     return frame_count;
 }
 
-uint32_t ff_voidplayer_vbs4_last_frame_cu_count(void)
+uint32_t ff_voidplayer_vachunk_last_frame_cu_count(void)
 {
     uint32_t cu_count = 0;
 
-    vbs4_lock();
-    if (g_vbs4.frame_count)
-        cu_count = g_vbs4.frames[g_vbs4.frame_count - 1].summary.num_cus;
-    vbs4_unlock();
+    vachunk_lock();
+    if (g_vachunk.frame_count)
+        cu_count = g_vachunk.frames[g_vachunk.frame_count - 1].summary.num_cus;
+    vachunk_unlock();
     return cu_count;
 }
 
-void ff_voidplayer_vbs4_write_intra_cu(const VoidPlayerVbs4FrameInfo *info,
+void ff_voidplayer_vachunk_write_intra_cu(const VoidPlayerVachunkFrameInfo *info,
                                        uint16_t x,
                                        uint16_t y,
                                        uint8_t w,
@@ -1750,7 +1751,7 @@ void ff_voidplayer_vbs4_write_intra_cu(const VoidPlayerVbs4FrameInfo *info,
                                        uint8_t mip_flag,
                                        uint8_t isp_mode)
 {
-    Vbs4CuRecord record;
+    VachunkCuRecord record;
 
     memset(&record, 0, sizeof(record));
     record.x = x;
@@ -1768,7 +1769,7 @@ void ff_voidplayer_vbs4_write_intra_cu(const VoidPlayerVbs4FrameInfo *info,
     append_cu_record(info, &record);
 }
 
-void ff_voidplayer_vbs4_write_inter_cu(const VoidPlayerVbs4FrameInfo *info,
+void ff_voidplayer_vachunk_write_inter_cu(const VoidPlayerVachunkFrameInfo *info,
                                        uint16_t x,
                                        uint16_t y,
                                        uint8_t w,
@@ -1785,7 +1786,7 @@ void ff_voidplayer_vbs4_write_inter_cu(const VoidPlayerVbs4FrameInfo *info,
                                        int8_t ref_l0,
                                        int8_t ref_l1)
 {
-    Vbs4CuRecord record;
+    VachunkCuRecord record;
 
     memset(&record, 0, sizeof(record));
     record.x = x;
@@ -1808,7 +1809,7 @@ void ff_voidplayer_vbs4_write_inter_cu(const VoidPlayerVbs4FrameInfo *info,
     append_cu_record(info, &record);
 }
 
-void ff_voidplayer_vbs4_write_h264_mb(const VoidPlayerVbs4FrameInfo *info,
+void ff_voidplayer_vachunk_write_h264_mb(const VoidPlayerVachunkFrameInfo *info,
                                       uint16_t x,
                                       uint16_t y,
                                       uint8_t qp,
@@ -1824,7 +1825,7 @@ void ff_voidplayer_vbs4_write_h264_mb(const VoidPlayerVbs4FrameInfo *info,
                                       int8_t ref_l0,
                                       int8_t ref_l1)
 {
-    Vbs4CuRecord record;
+    VachunkCuRecord record;
 
     memset(&record, 0, sizeof(record));
     record.x = x;

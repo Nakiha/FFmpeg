@@ -143,11 +143,12 @@ if (!$SkipConfigure) {
   --disable-swresample \
   --disable-swscale \
   --disable-everything \
-  --extra-cflags="-DVOIDPLAYER_VBS4_ZSTD=1 -I$zstdIncludeMsys" \
+  --extra-cflags="-DVOIDPLAYER_VACHUNK_ZSTD=1 -I$zstdIncludeMsys" \
   --extra-ldexeflags="$zstdLibMsys" \
-  --enable-decoder=hevc,h264,av1,vp9,mpeg2video \
-  --enable-parser=hevc,h264,av1,vp9,mpegvideo \
-  --enable-demuxer=mov,matroska,flv,hevc,h264,ivf,mpegvideo,mpegts \
+  --enable-decoder=vvc,hevc,h264,av1,vp9,mpeg2video \
+  --enable-parser=vvc,hevc,h264,av1,vp9,mpegvideo \
+  --enable-demuxer=mov,matroska,flv,vvc,hevc,h264,ivf,mpegvideo,mpegts \
+  --enable-bsf=vvc_mp4toannexb,hevc_mp4toannexb,h264_mp4toannexb \
   --enable-protocol=file
 "@
 }
@@ -162,10 +163,17 @@ command -v make
 command -v nasm.exe || command -v nasm
 cd "$buildDirMsys"
 $configureCommand
-# FFmpeg generates demuxer_list.c during configure and allformats.c includes it.
-# The MSVC dependency file for allformats.o is empty here, so config changes such
-# as enabling the FLV demuxer can leave a stale registry object in incremental builds.
-rm -f libavformat/allformats.o libavformat/allformats.d
+# FFmpeg generates component registries during configure. Some MSVC dependency
+# files are empty here, so config changes can leave stale registry objects in
+# incremental builds.
+rm -f \
+      libavformat/allformats.o libavformat/allformats.d \
+      libavcodec/allcodecs.o libavcodec/allcodecs.d \
+      libavcodec/bitstream_filters.o libavcodec/bitstream_filters.d \
+      libavcodec/cbs.o libavcodec/cbs.d \
+      libavcodec/codec_list.o libavcodec/codec_list.d \
+      libavcodec/parser_list.o libavcodec/parser_list.d \
+      libavcodec/bsf_list.o libavcodec/bsf_list.d
 make -j`$(nproc) tools/void_ffmpeg_analyzer.exe
 "@
 
