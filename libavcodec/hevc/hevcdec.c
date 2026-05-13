@@ -57,7 +57,7 @@
 #include "libavutil/refstruct.h"
 #include "thread.h"
 #include "threadprogress.h"
-#include "voidplayer_vbs4.h"
+#include "voidplayer_vachunk.h"
 
 static const uint8_t hevc_pel_weight[65] = { [2] = 0, [4] = 1, [6] = 2, [8] = 3, [12] = 4, [16] = 5, [24] = 6, [32] = 7, [48] = 8, [64] = 9 };
 
@@ -2471,10 +2471,10 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
     uint8_t num_ref_l0 = 0;
     uint8_t num_ref_l1 = 0;
     uint8_t qp;
-    VoidPlayerVbs4FrameInfo frame_info = { 0 };
+    VoidPlayerVachunkFrameInfo frame_info = { 0 };
     int i;
 
-    if (!ff_voidplayer_vbs4_is_active() || !s->cur_frame || w <= 0 || h <= 0)
+    if (!ff_voidplayer_vachunk_is_active() || !s->cur_frame || w <= 0 || h <= 0)
         return;
 
     voidplayer_hevc_ref_pocs(s, ref_pic_list, L0, ref_pocs_l0, &num_ref_l0);
@@ -2503,7 +2503,7 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
 
     qp = (uint8_t)av_clip_uint8(lc->qp_y);
     if (lc->cu.pred_mode == MODE_INTRA) {
-        ff_voidplayer_vbs4_write_intra_cu(&frame_info,
+        ff_voidplayer_vachunk_write_intra_cu(&frame_info,
                                           (uint16_t)x0,
                                           (uint16_t)y0,
                                           (uint8_t)FFMIN(w, 255),
@@ -2519,7 +2519,7 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
     if (s->cur_frame->tab_mvf)
         mvf = &s->cur_frame->tab_mvf[y_pu * sps->min_pu_width + x_pu];
 
-    ff_voidplayer_vbs4_write_inter_cu(&frame_info,
+    ff_voidplayer_vachunk_write_inter_cu(&frame_info,
                                       (uint16_t)x0,
                                       (uint16_t)y0,
                                       (uint8_t)FFMIN(w, 255),

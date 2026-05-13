@@ -36,7 +36,7 @@
 #include "qpeldsp.h"
 #include "rectangle.h"
 #include "threadframe.h"
-#include "voidplayer_vbs4.h"
+#include "voidplayer_vachunk.h"
 
 static inline int get_lowest_part_list_y(H264SliceContext *sl,
                                          int n, int height, int y_offset, int list)
@@ -862,10 +862,10 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
     int16_t mv_l1_x = 0;
     int16_t mv_l1_y = 0;
     int poc;
-    VoidPlayerVbs4FrameInfo frame_info = { 0 };
+    VoidPlayerVachunkFrameInfo frame_info = { 0 };
     int i;
 
-    if (!ff_voidplayer_vbs4_is_active() || w <= 0 || hgt <= 0)
+    if (!ff_voidplayer_vachunk_is_active() || w <= 0 || hgt <= 0)
         return;
 
     voidplayer_h264_ref_pocs(sl, 0, ref_pocs_l0, &num_ref_l0);
@@ -894,7 +894,7 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
 
     qp = (uint8_t)av_clip_uint8(h->cur_pic.qscale_table ? h->cur_pic.qscale_table[mb_xy] : sl->qscale);
     if (IS_INTRA(mb_type)) {
-        ff_voidplayer_vbs4_write_h264_mb(&frame_info,
+        ff_voidplayer_vachunk_write_h264_mb(&frame_info,
                                          (uint16_t)x,
                                          (uint16_t)y,
                                          qp,
@@ -931,7 +931,7 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
         }
     }
 
-    ff_voidplayer_vbs4_write_h264_mb(&frame_info,
+    ff_voidplayer_vachunk_write_h264_mb(&frame_info,
                                      (uint16_t)x,
                                      (uint16_t)y,
                                      qp,
@@ -955,7 +955,7 @@ void ff_h264_hl_decode_mb(const H264Context *h, H264SliceContext *sl)
     int is_complex    = CONFIG_SMALL || sl->is_complex ||
                         IS_INTRA_PCM(mb_type) || sl->qscale == 0;
 
-    if (ff_voidplayer_vbs4_is_active()) {
+    if (ff_voidplayer_vachunk_is_active()) {
         voidplayer_h264_record_mb(h, sl);
         return;
     }
