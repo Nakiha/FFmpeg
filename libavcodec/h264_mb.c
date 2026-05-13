@@ -908,7 +908,8 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
                                          0,
                                          0,
                                          -1,
-                                         -1);
+                                         -1,
+                                         sl->voidplayer_mb_bit_count);
         return;
     }
 
@@ -945,7 +946,8 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
                                      mv_l1_x,
                                      mv_l1_y,
                                      ref_l0,
-                                     ref_l1);
+                                     ref_l1,
+                                     sl->voidplayer_mb_bit_count);
 }
 
 void ff_h264_hl_decode_mb(const H264Context *h, H264SliceContext *sl)
