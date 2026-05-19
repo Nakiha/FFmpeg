@@ -28,6 +28,26 @@ typedef struct VoidPlayerVachunkFrameInfo {
     uint8_t has_coded_order_key;
 } VoidPlayerVachunkFrameInfo;
 
+typedef struct VoidPlayerVachunkFrameSummary {
+    int32_t  poc;
+    uint32_t coded_order;
+    uint32_t vcl_unit_index;
+    uint32_t flags;
+    uint8_t  temporal_id;
+    uint8_t  slice_type;
+    uint8_t  nal_unit_type;
+    uint8_t  avg_qp;
+    uint8_t  num_ref_l0;
+    uint8_t  num_ref_l1;
+    uint8_t  qp_min;
+    uint8_t  qp_max;
+    int32_t  ref_pocs_l0[15];
+    int32_t  ref_pocs_l1[15];
+    uint32_t num_cus;
+    uint32_t cu_index_entry;
+    uint32_t reserved[2];
+} VoidPlayerVachunkFrameSummary;
+
 int ff_voidplayer_vachunk_start(const char *path,
                              uint32_t width,
                              uint32_t height,
@@ -35,6 +55,7 @@ int ff_voidplayer_vachunk_start(const char *path,
 int ff_voidplayer_vachunk_start_memory(uint32_t width,
                                     uint32_t height,
                                     uint16_t codec);
+int ff_voidplayer_vachunk_set_summary_only(int enabled);
 int ff_voidplayer_vachunk_set_frame_window(uint64_t start_frame,
                                         uint64_t end_frame);
 int ff_voidplayer_vachunk_finish_vachunk(const char *path,
@@ -42,11 +63,19 @@ int ff_voidplayer_vachunk_finish_vachunk(const char *path,
                                       uint32_t source_end_frame,
                                       uint64_t base_content_revision,
                                       uint64_t generator_revision);
+int ff_voidplayer_vachunk_finish_frame_summary_vachunk(const char *path,
+                                                    uint32_t source_start_frame,
+                                                    uint32_t source_end_frame,
+                                                    uint64_t base_content_revision,
+                                                    uint64_t generator_revision);
 int ff_voidplayer_vachunk_finish(void);
 void ff_voidplayer_vachunk_abort(void);
 int ff_voidplayer_vachunk_is_active(void);
 uint32_t ff_voidplayer_vachunk_frame_count(void);
 uint32_t ff_voidplayer_vachunk_last_frame_cu_count(void);
+int ff_voidplayer_vachunk_write_frame_summary(const VoidPlayerVachunkFrameInfo *info);
+uint32_t ff_voidplayer_vachunk_copy_frame_summaries(VoidPlayerVachunkFrameSummary *out,
+                                                 uint32_t max_count);
 
 void ff_voidplayer_vachunk_write_intra_cu(const VoidPlayerVachunkFrameInfo *info,
                                        uint16_t x,
