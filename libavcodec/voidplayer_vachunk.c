@@ -65,9 +65,11 @@
 
 #define VACHUNK_VERSION_MAJOR 1u
 #define VACHUNK_VERSION_MINOR 0u
+#define VACHUNK_KIND_FRAME_SUMMARY_EXACT 2u
 #define VACHUNK_KIND_OVERLAY 3u
 #define VACHUNK_OVERLAY_FRAME_FLAG_COMPLETE 0x00000001u
 #define VACHUNK_OVERLAY_FRAME_FLAG_EXACT 0x00000002u
+#define VACHUNK_FEATURE_REF_INDEXES 0x0000000000000010ull
 #define VACHUNK_OVERLAY_FEATURE_FLAGS 0x000000000000011full
 
 #pragma pack(push, 1)
@@ -262,6 +264,7 @@ typedef char VachunkChunkHeaderMustBe128[(sizeof(VachunkHeader) == 128) ? 1 : -1
 typedef char VachunkChunkSectionMustBe56[(sizeof(VachunkSectionEntry) == 56) ? 1 : -1];
 typedef char VachunkOverlayFrameIndexMustBe24[(sizeof(VachunkOverlayFrameIndexEntry) == 24) ? 1 : -1];
 typedef char VachunkPackedCuRecordMustBe26[(sizeof(VachunkPackedCuRecord) == 26) ? 1 : -1];
+typedef char VachunkPublicSummaryMustBe160[(sizeof(VoidPlayerVachunkFrameSummary) == sizeof(VachunkFrameSummary)) ? 1 : -1];
 
 typedef struct VachunkCuRecord {
     uint16_t x;
@@ -363,6 +366,7 @@ typedef struct VoidVachunkState {
     int has_frame_window;
     uint64_t start_frame;
     uint64_t end_frame;
+    int summary_only;
 } VoidVachunkState;
 
 static VoidVachunkState g_vachunk;
@@ -1279,6 +1283,35 @@ done:
     return ret;
 }
 
+int ff_voidplayer_vachunk_write_frame_summary(const VoidPlayerVachunkFrameInfo *info)
+{
+    VachunkFrameBuffer *frame;
+    int ret = 0;
+
+    if (!info)
+        return AVERROR(EINVAL);
+
+    vachunk_lock();
+    if (!g_vachunk.active || g_vachunk.error) {
+        ret = g_vachunk.error ? g_vachunk.error : AVERROR(EINVAL);
+        goto done;
+    }
+    if (g_vachunk.has_frame_window && info->has_coded_order_key &&
+        info->coded_order_key > 0) {
+        uint64_t source_frame = info->coded_order_key - 1;
+        if (source_frame < g_vachunk.start_frame || source_frame > g_vachunk.end_frame)
+            goto done;
+    }
+
+    frame = get_or_create_frame(info, 0, 0, 1, 1, 0);
+    if (!frame)
+        ret = g_vachunk.error ? g_vachunk.error : AVERROR(EINVAL);
+
+done:
+    vachunk_unlock();
+    return ret;
+}
+
 int ff_voidplayer_vachunk_set_frame_window(uint64_t start_frame, uint64_t end_frame)
 {
     int ret = 0;
@@ -1325,6 +1358,22 @@ static int start_common(uint32_t width, uint32_t height, uint16_t codec)
 int ff_voidplayer_vachunk_start_memory(uint32_t width, uint32_t height, uint16_t codec)
 {
     return start_common(width, height, codec);
+}
+
+int ff_voidplayer_vachunk_set_summary_only(int enabled)
+{
+    int ret = 0;
+
+    vachunk_lock();
+    if (!g_vachunk.active || g_vachunk.error) {
+        ret = g_vachunk.error ? g_vachunk.error : AVERROR(EINVAL);
+        goto done;
+    }
+    g_vachunk.summary_only = enabled ? 1 : 0;
+
+done:
+    vachunk_unlock();
+    return ret;
 }
 
 int ff_voidplayer_vachunk_start(const char *path, uint32_t width, uint32_t height, uint16_t codec)
@@ -1564,6 +1613,89 @@ done:
     return ret;
 }
 
+int ff_voidplayer_vachunk_finish_frame_summary_vachunk(const char *path,
+                                                    uint32_t source_start_frame,
+                                                    uint32_t source_end_frame,
+                                                    uint64_t base_content_revision,
+                                                    uint64_t generator_revision)
+{
+    const uint32_t section_count = 1;
+    VachunkSectionEntry section;
+    VachunkHeader header;
+    FILE *out = NULL;
+    uint64_t table_offset = sizeof(VachunkHeader);
+    uint64_t table_size = section_count * sizeof(VachunkSectionEntry);
+    uint64_t payload_offset = table_offset + table_size;
+    uint64_t fsum_size;
+    uint64_t file_size;
+    uint32_t i;
+    int ret = 0;
+
+    if (!path || !g_vachunk.active || g_vachunk.file || source_start_frame > source_end_frame)
+        return AVERROR(EINVAL);
+    if (g_vachunk.error) {
+        ret = g_vachunk.error;
+        goto done;
+    }
+    if (g_vachunk.frame_count == 0 ||
+        (uint64_t)source_end_frame - source_start_frame + 1 != g_vachunk.frame_count) {
+        ret = AVERROR(EINVAL);
+        goto done;
+    }
+
+    finalize_frame_summaries();
+    fsum_size = (uint64_t)g_vachunk.frame_count * sizeof(VachunkFrameSummary);
+    file_size = payload_offset + fsum_size;
+    section = make_vachunk_section("FSUM", payload_offset, fsum_size,
+                                   sizeof(VachunkFrameSummary), g_vachunk.frame_count);
+
+    memset(&header, 0, sizeof(header));
+    set_fourcc(header.magic, "VCK1");
+    header.version_major = VACHUNK_VERSION_MAJOR;
+    header.version_minor = VACHUNK_VERSION_MINOR;
+    header.header_size = sizeof(VachunkHeader);
+    header.section_entry_size = sizeof(VachunkSectionEntry);
+    header.section_count = section_count;
+    header.kind = VACHUNK_KIND_FRAME_SUMMARY_EXACT;
+    header.codec = g_vachunk.codec;
+    header.feature_flags = VACHUNK_FEATURE_REF_INDEXES;
+    header.base_content_revision = base_content_revision;
+    header.generator_revision = generator_revision;
+    header.compression = VACHUNK_COMPRESSION_NONE;
+    header.start_frame = source_start_frame;
+    header.end_frame = source_end_frame;
+    header.start_packet = UINT32_MAX;
+    header.end_packet = UINT32_MAX;
+    header.start_unit = UINT32_MAX;
+    header.end_unit = UINT32_MAX;
+    header.section_table_offset = table_offset;
+    header.file_size = file_size;
+
+    out = open_utf8_file(path, "w+b");
+    if (!out) {
+        ret = AVERROR(errno ? errno : EIO);
+        goto done;
+    }
+    if (write_exact(out, &header, sizeof(header)) < 0 ||
+        write_exact(out, &section, sizeof(section)) < 0) {
+        ret = AVERROR(EIO);
+        goto done;
+    }
+    for (i = 0; i < g_vachunk.frame_count; ++i) {
+        if (write_exact(out, &g_vachunk.frames[i].summary,
+                        sizeof(g_vachunk.frames[i].summary)) < 0) {
+            ret = AVERROR(EIO);
+            goto done;
+        }
+    }
+
+done:
+    if (out && fclose(out) != 0 && ret == 0)
+        ret = AVERROR(EIO);
+    reset_state();
+    return ret;
+}
+
 int ff_voidplayer_vachunk_finish(void)
 {
     const uint32_t section_count = 4;
@@ -1744,6 +1876,29 @@ uint32_t ff_voidplayer_vachunk_last_frame_cu_count(void)
     return cu_count;
 }
 
+uint32_t ff_voidplayer_vachunk_copy_frame_summaries(VoidPlayerVachunkFrameSummary *out,
+                                                 uint32_t max_count)
+{
+    uint32_t count = 0;
+    uint32_t i;
+
+    if (!out || max_count == 0)
+        return 0;
+
+    vachunk_lock();
+    if (!g_vachunk.active || g_vachunk.error)
+        goto done;
+
+    finalize_frame_summaries();
+    count = g_vachunk.frame_count < max_count ? g_vachunk.frame_count : max_count;
+    for (i = 0; i < count; ++i)
+        memcpy(&out[i], &g_vachunk.frames[i].summary, sizeof(out[i]));
+
+done:
+    vachunk_unlock();
+    return count;
+}
+
 void ff_voidplayer_vachunk_write_intra_cu(const VoidPlayerVachunkFrameInfo *info,
                                        uint16_t x,
                                        uint16_t y,
@@ -1757,6 +1912,11 @@ void ff_voidplayer_vachunk_write_intra_cu(const VoidPlayerVachunkFrameInfo *info
                                        uint32_t bit_count)
 {
     VachunkCuRecord record;
+
+    if (g_vachunk.summary_only) {
+        ff_voidplayer_vachunk_write_frame_summary(info);
+        return;
+    }
 
     memset(&record, 0, sizeof(record));
     record.x = x;
@@ -1794,6 +1954,11 @@ void ff_voidplayer_vachunk_write_inter_cu(const VoidPlayerVachunkFrameInfo *info
                                        uint32_t bit_count)
 {
     VachunkCuRecord record;
+
+    if (g_vachunk.summary_only) {
+        ff_voidplayer_vachunk_write_frame_summary(info);
+        return;
+    }
 
     memset(&record, 0, sizeof(record));
     record.x = x;
@@ -1835,6 +2000,11 @@ void ff_voidplayer_vachunk_write_h264_mb(const VoidPlayerVachunkFrameInfo *info,
                                       uint32_t bit_count)
 {
     VachunkCuRecord record;
+
+    if (g_vachunk.summary_only) {
+        ff_voidplayer_vachunk_write_frame_summary(info);
+        return;
+    }
 
     memset(&record, 0, sizeof(record));
     record.x = x;

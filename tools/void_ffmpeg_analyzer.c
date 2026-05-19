@@ -31,6 +31,7 @@ typedef struct AnalyzerOptions {
     const char *codec;
     const char *input;
     const char *vachunk;
+    const char *frame_summary;
     int probe_only;
     int has_start_frame;
     int has_end_frame;
@@ -45,7 +46,7 @@ typedef struct AnalyzerOptions {
 static void print_usage(FILE *out)
 {
     fprintf(out,
-            "Usage: void_ffmpeg_analyzer --codec <codec> --input <path> [--probe-only | --vachunk <path> --start-frame <n> --end-frame <n> --base-revision <n> --generator-revision <n>]\n"
+            "Usage: void_ffmpeg_analyzer --codec <codec> --input <path> [--probe-only | --vachunk <path> --start-frame <n> --end-frame <n> --base-revision <n> --generator-revision <n> | --frame-summary <path>]\n"
             "\n"
             "Supported codec names: vvc, h266, hevc, h265, h264\n"
             "\n"
@@ -135,6 +136,10 @@ static int parse_args(int argc, char **argv, AnalyzerOptions *options)
             options->vachunk = argv[++i];
             continue;
         }
+        if (!strcmp(argv[i], "--frame-summary") && i + 1 < argc) {
+            options->frame_summary = argv[++i];
+            continue;
+        }
         if (!strcmp(argv[i], "--start-frame") && i + 1 < argc) {
             if (parse_u64_arg(argv[++i], &options->start_frame) < 0) {
                 fprintf(stderr, "Invalid --start-frame value.\n");
@@ -174,8 +179,13 @@ static int parse_args(int argc, char **argv, AnalyzerOptions *options)
     }
 
     if (!options->codec || !options->input ||
-        (!options->probe_only && !options->vachunk)) {
+        (!options->probe_only && !options->vachunk && !options->frame_summary)) {
         fprintf(stderr, "Missing required arguments.\n");
+        print_usage(stderr);
+        return -1;
+    }
+    if (options->vachunk && options->frame_summary) {
+        fprintf(stderr, "--vachunk and --frame-summary are mutually exclusive.\n");
         print_usage(stderr);
         return -1;
     }
@@ -196,9 +206,15 @@ static int parse_args(int argc, char **argv, AnalyzerOptions *options)
         print_usage(stderr);
         return -1;
     }
-    if (options->vachunk &&
+    if (options->frame_summary &&
+        (options->has_start_frame || options->has_end_frame) &&
+        (!options->has_start_frame || !options->has_end_frame)) {
+        fprintf(stderr, "--frame-summary frame range requires both --start-frame and --end-frame.\n");
+        return -1;
+    }
+    if ((options->vachunk || options->frame_summary) &&
         (options->start_frame > UINT32_MAX || options->end_frame > UINT32_MAX)) {
-        fprintf(stderr, "--vachunk frame range exceeds uint32 limits.\n");
+        fprintf(stderr, "Frame range exceeds uint32 limits.\n");
         return -1;
     }
 
@@ -451,6 +467,11 @@ static int decode_vachunk(const AnalyzerOptions *options,
     if (ret < 0)
         goto done;
     writer_started = 1;
+    if (options->frame_summary) {
+        ret = ff_voidplayer_vachunk_set_summary_only(1);
+        if (ret < 0)
+            goto done;
+    }
     if (options->has_start_frame || options->has_end_frame) {
         uint64_t start_frame = options->has_start_frame ? options->start_frame : 0;
         uint64_t end_frame = options->has_end_frame ? options->end_frame : UINT64_MAX;
@@ -541,19 +562,37 @@ static int decode_vachunk(const AnalyzerOptions *options,
             goto done;
         }
         failed_stage = "finish VACHUNK writer";
-        ret = ff_voidplayer_vachunk_finish_vachunk(
-            options->vachunk,
-            (uint32_t)options->start_frame,
-            (uint32_t)options->end_frame,
-            options->base_revision,
-            options->generator_revision);
+        if (options->frame_summary) {
+            uint32_t start_frame = options->has_start_frame ? (uint32_t)options->start_frame : 0;
+            uint32_t end_frame = options->has_end_frame ? (uint32_t)options->end_frame : frames - 1;
+            ret = ff_voidplayer_vachunk_finish_frame_summary_vachunk(
+                options->frame_summary,
+                start_frame,
+                end_frame,
+                options->has_base_revision ? options->base_revision : 0,
+                options->has_generator_revision ? options->generator_revision : 1);
+        } else {
+            ret = ff_voidplayer_vachunk_finish_vachunk(
+                options->vachunk,
+                (uint32_t)options->start_frame,
+                (uint32_t)options->end_frame,
+                options->base_revision,
+                options->generator_revision);
+        }
         writer_started = 0;
         if (ret < 0)
             goto done;
-        fprintf(stdout,
-                "vachunk=%s\nframes=%u\n",
-                options->vachunk,
-                frames);
+        if (options->frame_summary) {
+            fprintf(stdout,
+                    "frame_summary=%s\nframes=%u\n",
+                    options->frame_summary,
+                    frames);
+        } else {
+            fprintf(stdout,
+                    "vachunk=%s\nframes=%u\n",
+                    options->vachunk,
+                    frames);
+        }
     }
 
 done:
