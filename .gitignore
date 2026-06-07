@@ -44,6 +44,7 @@
 /coverage.info
 /lcov/
 /src
+/bin/
 /build/
 /mapfile
 /tools/python/__pycache__/
