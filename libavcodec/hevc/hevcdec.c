@@ -54,6 +54,8 @@
 #include "libavcodec/progressframe.h"
 #include "libavcodec/thread.h"
 #include "libavcodec/threadprogress.h"
+#include "libavcodec/voidplayer_vachunk.h"
+extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
 
 #include "hevc.h"
 #include "parse.h"
@@ -2403,6 +2405,152 @@ static void intra_prediction_unit_default_value(HEVCLocalContext *lc,
                 tab_mvf[(y_pu + j) * min_pu_width + x_pu + k].pred_flag = PF_INTRA;
 }
 
+static int16_t voidplayer_hevc_round_mv(int mv)
+{
+    int rounded = mv >= 0 ? (mv + 2) >> 2 : -((-mv + 2) >> 2);
+
+    if (rounded < INT16_MIN)
+        return INT16_MIN;
+    if (rounded > INT16_MAX)
+        return INT16_MAX;
+    return rounded;
+}
+
+static void voidplayer_hevc_ref_pocs(const HEVCContext *s,
+                                     const RefPicList *ref_pic_list,
+                                     int list,
+                                     int32_t ref_pocs[15],
+                                     uint8_t *num_refs)
+{
+    int nb_refs = s->sh.nb_refs[list];
+    int i;
+
+    if (ref_pic_list && ref_pic_list[list].nb_refs > 0)
+        nb_refs = FFMIN(nb_refs, ref_pic_list[list].nb_refs);
+    nb_refs = FFMIN(nb_refs, 15);
+    *num_refs = nb_refs;
+    for (i = 0; i < 15; ++i)
+        ref_pocs[i] = (i < nb_refs && ref_pic_list && ref_pic_list[list].ref[i]) ?
+                      ref_pic_list[list].ref[i]->poc : -1;
+}
+
+static uint32_t voidplayer_hevc_cabac_bitpos(const CABACContext *cc)
+{
+    int64_t bytes;
+    if (!cc || !cc->bytestream_start || !cc->bytestream)
+        return 0;
+    bytes = cc->bytestream - cc->bytestream_start;
+    if (bytes <= 0)
+        return 0;
+    if (bytes > UINT32_MAX / 8)
+        return UINT32_MAX;
+    return (uint32_t)bytes * 8u;
+}
+
+static uint32_t voidplayer_hevc_bit_delta(uint32_t start, uint32_t end)
+{
+    return end >= start ? end - start : 0;
+}
+
+static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
+                                      const HEVCContext *s,
+                                      const HEVCLayerContext *l,
+                                      const HEVCSPS *sps,
+                                      int x0, int y0,
+                                      int log2_cb_size,
+                                      uint32_t bit_count)
+{
+    const int cb_size = 1 << log2_cb_size;
+    const int frame_width = sps->width;
+    const int frame_height = sps->height;
+    const int w = FFMAX(0, FFMIN(cb_size, frame_width - x0));
+    const int h = FFMAX(0, FFMIN(cb_size, frame_height - y0));
+    const int min_cb_width = sps->min_cb_width;
+    const int x_cb = x0 >> sps->log2_min_cb_size;
+    const int y_cb = y0 >> sps->log2_min_cb_size;
+    const int x_pu = x0 >> sps->log2_min_pu_size;
+    const int y_pu = y0 >> sps->log2_min_pu_size;
+    const MvField *mvf = NULL;
+    const RefPicList *ref_pic_list = s->cur_frame ? s->cur_frame->refPicList : NULL;
+    int32_t ref_pocs_l0[15];
+    int32_t ref_pocs_l1[15];
+    uint8_t num_ref_l0 = 0;
+    uint8_t num_ref_l1 = 0;
+    uint8_t qp;
+    VoidPlayerVachunkFrameInfo frame_info = { 0 };
+    int i;
+
+    if (!ff_voidplayer_vachunk_is_active() || !s->cur_frame || w <= 0 || h <= 0)
+        return;
+
+    voidplayer_hevc_ref_pocs(s, ref_pic_list, L0, ref_pocs_l0, &num_ref_l0);
+    voidplayer_hevc_ref_pocs(s, ref_pic_list, L1, ref_pocs_l1, &num_ref_l1);
+    frame_info.poc = s->sh.poc;
+    frame_info.width = frame_width;
+    frame_info.height = frame_height;
+    frame_info.temporal_id = (uint8_t)av_clip_uint8(s->temporal_id);
+    frame_info.slice_type = (uint8_t)s->sh.slice_type;
+    frame_info.nal_unit_type = (uint8_t)s->nal_unit_type;
+    frame_info.num_ref_l0 = num_ref_l0;
+    frame_info.num_ref_l1 = num_ref_l1;
+    if (s->cur_frame->f && s->cur_frame->f->opaque) {
+        frame_info.frame_identity = (uintptr_t)s->cur_frame->f->opaque;
+        frame_info.coded_order_key = (uint64_t)(uintptr_t)s->cur_frame->f->opaque;
+        frame_info.has_coded_order_key = 1;
+    } else if (s->cur_frame->f && s->cur_frame->f->pts != AV_NOPTS_VALUE) {
+        frame_info.frame_identity = (uintptr_t)(s->cur_frame->f->pts + 1);
+    } else {
+        frame_info.frame_identity = (uintptr_t)s->cur_frame;
+    }
+    for (i = 0; i < 15; ++i) {
+        frame_info.ref_pocs_l0[i] = ref_pocs_l0[i];
+        frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];
+    }
+
+    if (s->sh.slice_type != HEVC_SLICE_I)
+        for(int list=0;list<(s->sh.slice_type==HEVC_SLICE_B?2:1);list++)
+            for(int r=0;r<s->sh.nb_refs[list];r++) {
+                const HEVCFrame *ref=ref_pic_list&&r<ref_pic_list[list].nb_refs?ref_pic_list[list].ref[r]:NULL;
+                ff_vpa_reference(frame_info.frame_identity, ref&&ref->f?(uintptr_t)ref->f->opaque:0, list);
+            }
+    qp = (uint8_t)av_clip_uint8(lc->qp_y);
+    if (lc->cu.pred_mode == MODE_INTRA) {
+        ff_voidplayer_vachunk_write_intra_cu(&frame_info,
+                                          (uint16_t)x0,
+                                          (uint16_t)y0,
+                                          (uint8_t)FFMIN(w, 255),
+                                          (uint8_t)FFMIN(h, 255),
+                                          (uint8_t)av_clip_uint8(lc->ct_depth),
+                                          qp,
+                                          lc->pu.intra_pred_mode[0],
+                                          0,
+                                          0,
+                                          bit_count);
+        return;
+    }
+
+    if (s->cur_frame->tab_mvf)
+        mvf = &s->cur_frame->tab_mvf[y_pu * sps->min_pu_width + x_pu];
+
+    ff_voidplayer_vachunk_write_inter_cu(&frame_info,
+                                      (uint16_t)x0,
+                                      (uint16_t)y0,
+                                      (uint8_t)FFMIN(w, 255),
+                                      (uint8_t)FFMIN(h, 255),
+                                      (uint8_t)av_clip_uint8(lc->ct_depth),
+                                      qp,
+                                      SAMPLE_CTB(l->skip_flag, x_cb, y_cb) ? 1 : 0,
+                                      lc->pu.merge_flag ? 1 : 0,
+                                      mvf ? (uint8_t)mvf->pred_flag : 0,
+                                      (mvf && (mvf->pred_flag & PF_L0)) ? voidplayer_hevc_round_mv(mvf->mv[0].x) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L0)) ? voidplayer_hevc_round_mv(mvf->mv[0].y) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L1)) ? voidplayer_hevc_round_mv(mvf->mv[1].x) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L1)) ? voidplayer_hevc_round_mv(mvf->mv[1].y) : 0,
+                                      (mvf && (mvf->pred_flag & PF_L0)) ? mvf->ref_idx[0] : -1,
+                                      (mvf && (mvf->pred_flag & PF_L1)) ? mvf->ref_idx[1] : -1,
+                                      bit_count);
+}
+
 static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
                            const HEVCLayerContext *l,
                            const HEVCPPS *pps, const HEVCSPS *sps,
@@ -2417,6 +2565,7 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
     int idx              = log2_cb_size - 2;
     int qp_block_mask    = (1 << (sps->log2_ctb_size - pps->diff_cu_qp_delta_depth)) - 1;
     int x, y, ret;
+    uint32_t voidplayer_bit_start = voidplayer_hevc_cabac_bitpos(&lc->cc);
 
     lc->cu.x                = x0;
     lc->cu.y                = y0;
@@ -2586,6 +2735,15 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
     }
 
     set_ct_depth(sps, l->tab_ct_depth, x0, y0, log2_cb_size, lc->ct_depth);
+    voidplayer_hevc_record_cu(
+        lc,
+        s,
+        l,
+        sps,
+        x0,
+        y0,
+        log2_cb_size,
+        voidplayer_hevc_bit_delta(voidplayer_bit_start, voidplayer_hevc_cabac_bitpos(&lc->cc)));
 
     return 0;
 }

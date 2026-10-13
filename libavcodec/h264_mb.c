@@ -36,6 +36,8 @@
 #include "qpeldsp.h"
 #include "rectangle.h"
 #include "threadframe.h"
+#include "voidplayer_vachunk.h"
+extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
 
 static inline int get_lowest_part_list_y(H264SliceContext *sl,
                                          int n, int height, int y_offset, int list)
@@ -797,12 +799,175 @@ static av_always_inline void hl_decode_mb_idct_luma(const H264Context *h, H264Sl
 #define SIMPLE 0
 #include "h264_mb_template.c"
 
+static uint8_t voidplayer_h264_slice_type(int picture_type)
+{
+    switch (picture_type & 3) {
+    case AV_PICTURE_TYPE_B:
+        return 0;
+    case AV_PICTURE_TYPE_P:
+        return 1;
+    case AV_PICTURE_TYPE_I:
+        return 2;
+    default:
+        return 1;
+    }
+}
+
+static int16_t voidplayer_h264_round_mv(int mv)
+{
+    int rounded = mv >= 0 ? (mv + 2) >> 2 : -((-mv + 2) >> 2);
+
+    if (rounded < INT16_MIN)
+        return INT16_MIN;
+    if (rounded > INT16_MAX)
+        return INT16_MAX;
+    return rounded;
+}
+
+static void voidplayer_h264_ref_pocs(const H264SliceContext *sl,
+                                     int list,
+                                     int32_t ref_pocs[15],
+                                     uint8_t *num_refs)
+{
+    int nb_refs = FFMIN(sl->ref_count[list], 15);
+    int i;
+
+    if (list >= sl->list_count)
+        nb_refs = 0;
+    *num_refs = nb_refs;
+    for (i = 0; i < 15; ++i)
+        ref_pocs[i] = i < nb_refs ? sl->ref_list[list][i].poc : -1;
+}
+
+static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl)
+{
+    const int mb_xy = sl->mb_xy;
+    const int mb_type = h->cur_pic.mb_type[mb_xy];
+    const int frame_width = h->mb_width * 16;
+    const int frame_height = h->mb_height * 16;
+    const int x = sl->mb_x * 16;
+    const int y = sl->mb_y * 16;
+    const int w = FFMAX(0, FFMIN(16, frame_width - x));
+    const int hgt = FFMAX(0, FFMIN(16, frame_height - y));
+    const int b_xy = 4 * sl->mb_x + 4 * sl->mb_y * h->b_stride;
+    int32_t ref_pocs_l0[15];
+    int32_t ref_pocs_l1[15];
+    uint8_t num_ref_l0 = 0;
+    uint8_t num_ref_l1 = 0;
+    uint8_t qp;
+    uint8_t inter_dir = 0;
+    int8_t ref_l0 = -1;
+    int8_t ref_l1 = -1;
+    int16_t mv_l0_x = 0;
+    int16_t mv_l0_y = 0;
+    int16_t mv_l1_x = 0;
+    int16_t mv_l1_y = 0;
+    int poc;
+    VoidPlayerVachunkFrameInfo frame_info = { 0 };
+    int i;
+
+    if (!ff_voidplayer_vachunk_is_active() || w <= 0 || hgt <= 0)
+        return;
+
+    voidplayer_h264_ref_pocs(sl, 0, ref_pocs_l0, &num_ref_l0);
+    voidplayer_h264_ref_pocs(sl, 1, ref_pocs_l1, &num_ref_l1);
+    poc = h->cur_pic_ptr ? h->cur_pic_ptr->poc : h->cur_pic.poc;
+    frame_info.poc = poc;
+    frame_info.width = frame_width;
+    frame_info.height = frame_height;
+    frame_info.temporal_id = 0;
+    frame_info.slice_type = voidplayer_h264_slice_type(sl->slice_type_nos);
+    frame_info.nal_unit_type = (uint8_t)h->nal_unit_type;
+    frame_info.num_ref_l0 = num_ref_l0;
+    frame_info.num_ref_l1 = num_ref_l1;
+    frame_info.expected_cus = h->mb_width * h->mb_height;
+    if (h->cur_pic_ptr && h->cur_pic_ptr->f && h->cur_pic_ptr->f->opaque) {
+        frame_info.frame_identity = (uintptr_t)h->cur_pic_ptr->f->opaque;
+        frame_info.coded_order_key = (uint64_t)(uintptr_t)h->cur_pic_ptr->f->opaque;
+        frame_info.has_coded_order_key = 1;
+    } else {
+        frame_info.frame_identity = (uintptr_t)h->cur_pic_ptr;
+    }
+    for (i = 0; i < 15; ++i) {
+        frame_info.ref_pocs_l0[i] = ref_pocs_l0[i];
+        frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];
+    }
+
+    if (frame_info.slice_type != 2)
+        for(int list=0;list<sl->list_count;list++)
+            for(int r=0;r<sl->ref_count[list];r++) {
+                const H264Picture *ref=sl->ref_list[list][r].parent;
+                ff_vpa_reference(frame_info.frame_identity, ref&&ref->f?(uintptr_t)ref->f->opaque:0, list);
+            }
+    qp = (uint8_t)av_clip_uint8(h->cur_pic.qscale_table ? h->cur_pic.qscale_table[mb_xy] : sl->qscale);
+    if (IS_INTRA(mb_type)) {
+        ff_voidplayer_vachunk_write_h264_mb(&frame_info,
+                                         (uint16_t)x,
+                                         (uint16_t)y,
+                                         qp,
+                                         1,
+                                         IS_INTRA16x16(mb_type) ? (uint8_t)sl->intra16x16_pred_mode : 0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         0,
+                                         -1,
+                                         -1,
+                                         sl->voidplayer_mb_bit_count);
+        return;
+    }
+
+    if (USES_LIST(mb_type, 0) || IS_DIRECT(mb_type)) {
+        inter_dir |= 1;
+        if (h->cur_pic.ref_index[0])
+            ref_l0 = h->cur_pic.ref_index[0][4 * mb_xy];
+        if (h->cur_pic.motion_val[0]) {
+            mv_l0_x = voidplayer_h264_round_mv(h->cur_pic.motion_val[0][b_xy][0]);
+            mv_l0_y = voidplayer_h264_round_mv(h->cur_pic.motion_val[0][b_xy][1]);
+        }
+    }
+    if (sl->list_count > 1 && (USES_LIST(mb_type, 1) || IS_DIRECT(mb_type))) {
+        inter_dir |= 2;
+        if (h->cur_pic.ref_index[1])
+            ref_l1 = h->cur_pic.ref_index[1][4 * mb_xy];
+        if (h->cur_pic.motion_val[1]) {
+            mv_l1_x = voidplayer_h264_round_mv(h->cur_pic.motion_val[1][b_xy][0]);
+            mv_l1_y = voidplayer_h264_round_mv(h->cur_pic.motion_val[1][b_xy][1]);
+        }
+    }
+
+    ff_voidplayer_vachunk_write_h264_mb(&frame_info,
+                                     (uint16_t)x,
+                                     (uint16_t)y,
+                                     qp,
+                                     0,
+                                     0,
+                                     IS_SKIP(mb_type) ? 1 : 0,
+                                     0,
+                                     inter_dir,
+                                     mv_l0_x,
+                                     mv_l0_y,
+                                     mv_l1_x,
+                                     mv_l1_y,
+                                     ref_l0,
+                                     ref_l1,
+                                     sl->voidplayer_mb_bit_count);
+}
+
 void ff_h264_hl_decode_mb(const H264Context *h, H264SliceContext *sl)
 {
     const int mb_xy   = sl->mb_xy;
     const int mb_type = h->cur_pic.mb_type[mb_xy];
     int is_complex    = CONFIG_SMALL || sl->is_complex ||
                         IS_INTRA_PCM(mb_type) || sl->qscale == 0;
+
+    if (ff_voidplayer_vachunk_is_active()) {
+        voidplayer_h264_record_mb(h, sl);
+        return;
+    }
 
     if (CHROMA444(h)) {
         if (is_complex || h->pixel_shift)
@@ -815,4 +980,5 @@ void ff_h264_hl_decode_mb(const H264Context *h, H264SliceContext *sl)
         hl_decode_mb_simple_16(h, sl);
     } else
         hl_decode_mb_simple_8(h, sl);
+
 }

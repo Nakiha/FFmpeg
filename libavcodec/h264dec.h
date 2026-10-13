@@ -236,6 +236,7 @@ typedef struct H264SliceContext {
     // index of the first MB of the next slice
     int next_slice_idx;
     int mb_skip_run;
+    uint32_t voidplayer_mb_bit_count;
     int is_complex;
 
     int picture_structure;

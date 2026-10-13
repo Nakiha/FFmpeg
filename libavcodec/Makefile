@@ -60,6 +60,7 @@ OBJS = ac3_parser.o                                                     \
        tiff_common.o                                                    \
        utils.o                                                          \
        version.o                                                        \
+       voidplayer_vachunk.o                                                \
        vlc.o                                                            \
        vorbis_parser.o                                                  \
        xiph.o                                                           \
