@@ -4435,7 +4435,7 @@ static av_cold void hevc_decode_flush(AVCodecContext *avctx)
 
 static const AVOption options[] = {
 #if VP_ANALYSIS_ONLY
-    { "vp_analysis_mode", "request Main8 analysis pixel pruning", OFFSET(vp_analysis_mode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, PAR },
+    { "vp_analysis_mode", "request Main8/Main10 analysis pixel pruning", OFFSET(vp_analysis_mode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, PAR },
     { "vp_analysis_path", "selected analysis path: full=0, no-pixels=1", OFFSET(vp_analysis_path), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, PAR | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
     { "vp_analysis_reason", "analysis full-path reason", OFFSET(vp_analysis_reason), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 4, PAR | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
 #endif

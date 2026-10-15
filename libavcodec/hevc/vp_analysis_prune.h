@@ -1,4 +1,4 @@
-/* Analysis-only Main8 pixel pruning. Default and playback builds stay full. */
+/* Analysis-only Main8/Main10 pixel pruning. Default and playback stay full. */
 #ifndef VP_ANALYSIS_PRUNE_H
 #define VP_ANALYSIS_PRUNE_H
 #ifndef VP_ANALYSIS_ONLY
@@ -12,9 +12,11 @@
 static inline int vp_hevc_prune_supported(const HEVCPPS *pps)
 {
     const HEVCSPS *sps = pps->sps;
-    return sps->ptl.general_ptl.profile_idc == AV_PROFILE_HEVC_MAIN &&
+    const int profile = sps->ptl.general_ptl.profile_idc;
+    return ((profile == AV_PROFILE_HEVC_MAIN && sps->bit_depth == 8) ||
+            (profile == AV_PROFILE_HEVC_MAIN_10 && sps->bit_depth == 10)) &&
            sps->vps->vps_max_layers == 1 &&
-           sps->bit_depth == 8 && sps->chroma_format_idc == 1 &&
+           sps->chroma_format_idc == 1 &&
            !sps->vui.field_seq_flag && !sps->pcm_enabled &&
            !sps->extension_present && !pps->transquant_bypass_enable_flag &&
            !pps->pps_extension_present_flag;

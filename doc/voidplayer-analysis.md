@@ -1,4 +1,4 @@
-# Main8 analysis execution extension
+# Main8/Main10 analysis execution extension
 
 Independent analysis builds may compile `VP_ANALYSIS_ONLY=1`. Ordinary and
 playback builds leave it zero; their HEVC pixel path is unchanged. Private HEVC
@@ -9,9 +9,10 @@ option `vp_analysis_mode=1` requests no-pixels execution; its default is zero.
 | Parsed configuration | Selection before decoding |
 | --- | --- |
 | Main profile, 8-bit 4:2:0, single-layer progressive software, one thread | Eligible |
-| Main10, other profiles/chroma, fields, multilayer | Full |
+| Main10 profile, 10-bit 4:2:0, same software/layer/progressive limits | Eligible |
+| Other profile/depth combinations, chroma, fields, multilayer | Full |
 | PCM, transquant bypass, SPS/PPS extensions | Full |
-| Ordinary transform skip, tiles/WPP/dependent slices/TMVP/weighted prediction | Eligible within Main8 bounds |
+| Ordinary transform skip, tiles/WPP/dependent slices/TMVP/weighted prediction | Eligible within the bounds above |
 | Missing complete PPS, hardware/threaded decode, CRC verification requested | Full |
 | Film grain or decoded-picture-hash already known | Full |
 
@@ -32,11 +33,16 @@ no-pixels DPB. The caller permits at most one such retry per request.
 Speculative results remain private until the requested transaction succeeds.
 Web reserves ownership before payload allocation under its existing in-flight
 budget, and commits through existing per-frame backpressure. Dependent/open or
-unsealed work and large block streams use full execution. Cancellation/resource
+unsealed work, summary, viewport, range and legacy requests use full execution.
+Only explicit single-picture blocks requests opt into the fast path. Cancellation/resource
 failures do not automatically retry. Exact-picture publication includes its own
 packet and suffix SEI processing, and makes no promise about unseen future AUs.
-Full-GOP summary first publication waits for commit.
+Summary publication remains incremental without speculative GOP staging.
 
 Hash presence selects full execution without adding a hash-validation promise:
 the existing full decoder `err_recognition` policy still controls MD5 checking.
-Main10 QP/invalid-output contracts stay unchanged. H264/VVC receive no pruning.
+Main10 QP/invalid-output contracts stay unchanged. The legacy CU callback carries
+an unsigned, clipped QP; consumers must retain unsupported/null Main10 QP and must
+not infer accurate signed QP from those bytes. Main10 pruning only accelerates
+the existing block/mode/reference result, without adding a QP capability or ABI.
+H264/VVC receive no pruning.
