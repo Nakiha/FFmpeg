@@ -26,6 +26,7 @@
 #include "libavutil/internal.h"
 
 #include "hevcdec.h"
+#include "vp_analysis_prune.h"
 #include "libavcodec/progressframe.h"
 
 #define LUMA 0
@@ -886,6 +887,8 @@ void ff_hevc_hls_filter(HEVCLocalContext *lc, const HEVCLayerContext *l,
         (s->avctx->skip_loop_filter >= AVDISCARD_NONREF &&
         ff_hevc_nal_is_nonref(s->nal_unit_type)))
         skip = 1;
+
+    skip |= vp_hevc_prune(s, 1);
 
     if (!skip)
         deblocking_filter_CTB(s, l, pps, sps, x, y);

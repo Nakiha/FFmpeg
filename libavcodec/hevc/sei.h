@@ -40,6 +40,9 @@ typedef enum {
 typedef struct HEVCSEIPictureHash {
     uint8_t       md5[3][16];
     uint8_t is_md5;
+#if defined(VP_ANALYSIS_ONLY) && VP_ANALYSIS_ONLY
+    uint8_t vp_present;
+#endif
 } HEVCSEIPictureHash;
 
 typedef struct HEVCSEIFramePacking {
