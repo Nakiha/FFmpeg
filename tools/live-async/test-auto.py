@@ -119,6 +119,14 @@ if args.performance or args.validate_performance_only:
     print("PASS all serial auto/fixed performance and grow/shrink checks", flush=True)
     raise SystemExit(0)
 
+if not args.quick:
+    # Compile against the original headers/libs instead of depending on a
+    # previously generated (possibly different-platform) benchmark executable.
+    baseline = work / "install-linux-baseline"
+    subprocess.run(["gcc", "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror",
+                    f"-I{baseline}/include", str(work / "ffmpeg-7.0.3/tools/live-async/load_probe.c"),
+                    "-o", str(root / "reference_probe_original"), f"-L{baseline}/lib",
+                    "-lavformat", "-lavcodec", "-lavutil"], check=True)
 subprocess.run([str(install / "bin/auto_lifetime_test"), str(work / "fixtures-load/h264-1080p-b3.mp4")],
                env=environment, check=True, timeout=90)
 for stem in (["h264-1080p-b7", "hevc-1080p-b7"] if args.quick else fixtures):
@@ -216,7 +224,7 @@ if not args.quick:
         print("PASS grow/shrink with every pixel/metadata checked", stem, flush=True)
     for stem in ("h264-1080p-b7", "hevc-4k-b7"):
         reference = root / f"{stem}-long-original"
-        cmd = [str(work / "results-load/load_probe_original"), str(work / f"fixtures-auto/{stem}.mp4"),
+        cmd = [str(root / "reference_probe_original"), str(work / f"fixtures-auto/{stem}.mp4"),
                "12", "0", "legacy", "verify", "12", str(reference)]
         baseline_env = dict(environment, LD_LIBRARY_PATH=str(work / "install-linux-baseline/lib"))
         subprocess.run(cmd, env=baseline_env, check=True, timeout=180)
