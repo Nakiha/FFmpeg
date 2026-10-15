@@ -205,10 +205,25 @@ Environment and current verification
 -------------------------------------
 
 The baseline tag and commit have been verified locally; the decoder sources
-are unmodified. Source inspection establishes feasibility, not performance.
-Linux compilation and runtime behavior have not yet been validated. A local
-Ubuntu WSL launch currently fails with HCS_E_HYPERV_NOT_INSTALLED. A native
-Windows toolchain exists, but its results would not establish Linux behavior.
-Use a working Linux host or an explicitly configured Linux CI job for target
-builds and concurrency/latency validation; no system setting changes are needed
-for this source investigation.
+are unmodified. The planned asynchronous extension is not implemented yet.
+
+Both native Windows (MSYS2 UCRT64, GCC 14.2) and Linux (Ubuntu 24.04 in WSL2,
+GCC 13.3) shared-library baselines have now been built and tested. See
+tools/live-async/README.txt for scripts and baseline/ for measured summaries.
+The Windows build uses the w32threads backend; Linux uses pthreads. Both execute
+the common libavcodec/pthread_frame.c scheduler.
+
+The same four synthetic 960x540, 25-fps, 50-frame inputs cover H.264/HEVC with
+0 or 3 configured B-frames. Two- and twelve-thread decoded frame hashes and PTS
+match within each platform and across platforms. The B=3 samples each contain
+36 actual B pictures, verified with ffprobe.
+
+For the paced B=0 inputs, each of eight runs per platform produced all 50 frames
+with ordered submit stamps. Linux first-output times at 2/4/8/12 frame threads
+were approximately 40/120/280/440 ms. Windows measured approximately
+41-44/128-130/291-295/450-451 ms. These observations reproduce the original
+pipeline-fill delay; they do not establish performance of a future modification.
+
+The short synthetic inputs do not demonstrate worst-case nonblocking behavior,
+large-stream throughput, lost-wakeup safety, flush safety or sufficient overlap
+after a scheduler change. The remaining implementation tests above still apply.
