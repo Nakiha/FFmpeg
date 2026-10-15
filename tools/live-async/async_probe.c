@@ -207,6 +207,11 @@ int main(int argc, char **argv)
     }
     if (!legacy && (ret = avcodec_async_create(&async, &ctx, capacity, notify, &event)) < 0)
         goto end;
+#if AVCODEC_ASYNC_API_VERSION >= 2
+    if (!legacy && getenv("FFMPEG_LIVE_AUTO_MIN") &&
+        (ret = avcodec_async_enable_auto(async, atoi(getenv("FFMPEG_LIVE_AUTO_MIN")), NULL)) < 0)
+        goto end;
+#endif
 
     if (!strcmp(argv[4], "api")) {
         uint8_t payload[4] = { 0 };

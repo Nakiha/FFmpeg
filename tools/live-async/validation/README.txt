@@ -1,6 +1,11 @@
 Validated asynchronous early-output implementation
 ==================================================
 
+This section describes the historical 540p API 1 smoke/lifecycle suite.
+Current large-stream/thread scaling data: load-20261016/report.html.
+Current API 2 automatic-control data: auto-20261016/report.html.
+Each snapshot states its own decoder version, limits and provenance.
+
 Base decoder: official n7.0.3, eaddd1d7140bab19e5a4403d3c0f61fe5f59cb75.
 Fork ABI: libavcodec 61.4.100, AVCODEC_ASYNC_API_VERSION 1.
 Hardware: Ryzen 7 9700X, 8 cores / 16 logical processors.

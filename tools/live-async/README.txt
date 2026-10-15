@@ -6,7 +6,7 @@ The public API is libavcodec/async.h; design is in doc/live-async-decoding.txt.
 
 build-linux.sh / build-msys2.sh
     Build the modified 7.0.3 shared libraries and both probes. Default output
-    directories end in linux-async / msys2-async, preserving frozen baselines.
+    API 2 directories end in linux-auto / msys2-auto, preserving API 1 baselines.
     Linux objects live in XDG_CACHE_HOME/ffmpeg-live, falling back to HOME/.cache.
     Set FFMPEG_LIVE_BUILD_DIR and FFMPEG_LIVE_INSTALL_DIR to override.
     FFMPEG_LIVE_BUILD_JOBS defaults to 8.
@@ -55,14 +55,16 @@ test-linux.sh / test-msys2.sh / summarize_probe.py
     installation or goldens while testing the modified implementation.
 
 Linux example from the source root:
-    export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-async"
-    export FFMPEG_LIVE_RESULT_DIR="$PWD/../results-linux-async"
+    export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-auto"
+    export FFMPEG_LIVE_RESULT_DIR="$PWD/../results-linux-v2-auto"
+    export FFMPEG_LIVE_AUTO_MIN=2
     bash tools/live-async/build-linux.sh
     bash tools/live-async/test-async.sh
 
 MSYS2 example:
-    export FFMPEG_LIVE_INSTALL_DIR=/d/Code/ffmpeg_live/install-msys2-async
-    export FFMPEG_LIVE_RESULT_DIR=/d/Code/ffmpeg_live/results-msys2-async
+    export FFMPEG_LIVE_INSTALL_DIR=/d/Code/ffmpeg_live/install-msys2-auto
+    export FFMPEG_LIVE_RESULT_DIR=/d/Code/ffmpeg_live/results-windows-v2-auto
+    export FFMPEG_LIVE_AUTO_MIN=2
     bash /d/Code/ffmpeg_live/ffmpeg-7.0.3/tools/live-async/build-msys2.sh
     bash /d/Code/ffmpeg_live/ffmpeg-7.0.3/tools/live-async/test-async.sh
 
@@ -78,3 +80,87 @@ Results:
     validation/ contains captured modified/legacy comparison summaries and limits.
     Full per-frame logs and generated media remain in sibling results directories
     and are supplied with the offline validation bundle.
+
+Large-stream / B-picture / load matrix (Linux only):
+    generate-load-fixtures.ps1 generates eight seeded noisy testsrc2 samples:
+    H.264/HEVC, 1920x1080/3840x2160, fixed 3/7 consecutive B pictures,
+    192 frames at 30 fps, YUV420P, medium / CRF 20. It uses the external Windows
+    generator only for encoding. ffprobe from the original 7.0.3 installation
+    verifies the actual B runs and frame counts before any measurements.
+
+    load_probe.c is compiled twice against independent installations. Without
+    LIVE_ASYNC it does not include or reference any fork-specific API. The same
+    loop follows the original send/receive-until-EAGAIN pattern or drives the
+    new owner with eventfd notifications. Both request FF_THREAD_FRAME. Packet
+    data/stamps and output metadata buffers are preallocated before the timer.
+    Performance runs do no hashing, pixel copies or per-frame file writes.
+
+    run-load-matrix.py runs all integer thread counts 2..12, one process at a
+    time, alternating version order and shuffling cases with a fixed seed:
+    full-pixel correctness once, paced 30 fps once, stress 120 fps once, and
+    three unlimited-speed performance runs for each version/configuration.
+    The original and fork shared-library paths are set separately. Successful
+    jobs can resume using .ok markers; use a new result directory after changing
+    the probe, fixture or decoder build. Do not encode fixtures concurrently
+    with benchmarks or run other CPU-heavy work on the host during measurement.
+
+    summarize-load.py creates runs.csv, summary.csv, comparison.csv and Chinese
+    text/HTML reports. The steady window discards the first 32 and last 48
+    output frames and excludes output after EOF acceptance. Scheduled-arrival
+    latency captures frontend submission backlog under overload; actual-submit
+    latency alone can hide it. Hash-run timing is never used for performance.
+    An overload interval with growing backlog is not a stable steady state.
+    CPU time / wall time supplements callback peaks as evidence of parallelism.
+    Short synthetic single-stream runs are not production capacity guarantees.
+
+    Example (work directory contains both existing independent installations):
+      powershell -NoProfile -File tools/live-async/generate-load-fixtures.ps1
+      python3 tools/live-async/run-load-matrix.py --work /path/to/work
+      python3 tools/live-async/summarize-load.py /path/to/work/results-load
+
+    To produce an unmodified reference from a new clone, check out n7.0.3 in a
+    separate directory, use the configure flags in build-linux.sh (without the
+    final fork-only compile-probes step), and install under install-linux-baseline.
+    Never point both versions at the same installation directory.
+
+API 2 automatic dispatch (libavcodec 61.5.100):
+    Read doc/live-async-auto-zh.txt. Enable once before first input with
+    avcodec_async_enable_auto. Allocated workers stay fixed; the coordinator
+    adapts permitted pending work using pressure, rate trials and slow shrink.
+    Shared budgets are cooperative task limits, not CPU-time quotas. Linux
+    named groups require matching capacity, UID and /dev/shm namespace; active
+    lock files must never be unlinked. Windows supports process-local budgets.
+
+    auto_probe.c records multiple owners and replay phases. It samples control
+    statistics into preallocated storage, and writes performance records only
+    after timing. Optional pixel verification and intentionally gated callbacks
+    are separate functional workloads. auto_lifetime_test.c stresses concurrent
+    default-budget creation and active close with eight frontend callers.
+
+    test-auto.py runs correctness at budgets 1/2/4/12, concurrent owners, default
+    and separate handles, consumer stalls, invalid options, frontend gate,
+    shared-capacity rejection, SIGKILL recovery, two processes and pressure
+    changes with full pixel checks. --quick reduces sanitizer workload and keeps
+    one 4K case. FFMPEG_LIVE_AUTO_MIN=2 enables auto in the original test-async.sh
+    lifecycle/regression suite, including native Windows anonymous budgets.
+
+    test-auto.py --performance runs serial fixed-12 versus auto profiles and
+    three low/high/low scenarios. Generate the two 480-frame B7 inputs in a
+    separate fixtures-auto directory using generate-load-fixtures.ps1 filters;
+    keep the original 192-frame fixtures-load files unchanged. Finish all other
+    encoders, builds and tests before timing. Run summarize-auto.py, then the
+    optional matplotlib plot-auto.py, after successful completion. Source and
+    library SHA256 provenance are written before each test/measurement session.
+
+    API 1 (665d09b / 61.4.100) results-load matrix and API 2 results-auto are
+    independent evidence sets. Do not relabel API 1's fixed-thread results as
+    automatic-mode results. Short unlimited-input clips include ramp-up cost;
+    sustained-load capacity must also examine the late high-pressure replays.
+    --validate-performance-only rechecks existing native measurements against
+    current library/probe/core fingerprints, frame metadata and control rules;
+    it does not generate fresh timing samples. This separates measurement from
+    analysis and avoids rerunning timing when an observation-window rule changes.
+    Short low-load phases may spend much of their duration shrinking; do not
+    call their midpoint a settled state. Reports state the late observation span.
+    build-reference-linux.sh builds the original/API-1 trees from the offline
+    source archives with matching minimal flags, without a fork-probe dependency.

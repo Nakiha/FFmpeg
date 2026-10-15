@@ -41,19 +41,20 @@ Windows 使用 MSYS2 UCRT64 的 GCC/NASM/Make/pkg-config/Python 3。
 编码器及外部库选项。机房包应在匹配发行版/glibc 的环境编译。
 
 Linux 源码根目录：
-  export FFMPEG_LIVE_BUILD_DIR="$HOME/.cache/ffmpeg-live/build-linux-async"
-  export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-async"
+  export FFMPEG_LIVE_BUILD_DIR="$HOME/.cache/ffmpeg-live/build-linux-auto"
+  export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-auto"
   bash tools/live-async/build-linux.sh
   export LD_LIBRARY_PATH="$FFMPEG_LIVE_INSTALL_DIR/lib"
   export PKG_CONFIG_PATH="$FFMPEG_LIVE_INSTALL_DIR/lib/pkgconfig"
   nm -D "$FFMPEG_LIVE_INSTALL_DIR/lib/libavcodec.so.61" | grep avcodec_async_
 
 确认 create/send_packet/receive_frame/flush/get_stats/free 六个符号。
+自动模式还需 budget_create/budget_free/enable_auto/get_auto_stats（API 2）。
 应用使用同一安装前缀的头文件与库，不与系统 FFmpeg 混用。
 C++ 包含 async.h 时按项目原有 FFmpeg 方式包在 extern "C" 中。
 
 本机 Windows PowerShell：
-  & C:\msys64\usr\bin\bash.exe -lc 'export FFMPEG_LIVE_BUILD_DIR=/d/Code/ffmpeg_live/build-msys2-async; export FFMPEG_LIVE_INSTALL_DIR=/d/Code/ffmpeg_live/install-msys2-async; bash /d/Code/ffmpeg_live/ffmpeg-7.0.3/tools/live-async/build-msys2.sh'
+  & C:\msys64\usr\bin\bash.exe -lc 'export FFMPEG_LIVE_BUILD_DIR=/d/Code/ffmpeg_live/build-msys2-auto; export FFMPEG_LIVE_INSTALL_DIR=/d/Code/ffmpeg_live/install-msys2-auto; bash /d/Code/ffmpeg_live/ffmpeg-7.0.3/tools/live-async/build-msys2.sh'
 
 WSL 运行 build-linux.sh 即可。Linux .so 与 Windows DLL 不能互换。
 仅替换库并继续旧 send/receive，不会启用本功能。
@@ -148,10 +149,11 @@ wake userdata/关闭 eventfd。事件循环已排队旧事件需校验 owner 代
 tools/live-async/generate-extra-fixtures.ps1 生成。
 
 Linux 源码根目录：
-  export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-async"
-  export FFMPEG_LIVE_RESULT_DIR="$PWD/../results-linux-async"
+  export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-auto"
+  export FFMPEG_LIVE_RESULT_DIR="$PWD/../results-linux-v2-auto"
   export FFMPEG_LIVE_FIXTURE_DIR="$PWD/../results-msys2-baseline"
   export FFMPEG_LIVE_BASELINE_RESULT_DIR="$PWD/../results-linux-baseline"
+  export FFMPEG_LIVE_AUTO_MIN=2
   bash tools/live-async/test-async.sh
 
 Windows 用 MSYS2 Bash 设置同名变量为 /d/...，baseline 指向
@@ -172,7 +174,8 @@ summary.csv 的均值含 EOF drain 尾部；首次输出不含 demux/open 初始
 1080p/4K、B=3/7、2–12 每个线程数的大规格压力矩阵：
   先用 generate-load-fixtures.ps1 生成固定种子动态噪声样本；编码完再测，
   不让媒体生成和测量并行。保留独立的 install-linux-baseline（原版）与
-  install-linux-async（改造版），避免两个路径加载同一套动态库。
+  install-linux-async（665d09b / API 1），避免两个路径加载同一套动态库。
+  当前 API 2 构建在 install-linux-auto，不覆盖该冻结基线。
   python3 tools/live-async/run-load-matrix.py --work /path/to/work
   python3 tools/live-async/summarize-load.py /path/to/work/results-load
 每组分别做完整像素校验、30fps 实时供包、120fps 压力供包和三轮不限速吞吐。
@@ -188,13 +191,15 @@ load_probe 在性能轮不拷贝/哈希像素、不逐帧写磁盘，测量完�
 不要把 61.4.100 的固定线程矩阵结果当成 61.5.100 自动模式的测量值。
 
 ASan/Leak（独立目录，禁用 asm，不用于性能比较）：
-  export FFMPEG_LIVE_BUILD_DIR="$HOME/.cache/ffmpeg-live/build-linux-asan"
-  export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-asan"
-  export FFMPEG_LIVE_RESULT_DIR="$PWD/../results-linux-asan"
+  export FFMPEG_LIVE_BUILD_DIR="$HOME/.cache/ffmpeg-live/build-linux-auto-asan"
+  export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-auto-asan"
+  export FFMPEG_LIVE_RESULT_DIR="$PWD/../results-auto-asan-regression"
   export FFMPEG_LIVE_SANITIZE=address
   export ASAN_OPTIONS=detect_leaks=1:halt_on_error=1
+  export FFMPEG_LIVE_AUTO_MIN=2
   bash tools/live-async/build-linux.sh
   bash tools/live-async/test-async.sh
+  python3 tools/live-async/test-auto.py --work "$PWD/.." --quick --install install-linux-auto-asan --results results-auto-asan
 
 本机 ASan/Leak 已过。禁 asm 避开 7.0.3/GCC ASan 的符号前缀探测问题。
 TSan 在 WSL 的空程序阶段崩溃，未完成竞态检查；ASan 不能替代竞态检查。

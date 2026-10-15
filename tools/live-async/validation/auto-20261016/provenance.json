@@ -1,0 +1,44 @@
+{
+  "tested_core_commit": "086e3e767d02f747f4de2a6020ad5769a55e9fbd",
+  "base_commit": "eaddd1d7140bab19e5a4403d3c0f61fe5f59cb75",
+  "api": 2,
+  "libavcodec": "61.5.100",
+  "raw_working_core_sha256": {
+    "async.c": "80819f7da5b6b76e9a9afe934a9e5fafc8f68e7d242d5fdd025cbffdecd2e54f",
+    "async.h": "458fa6309b4631e54763298c8fcaf6738334f209b846068af9739a0b56caa66a",
+    "async_budget.c": "1dc92e3f415ef842dff32991cb7ba752fa6efeddc2ac800e3449277d2bb4782c",
+    "async_budget.h": "a3a2278811be5c00434cdc859f5e0b7b774d7726267224c903245300d9d99af4",
+    "pthread_frame.c": "4ae904ad2ef2b5e82c84b99adc7e599a060e5c77fccd1b0d8e5147b46a04cfb1",
+    "thread.h": "a39965914ef090301dc8303e381c48c4344c7cacb49fbada2831ad18e9958dfc",
+    "version.h": "70bc24240c6b9f6ac70a9fced05363d1ea0b8ab11aa5d2ad5e6ff0c2a6354099",
+    "Makefile": "9408d020e545f983351e4f72e96f2728970477131f6b2d86dd8eef1a1a3e8045",
+    "decode.c": "cc661fa6a1487a58e0dcf9235eda1cbd2033916118e4b523065f01a16b88e31f",
+    "decode.h": "9a9af6a08fd562d30a693c41a748265f8829e98b7d56243cfced48a37ba7b303",
+    "internal.h": "02143facf48bd67f0a0e205f8159f58e606aa3e7e05447637ca3631bb0a5213e"
+  },
+  "git_blobs": {
+    "libavcodec/async.c": "c90365e57c66b9cecd2e522a7cc6ae1c4a5a8cd7",
+    "libavcodec/async.h": "ab4e19e3b5a3f3369a0247e58cfa7314c2f54abb",
+    "libavcodec/async_budget.c": "df92e492200b0b13bb4a688206b6613242b570dc",
+    "libavcodec/async_budget.h": "57bd156fb853deae51fd199bc31c2313259e9235",
+    "libavcodec/pthread_frame.c": "680213ebd95580ff11ecd7885e54e1481dfb3891",
+    "libavcodec/thread.h": "1d8ca4feda59538e497be47766c2502f051b5f65",
+    "libavcodec/version.h": "7aa95fc3f1c1e607ccd7bec631182b1d694b76bd",
+    "libavcodec/Makefile": "5e2db5638abaee64fa9c4e1ed30d8824f63b8b3c",
+    "libavcodec/decode.c": "48c68cc7a2970900b5ce229e61e7f4e34fb02c12",
+    "libavcodec/decode.h": "1922d17b664250dfb53a9ae4223345a2f55ce8af",
+    "libavcodec/internal.h": "f0ff5cccf06aaf0534e1a8be5096593380d08b56"
+  },
+  "binaries": {
+    "install-linux-baseline/lib/libavcodec.so.61.3.100": "018e0d1d80332609784a382e733ce5f6fb476139281e698cca0e70848f6d3480",
+    "install-linux-async/lib/libavcodec.so.61.4.100": "f7a5be098eed7bcd8d2a7c6fdaa511322d6e3df842a9e600077cbcbe352a704e",
+    "install-linux-auto/lib/libavcodec.so.61.5.100": "f15800b68707b6b08de8782b6c9304e097c22b5911291012e199052198be2bc0",
+    "install-linux-auto-asan/lib/libavcodec.so.61.5.100": "dab22f4dd0cbd47ba23b4c3ebf84ac74f38dbde18bf59b425a482f000bdd1273",
+    "install-msys2-auto/bin/avcodec-61.dll": "1a12dee532785663828a6486f798795849f41cb38e69515f242edcf1039097bb",
+    "install-linux-auto/bin/auto_probe": "c58ca40172feccafc0ccedb904ce2e94692187f79e72a573f2c12943eea7d064"
+  },
+  "notes": [
+    "Raw working-tree hashes can differ across CRLF/LF checkouts; Git blob IDs identify normalized committed sources.",
+    "Timing was collected before committing; unchanged measured source/library/probe fingerprints were verified afterward."
+  ]
+}

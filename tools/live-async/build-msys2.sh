@@ -5,8 +5,8 @@ set -euo pipefail
 export PATH="/ucrt64/bin:/usr/bin:$PATH"
 export MSYSTEM=UCRT64
 source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
-build_dir=${FFMPEG_LIVE_BUILD_DIR:-"$source_root/../build-msys2-async"}
-install_dir=${FFMPEG_LIVE_INSTALL_DIR:-"$source_root/../install-msys2-async"}
+build_dir=${FFMPEG_LIVE_BUILD_DIR:-"$source_root/../build-msys2-auto"}
+install_dir=${FFMPEG_LIVE_INSTALL_DIR:-"$source_root/../install-msys2-auto"}
 
 mkdir -p -- "$build_dir" "$install_dir"
 build_dir=$(cd -- "$build_dir" && pwd)

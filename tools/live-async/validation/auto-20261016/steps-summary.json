@@ -1,0 +1,124 @@
+[
+  {
+    "stem": "h264-1080p-b7",
+    "mode": "fixed",
+    "late_high_fps": 829.0163878271096,
+    "high_peak_target": 12,
+    "end_low_target": 12,
+    "steady_low_target": 12,
+    "steady_low_minimum_fraction": 0.0,
+    "late_low_window_ms": 819.037,
+    "rollbacks": 0,
+    "increases": 0,
+    "decreases": 0,
+    "high_fps_by_pass": [
+      826.9189688320458,
+      831.7982611950515,
+      845.5572133957402,
+      812.4755622584789
+    ]
+  },
+  {
+    "stem": "h264-1080p-b7",
+    "mode": "auto",
+    "late_high_fps": 813.4746577716514,
+    "high_peak_target": 12,
+    "end_low_target": 2,
+    "steady_low_target": 2,
+    "steady_low_minimum_fraction": 1.0,
+    "late_low_window_ms": 868.438,
+    "rollbacks": 1,
+    "increases": 5,
+    "decreases": 6,
+    "high_fps_by_pass": [
+      449.9294173226575,
+      519.2585420734642,
+      788.3236134126694,
+      838.6257021306334
+    ]
+  },
+  {
+    "stem": "hevc-4k-b7",
+    "mode": "fixed",
+    "late_high_fps": 183.21455730398182,
+    "high_peak_target": 12,
+    "end_low_target": 12,
+    "steady_low_target": 12,
+    "steady_low_minimum_fraction": 0.0,
+    "late_low_window_ms": 800.53,
+    "rollbacks": 0,
+    "increases": 0,
+    "decreases": 0,
+    "high_fps_by_pass": [
+      180.5294477378532,
+      182.61115693298476,
+      184.4741909077283,
+      181.95492370023533
+    ]
+  },
+  {
+    "stem": "hevc-4k-b7",
+    "mode": "auto",
+    "late_high_fps": 182.67789622020877,
+    "high_peak_target": 12,
+    "end_low_target": 2,
+    "steady_low_target": 2,
+    "steady_low_minimum_fraction": 1.0,
+    "late_low_window_ms": 799.9,
+    "rollbacks": 2,
+    "increases": 7,
+    "decreases": 8,
+    "high_fps_by_pass": [
+      133.2296362664393,
+      181.56330545075738,
+      181.57484401586055,
+      183.78094842455695
+    ]
+  },
+  {
+    "stem": "hevc-1080p-b3",
+    "mode": "fixed",
+    "late_high_fps": 369.77193694672303,
+    "high_peak_target": 12,
+    "end_low_target": 12,
+    "steady_low_target": 12,
+    "steady_low_minimum_fraction": 0.0,
+    "late_low_window_ms": 832.844,
+    "rollbacks": 0,
+    "increases": 0,
+    "decreases": 0,
+    "high_fps_by_pass": [
+      381.6004960806449,
+      360.53562073154933,
+      363.853435288098,
+      368.41388229560226,
+      369.3053405014474,
+      370.63275891690296,
+      369.25136209519377,
+      370.2925117982523
+    ]
+  },
+  {
+    "stem": "hevc-1080p-b3",
+    "mode": "auto",
+    "late_high_fps": 380.2845967312926,
+    "high_peak_target": 12,
+    "end_low_target": 2,
+    "steady_low_target": 2,
+    "steady_low_minimum_fraction": 0.875,
+    "late_low_window_ms": 861.787,
+    "rollbacks": 0,
+    "increases": 5,
+    "decreases": 5,
+    "high_fps_by_pass": [
+      274.52926095865047,
+      355.63063313366155,
+      383.11729774599326,
+      379.3319411324244,
+      382.36196135754426,
+      375.21545574998146,
+      381.7955127096147,
+      378.7736807529705
+    ]
+  }
+]

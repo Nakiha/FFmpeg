@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
-flavor=${FFMPEG_LIVE_SANITIZE:-async}
+flavor=${FFMPEG_LIVE_SANITIZE:-auto}
 build_dir=${FFMPEG_LIVE_BUILD_DIR:-"${XDG_CACHE_HOME:-$HOME/.cache}/ffmpeg-live/build-linux-$flavor"}
 install_dir=${FFMPEG_LIVE_INSTALL_DIR:-"$source_root/../install-linux-$flavor"}
 mkdir -p -- "$build_dir" "$install_dir"
