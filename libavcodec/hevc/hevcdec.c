@@ -60,6 +60,7 @@ extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
 #include "hevc.h"
 #include "parse.h"
 #include "hevcdec.h"
+#include "vp_analysis_prune.h"
 
 static const uint8_t hevc_pel_weight[65] = { [2] = 0, [4] = 1, [6] = 2, [8] = 3, [12] = 4, [16] = 5, [24] = 6, [32] = 7, [48] = 8, [64] = 9 };
 
@@ -1302,7 +1303,8 @@ static int hls_transform_unit(HEVCLocalContext *lc,
         int trafo_size = 1 << log2_trafo_size;
         ff_hevc_set_neighbour_available(lc, x0, y0, trafo_size, trafo_size, sps->log2_ctb_size);
 
-        s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, x0, y0, 0);
+        if (!vp_hevc_prune(s, 2))
+            s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, x0, y0, 0);
     }
 
     if (cbf_luma || cbf_cb[0] || cbf_cr[0] ||
@@ -1389,7 +1391,8 @@ static int hls_transform_unit(HEVCLocalContext *lc,
                 if (lc->cu.pred_mode == MODE_INTRA) {
                     ff_hevc_set_neighbour_available(lc, x0, y0 + (i << log2_trafo_size_c),
                                                     trafo_size_h, trafo_size_v, sps->log2_ctb_size);
-                    s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (i << log2_trafo_size_c), 1);
+                    if (!vp_hevc_prune(s, 2))
+                        s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (i << log2_trafo_size_c), 1);
                 }
                 if (cbf_cb[i])
                     ff_hevc_hls_residual_coding(lc, pps, x0, y0 + (i << log2_trafo_size_c),
@@ -1419,7 +1422,8 @@ static int hls_transform_unit(HEVCLocalContext *lc,
                 if (lc->cu.pred_mode == MODE_INTRA) {
                     ff_hevc_set_neighbour_available(lc, x0, y0 + (i << log2_trafo_size_c),
                                                     trafo_size_h, trafo_size_v, sps->log2_ctb_size);
-                    s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (i << log2_trafo_size_c), 2);
+                    if (!vp_hevc_prune(s, 2))
+                        s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (i << log2_trafo_size_c), 2);
                 }
                 if (cbf_cr[i])
                     ff_hevc_hls_residual_coding(lc, pps, x0, y0 + (i << log2_trafo_size_c),
@@ -1448,7 +1452,8 @@ static int hls_transform_unit(HEVCLocalContext *lc,
                 if (lc->cu.pred_mode == MODE_INTRA) {
                     ff_hevc_set_neighbour_available(lc, xBase, yBase + (i << log2_trafo_size),
                                                     trafo_size_h, trafo_size_v, sps->log2_ctb_size);
-                    s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (i << log2_trafo_size), 1);
+                    if (!vp_hevc_prune(s, 2))
+                        s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (i << log2_trafo_size), 1);
                 }
                 if (cbf_cb[i])
                     ff_hevc_hls_residual_coding(lc, pps, xBase, yBase + (i << log2_trafo_size),
@@ -1458,7 +1463,8 @@ static int hls_transform_unit(HEVCLocalContext *lc,
                 if (lc->cu.pred_mode == MODE_INTRA) {
                     ff_hevc_set_neighbour_available(lc, xBase, yBase + (i << log2_trafo_size),
                                                 trafo_size_h, trafo_size_v, sps->log2_ctb_size);
-                    s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (i << log2_trafo_size), 2);
+                    if (!vp_hevc_prune(s, 2))
+                        s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (i << log2_trafo_size), 2);
                 }
                 if (cbf_cr[i])
                     ff_hevc_hls_residual_coding(lc, pps, xBase, yBase + (i << log2_trafo_size),
@@ -1471,26 +1477,34 @@ static int hls_transform_unit(HEVCLocalContext *lc,
             int trafo_size_v = 1 << (log2_trafo_size_c + sps->vshift[1]);
             ff_hevc_set_neighbour_available(lc, x0, y0, trafo_size_h, trafo_size_v,
                                             sps->log2_ctb_size);
-            s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0, 1);
-            s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0, 2);
+            if (!vp_hevc_prune(s, 2))
+                s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0, 1);
+            if (!vp_hevc_prune(s, 2))
+                s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0, 2);
             if (sps->chroma_format_idc == 2) {
                 ff_hevc_set_neighbour_available(lc, x0, y0 + (1 << log2_trafo_size_c),
                                                 trafo_size_h, trafo_size_v, sps->log2_ctb_size);
-                s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (1 << log2_trafo_size_c), 1);
-                s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (1 << log2_trafo_size_c), 2);
+                if (!vp_hevc_prune(s, 2))
+                    s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (1 << log2_trafo_size_c), 1);
+                if (!vp_hevc_prune(s, 2))
+                    s->hpc.intra_pred[log2_trafo_size_c - 2](lc, pps, x0, y0 + (1 << log2_trafo_size_c), 2);
             }
         } else if (blk_idx == 3) {
             int trafo_size_h = 1 << (log2_trafo_size + 1);
             int trafo_size_v = 1 << (log2_trafo_size + sps->vshift[1]);
             ff_hevc_set_neighbour_available(lc, xBase, yBase,
                                             trafo_size_h, trafo_size_v, sps->log2_ctb_size);
-            s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase, 1);
-            s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase, 2);
+            if (!vp_hevc_prune(s, 2))
+                s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase, 1);
+            if (!vp_hevc_prune(s, 2))
+                s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase, 2);
             if (sps->chroma_format_idc == 2) {
                 ff_hevc_set_neighbour_available(lc, xBase, yBase + (1 << log2_trafo_size),
                                                 trafo_size_h, trafo_size_v, sps->log2_ctb_size);
-                s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (1 << log2_trafo_size), 1);
-                s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (1 << log2_trafo_size), 2);
+                if (!vp_hevc_prune(s, 2))
+                    s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (1 << log2_trafo_size), 1);
+                if (!vp_hevc_prune(s, 2))
+                    s->hpc.intra_pred[log2_trafo_size - 2](lc, pps, xBase, yBase + (1 << log2_trafo_size), 2);
             }
         }
     }
@@ -2146,6 +2160,10 @@ static void hls_prediction_unit(HEVCLocalContext *lc,
         if (!ref1 || !ref1->f)
             return;
         hevc_await_progress(s, ref1, &current_mv.mv[1], y0, nPbH);
+    }
+
+    if (vp_hevc_prune(s, 2)) {
+        return;
     }
 
     if (current_mv.pred_flag == PF_L0) {
@@ -3365,6 +3383,15 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
     int prev_layers_active_output = s->layers_active_output;
     int ret;
 
+#if VP_ANALYSIS_ONLY
+    if (s->vp_analysis_path &&
+        (!vp_hevc_prune_supported(pps) || s->avctx->hwaccel ||
+         s->avctx->active_thread_type || s->cur_layer != 0)) {
+        ret = vp_hevc_require_full(s, VP_ANALYSIS_REASON_CONFIG);
+        if (ret < 0) return ret;
+    }
+#endif
+
     if (sps->vps != s->vps && l != &s->layers[0]) {
         av_log(s->avctx, AV_LOG_ERROR, "VPS changed in a non-base layer\n");
         set_sps(s, l, NULL);
@@ -3512,6 +3539,15 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
         s->cur_frame->needs_fg = 0;
     }
 
+#if VP_ANALYSIS_ONLY
+    if (s->vp_analysis_path && s->cur_frame->needs_fg) {
+        ret = vp_hevc_require_full(s, VP_ANALYSIS_REASON_FILM_GRAIN);
+        if (ret < 0) goto fail;
+    }
+    if (s->vp_analysis_path)
+        s->vp_analysis_started = 1;
+#endif
+
     if (s->cur_frame->needs_fg) {
         s->cur_frame->frame_grain->format = s->cur_frame->f->format;
         s->cur_frame->frame_grain->width  = s->cur_frame->f->width;
@@ -3632,6 +3668,15 @@ static int verify_md5(HEVCContext *s, AVFrame *frame)
 static int hevc_frame_end(HEVCContext *s, HEVCLayerContext *l)
 {
     HEVCFrame *out = l->cur_frame;
+#if VP_ANALYSIS_ONLY
+    if (s->vp_analysis_path && s->sei.picture_hash.vp_present)
+        return vp_hevc_require_full(s, VP_ANALYSIS_REASON_PIXEL_HASH);
+    if (s->vp_analysis_path &&
+        ((s->sei.common.film_grain_characteristics &&
+          s->sei.common.film_grain_characteristics->present) ||
+         s->sei.common.itut_t35.aom_film_grain.enable))
+        return vp_hevc_require_full(s, VP_ANALYSIS_REASON_FILM_GRAIN);
+#endif
     const AVFilmGrainParams *fgp;
     av_unused int ret;
 
@@ -3668,6 +3713,9 @@ static int hevc_frame_end(HEVCContext *s, HEVCLayerContext *l)
         }
     }
     s->sei.picture_hash.is_md5 = 0;
+#if VP_ANALYSIS_ONLY
+    s->sei.picture_hash.vp_present = 0;
+#endif
 
     av_log(s->avctx, AV_LOG_DEBUG, "Decoded frame with POC %zu/%d.\n",
            l - s->layers, s->poc);
@@ -3778,16 +3826,22 @@ static int decode_nal_unit(HEVCContext *s, unsigned nal_idx)
         ret = ff_hevc_decode_nal_vps(&gb, s->avctx, &s->ps);
         if (ret < 0)
             goto fail;
+        if ((ret = vp_hevc_parameter_set(s)) < 0)
+            goto fail;
         break;
     case HEVC_NAL_SPS:
         ret = ff_hevc_decode_nal_sps(&gb, s->avctx, &s->ps,
                                      nal->nuh_layer_id, s->apply_defdispwin);
         if (ret < 0)
             goto fail;
+        if ((ret = vp_hevc_parameter_set(s)) < 0)
+            goto fail;
         break;
     case HEVC_NAL_PPS:
         ret = ff_hevc_decode_nal_pps(&gb, s->avctx, &s->ps);
         if (ret < 0)
+            goto fail;
+        if ((ret = vp_hevc_parameter_set(s)) < 0)
             goto fail;
         break;
     case HEVC_NAL_SEI_PREFIX:
@@ -4023,6 +4077,8 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
     if (sd && sd_size > 0) {
         ret = hevc_decode_extradata(s, sd, sd_size, 0);
         if (ret < 0)
+            return ret;
+        if ((ret = vp_hevc_parameter_set(s)) < 0)
             return ret;
     }
 
@@ -4344,6 +4400,14 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
                 return ret;
         }
 
+#if VP_ANALYSIS_ONLY
+        vp_hevc_admit_config(s);
+        if (s->vp_analysis_path && (s->sei.picture_hash.vp_present ||
+            (s->sei.common.film_grain_characteristics &&
+             s->sei.common.film_grain_characteristics->present) ||
+            s->sei.common.itut_t35.aom_film_grain.enable))
+            vp_hevc_require_full(s, VP_ANALYSIS_REASON_CONFIG);
+#endif
         sd = ff_get_coded_side_data(avctx, AV_PKT_DATA_DOVI_CONF);
         if (sd && sd->size >= sizeof(s->dovi_ctx.cfg))
             s->dovi_ctx.cfg = *(AVDOVIDecoderConfigurationRecord *) sd->data;
@@ -4370,6 +4434,11 @@ static av_cold void hevc_decode_flush(AVCodecContext *avctx)
 #define PAR (AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
 
 static const AVOption options[] = {
+#if VP_ANALYSIS_ONLY
+    { "vp_analysis_mode", "request Main8 analysis pixel pruning", OFFSET(vp_analysis_mode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, PAR },
+    { "vp_analysis_path", "selected analysis path: full=0, no-pixels=1", OFFSET(vp_analysis_path), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, PAR | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
+    { "vp_analysis_reason", "analysis full-path reason", OFFSET(vp_analysis_reason), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 4, PAR | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
+#endif
     { "apply_defdispwin", "Apply default display window from VUI", OFFSET(apply_defdispwin),
         AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, PAR },
     { "strict-displaywin", "strictly apply default display window size", OFFSET(apply_defdispwin),

@@ -35,6 +35,9 @@ static int decode_nal_sei_decoded_picture_hash(HEVCSEIPictureHash *s,
     //uint16_t picture_crc;
     //uint32_t picture_checksum;
     hash_type = bytestream2_get_byte(gb);
+#if defined(VP_ANALYSIS_ONLY) && VP_ANALYSIS_ONLY
+    s->vp_present = 1;
+#endif
 
     for (cIdx = 0; cIdx < 3/*((s->sps->chroma_format_idc == 0) ? 1 : 3)*/; cIdx++) {
         if (hash_type == 0) {

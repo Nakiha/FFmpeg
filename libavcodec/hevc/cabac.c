@@ -28,6 +28,7 @@
 #include "data.h"
 #include "hevc.h"
 #include "hevcdec.h"
+#include "vp_analysis_prune.h"
 
 #define CABAC_MAX_BIN 31
 
@@ -991,6 +992,7 @@ void ff_hevc_hls_residual_coding(HEVCLocalContext *lc, const HEVCPPS *pps,
     const HEVCContext *const s = lc->parent;
     const HEVCSPS   *const sps = pps->sps;
     int transform_skip_flag = 0;
+    const int prune_residual = vp_hevc_prune(s, 4);
 
     int last_significant_coeff_x, last_significant_coeff_y;
     int last_scan_pos;
@@ -1022,7 +1024,8 @@ void ff_hevc_hls_residual_coding(HEVCLocalContext *lc, const HEVCPPS *pps,
     int pred_mode_intra = (c_idx == 0) ? lc->tu.intra_pred_mode :
                                          lc->tu.intra_pred_mode_c;
 
-    memset(coeffs, 0, trafo_size * trafo_size * sizeof(int16_t));
+    if (!prune_residual)
+        memset(coeffs, 0, trafo_size * trafo_size * sizeof(int16_t));
 
     // Derive QP for dequant
     if (!lc->cu.cu_transquant_bypass_flag) {
@@ -1047,6 +1050,7 @@ void ff_hevc_hls_residual_coding(HEVCLocalContext *lc, const HEVCPPS *pps,
             transform_skip_flag = hevc_transform_skip_flag_decode(lc, c_idx);
         }
 
+        if (!prune_residual) {
         if (c_idx == 0) {
             qp = qp_y + sps->qp_bd_offset;
         } else {
@@ -1094,6 +1098,7 @@ void ff_hevc_hls_residual_coding(HEVCLocalContext *lc, const HEVCPPS *pps,
             if (log2_trafo_size >= 4)
                 dc_scale = sl->sl_dc[log2_trafo_size - 4][matrix_id];
         }
+        } /* dequant-only setup */
     } else {
         shift        = 0;
         add          = 0;
@@ -1408,6 +1413,8 @@ void ff_hevc_hls_residual_coding(HEVCLocalContext *lc, const HEVCPPS *pps,
                 if (coeff_sign_flag >> 15)
                     trans_coeff_level = -trans_coeff_level;
                 coeff_sign_flag <<= 1;
+                if (prune_residual)
+                    continue;
                 if(!lc->cu.cu_transquant_bypass_flag) {
                     if (sps->scaling_list_enabled && !(transform_skip_flag && log2_trafo_size > 2)) {
                         if(y_c || x_c || log2_trafo_size < 4) {
@@ -1434,6 +1441,10 @@ void ff_hevc_hls_residual_coding(HEVCLocalContext *lc, const HEVCPPS *pps,
                 coeffs[y_c * trafo_size + x_c] = trans_coeff_level;
             }
         }
+    }
+
+    if (prune_residual) {
+        return;
     }
 
     if (lc->cu.cu_transquant_bypass_flag) {

@@ -585,6 +585,12 @@ typedef struct HEVCContext {
 
     AVBufferRef *rpu_buf;       ///< 0 or 1 Dolby Vision RPUs.
     DOVIContext dovi_ctx;       ///< Dolby Vision decoding context
+#if defined(VP_ANALYSIS_ONLY) && VP_ANALYSIS_ONLY
+    int vp_analysis_mode;
+    int vp_analysis_path;
+    int vp_analysis_started;
+    int vp_analysis_reason;
+#endif
 } HEVCContext;
 
 /**
