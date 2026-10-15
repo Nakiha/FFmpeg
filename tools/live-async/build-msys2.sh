@@ -5,8 +5,8 @@ set -euo pipefail
 export PATH="/ucrt64/bin:/usr/bin:$PATH"
 export MSYSTEM=UCRT64
 source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
-build_dir=${FFMPEG_LIVE_BUILD_DIR:-"$source_root/../build-msys2-baseline"}
-install_dir=${FFMPEG_LIVE_INSTALL_DIR:-"$source_root/../install-msys2-baseline"}
+build_dir=${FFMPEG_LIVE_BUILD_DIR:-"$source_root/../build-msys2-async"}
+install_dir=${FFMPEG_LIVE_INSTALL_DIR:-"$source_root/../install-msys2-async"}
 
 mkdir -p -- "$build_dir" "$install_dir"
 build_dir=$(cd -- "$build_dir" && pwd)
@@ -32,12 +32,8 @@ cd -- "$build_dir"
 make -j"${FFMPEG_LIVE_BUILD_JOBS:-8}"
 make install
 
-export PKG_CONFIG_PATH="$install_dir/lib/pkgconfig"
-# Word splitting here is intentional: pkg-config emits compiler arguments.
-gcc -std=c11 -O2 -Wall -Wextra \
-    "$source_root/tools/live-async/latency_probe.c" \
-    -o "$install_dir/bin/latency_probe.exe" \
-    $(pkg-config --cflags --libs libavformat libavcodec libavutil)
+export FFMPEG_LIVE_INSTALL_DIR="$install_dir"
+bash "$source_root/tools/live-async/compile-probes.sh"
 
 export PATH="$install_dir/bin:$PATH"
 "$install_dir/bin/ffmpeg.exe" -hide_banner -version

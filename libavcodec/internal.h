@@ -63,6 +63,9 @@ typedef struct AVCodecInternal {
 
     void *thread_ctx;
 
+    /* Private to the live asynchronous frontend; never set on codec workers. */
+    int async_frame_threading;
+
     /**
      * This packet is used to hold the packet given to decoders
      * implementing the .decode API; it is unused by the generic

@@ -52,6 +52,11 @@ void ff_thread_flush(AVCodecContext *avctx);
 int ff_thread_decode_frame(AVCodecContext *avctx, AVFrame *picture,
                            int *got_picture_ptr, AVPacket *avpkt);
 
+/* Software H.264/HEVC early-output engine, owned by one coordinator. */
+int ff_thread_async_enable(AVCodecContext *avctx, void (*wake)(void *), void *opaque);
+int ff_thread_async_receive(AVCodecContext *avctx, AVFrame *frame);
+void ff_thread_async_stats(AVCodecContext *avctx, int *inflight, int *active);
+
 int ff_thread_can_start_frame(AVCodecContext *avctx);
 
 /**

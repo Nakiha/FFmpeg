@@ -1,12 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
-build_dir=${FFMPEG_LIVE_BUILD_DIR:-"${XDG_CACHE_HOME:-$HOME/.cache}/ffmpeg-live/build-linux-baseline"}
-install_dir=${FFMPEG_LIVE_INSTALL_DIR:-"$source_root/../install-linux-baseline"}
+flavor=${FFMPEG_LIVE_SANITIZE:-async}
+build_dir=${FFMPEG_LIVE_BUILD_DIR:-"${XDG_CACHE_HOME:-$HOME/.cache}/ffmpeg-live/build-linux-$flavor"}
+install_dir=${FFMPEG_LIVE_INSTALL_DIR:-"$source_root/../install-linux-$flavor"}
 mkdir -p -- "$build_dir" "$install_dir"
 build_dir=$(cd -- "$build_dir" && pwd)
 install_dir=$(cd -- "$install_dir" && pwd)
 cd -- "$build_dir"
+sanitize=()
+if [[ -n ${FFMPEG_LIVE_SANITIZE:-} ]]; then
+    sanitize=("--extra-cflags=-fsanitize=$FFMPEG_LIVE_SANITIZE -fno-omit-frame-pointer"
+              "--extra-ldflags=-fsanitize=$FFMPEG_LIVE_SANITIZE" --disable-stripping
+              --disable-asm)
+fi
 
 "$source_root/configure" \
     --prefix="$install_dir" \
@@ -21,14 +28,11 @@ cd -- "$build_dir"
     --enable-muxer=framehash,null \
     --enable-encoder=rawvideo,wrapped_avframe \
     --enable-filter=null \
-    --enable-debug=3 --assert-level=2
+    --enable-debug=3 --assert-level=2 "${sanitize[@]}"
 
 make -j"${FFMPEG_LIVE_BUILD_JOBS:-8}"
 make install
-export PKG_CONFIG_PATH="$install_dir/lib/pkgconfig"
-gcc -std=c11 -O2 -Wall -Wextra \
-    "$source_root/tools/live-async/latency_probe.c" \
-    -o "$install_dir/bin/latency_probe" \
-    $(pkg-config --cflags --libs libavformat libavcodec libavutil)
+export FFMPEG_LIVE_INSTALL_DIR="$install_dir"
+bash "$source_root/tools/live-async/compile-probes.sh"
 export LD_LIBRARY_PATH="$install_dir/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 "$install_dir/bin/ffmpeg" -hide_banner -version

@@ -108,6 +108,7 @@ typedef struct PerThreadContext {
     int hwaccel_threadsafe;
 
     atomic_int debug_threads;       ///< Set if the FF_DEBUG_THREADS option is set.
+    int async_drain;               ///< Coordinator-owned task metadata.
 } PerThreadContext;
 
 /**
@@ -136,6 +137,15 @@ typedef struct FrameThreadContext {
                                     * While it is set, ff_thread_en/decode_frame won't return any results.
                                     */
 
+    void (*async_wake)(void *);
+    void *async_opaque;
+    int async_pending;
+    int async_input_eof;
+    int async_drain_done;
+    atomic_int async_active;
+    atomic_int async_peak_active;
+    atomic_int async_peak_pending;
+
     /* hwaccel state for thread-unsafe hwaccels is temporarily stored here in
      * order to transfer its ownership to the next decoding thread without the
      * need for extra synchronization */
@@ -143,6 +153,20 @@ typedef struct FrameThreadContext {
     void            *stash_hwaccel_context;
     void            *stash_hwaccel_priv;
 } FrameThreadContext;
+
+static void async_progress(FrameThreadContext *fctx)
+{
+    if (fctx->async_wake)
+        fctx->async_wake(fctx->async_opaque);
+}
+
+static void update_peak(atomic_int *peak, int value)
+{
+    int old = atomic_load_explicit(peak, memory_order_relaxed);
+    while (old < value && !atomic_compare_exchange_weak_explicit(
+               peak, &old, value, memory_order_relaxed, memory_order_relaxed))
+        ;
+}
 
 static int hwaccel_serial(const AVCodecContext *avctx)
 {
@@ -220,7 +244,12 @@ static attribute_align_arg void *frame_worker_thread(void *arg)
 
         av_frame_unref(p->frame);
         p->got_frame = 0;
+        if (p->parent->async_wake)
+            update_peak(&p->parent->async_peak_active,
+                        atomic_fetch_add(&p->parent->async_active, 1) + 1);
         p->result = codec->cb.decode(avctx, p->frame, &p->got_frame, p->avpkt);
+        if (p->parent->async_wake)
+            atomic_fetch_sub(&p->parent->async_active, 1);
 
         if ((p->result < 0 || !p->got_frame) && p->frame->buf[0])
             av_frame_unref(p->frame);
@@ -256,6 +285,12 @@ static attribute_align_arg void *frame_worker_thread(void *arg)
         pthread_cond_broadcast(&p->progress_cond);
         pthread_cond_signal(&p->output_cond);
         pthread_mutex_unlock(&p->progress_mutex);
+        /* Notify completion after releasing the slot handoff mutex. */
+        if (p->parent->async_wake) {
+            pthread_mutex_unlock(&p->mutex);
+            async_progress(p->parent);
+            pthread_mutex_lock(&p->mutex);
+        }
     }
     pthread_mutex_unlock(&p->mutex);
 
@@ -570,6 +605,97 @@ finish:
     return err;
 }
 
+int ff_thread_async_enable(AVCodecContext *avctx, void (*wake)(void *), void *opaque)
+{
+    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    if (!wake) {
+        if (fctx->prev_thread || fctx->async_pending)
+            return AVERROR(EINVAL);
+        fctx->async_wake = NULL;
+        fctx->async_opaque = NULL;
+        avctx->internal->async_frame_threading = 0;
+        return 0;
+    }
+    if (fctx->prev_thread || fctx->async_wake)
+        return AVERROR(EINVAL);
+    atomic_init(&fctx->async_active, 0);
+    atomic_init(&fctx->async_peak_active, 0);
+    atomic_init(&fctx->async_peak_pending, 0);
+    fctx->async_opaque = opaque;
+    fctx->async_wake = wake;
+    avctx->internal->async_frame_threading = 1;
+    return 0;
+}
+
+void ff_thread_async_stats(AVCodecContext *avctx, int *inflight, int *active)
+{
+    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    *inflight = atomic_load(&fctx->async_peak_pending);
+    *active = atomic_load(&fctx->async_peak_active);
+}
+
+int ff_thread_async_receive(AVCodecContext *avctx, AVFrame *frame)
+{
+    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    AVPacket *pkt = avctx->internal->in_pkt;
+    int ret, budget = 2 * avctx->thread_count + 4;
+
+    /* This path is restricted to software decoding. No hwaccel async lock. */
+    while (budget--) {
+        if (fctx->async_pending) {
+            PerThreadContext *p = &fctx->threads[fctx->next_finished];
+            if (atomic_load_explicit(&p->state, memory_order_acquire) == STATE_INPUT_READY) {
+                int got = p->got_frame;
+                ret = p->result;
+                av_frame_move_ref(frame, p->frame);
+                frame->pkt_dts = p->avpkt->dts;
+                p->got_frame = p->result = 0;
+                fctx->next_finished = (fctx->next_finished + 1) % avctx->thread_count;
+                fctx->async_pending--;
+                if (p->async_drain && !got && ret >= 0)
+                    fctx->async_drain_done = 1;
+                if (ret >= 0)
+                    ret = update_context_from_thread(avctx, p->avctx, 1);
+                if (ret < 0) {
+                    av_frame_unref(frame);
+                    return ret;
+                }
+                if (got && !(frame->flags & AV_FRAME_FLAG_DISCARD))
+                    return 0;
+                av_frame_unref(frame);
+                continue;
+            }
+        }
+        if (fctx->async_drain_done)
+            return fctx->async_pending ? AVERROR(EAGAIN) : AVERROR_EOF;
+        if (fctx->async_pending == avctx->thread_count ||
+            (fctx->prev_thread && atomic_load(&fctx->prev_thread->state) == STATE_SETTING_UP))
+            return AVERROR(EAGAIN);
+
+        if (!pkt->data && !fctx->async_input_eof) {
+            ret = ff_decode_get_packet(avctx, pkt);
+            if (ret == AVERROR_EOF)
+                fctx->async_input_eof = 1;
+            else if (ret < 0)
+                return ret;
+        }
+        {
+            PerThreadContext *p = &fctx->threads[fctx->next_decoding];
+            p->async_drain = fctx->async_input_eof;
+            ret = submit_packet(p, avctx, pkt);
+            if (ret < 0)
+                return ret;
+            fctx->next_decoding %= avctx->thread_count;
+            fctx->async_pending++;
+            update_peak(&fctx->async_peak_pending, fctx->async_pending);
+            av_packet_unref(pkt);
+        }
+    }
+    /* The coordinator retries after a progress-generation change. */
+    async_progress(fctx);
+    return AVERROR(EAGAIN);
+}
+
 void ff_thread_report_progress(ThreadFrame *f, int n, int field)
 {
     PerThreadContext *p;
@@ -657,6 +783,7 @@ void ff_thread_finish_setup(AVCodecContext *avctx) {
 
     pthread_cond_broadcast(&p->progress_cond);
     pthread_mutex_unlock(&p->progress_mutex);
+    async_progress(p->parent);
 }
 
 /// Waits for all threads to finish.
@@ -909,6 +1036,9 @@ void ff_thread_flush(AVCodecContext *avctx)
     fctx->next_decoding = fctx->next_finished = 0;
     fctx->delaying = 1;
     fctx->prev_thread = NULL;
+    fctx->async_pending = 0;
+    fctx->async_input_eof = 0;
+    fctx->async_drain_done = 0;
     for (i = 0; i < avctx->thread_count; i++) {
         PerThreadContext *p = &fctx->threads[i];
         // Make sure decode flush calls with size=0 won't return old frames
