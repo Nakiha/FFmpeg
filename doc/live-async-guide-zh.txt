@@ -5,8 +5,9 @@ FFmpeg 7.0.3 异步低延迟改造指导（供内网/外部小模型执行）
 ----------------
 基线：n7.0.3，eaddd1d7140bab19e5a4403d3c0f61fe5f59cb75。
 分支：Nakiha/FFmpeg 的 live/n7.0.3-async-early-output。
-公开头文件：libavcodec/async.h，AVCODEC_ASYNC_API_VERSION == 1。
-本分支 libavcodec 为 61.4.100；原版为 61.3.100。这是自定义扩展 API。
+公开头文件：libavcodec/async.h，AVCODEC_ASYNC_API_VERSION == 2。
+本分支 libavcodec 为 61.5.100；原版为 61.3.100。这是自定义扩展 API。
+665d09b 的固定线程早输出版本为 61.4.100 / API 1，保留为大规格对照基线。
 
 目标：最多 N 个帧任务并行，按原顺序尽早输出，前台数据 API 不等待解码。
 每路增加一个协调线程。前台队列有短互斥锁和引用操作，不是无锁或硬实时。
@@ -20,7 +21,8 @@ B 帧重排、参考依赖、实际计算和下游积压的延迟仍然存在。
 ---------------
 优先使用交付的完整源码/补丁，不让小模型凭描述重写线程系统。
 核心文件须成组移植：
-  libavcodec/async.h、async.c：owner、有界队列、协调线程、六个公开 API。
+  libavcodec/async.h、async.c：owner、有界队列、协调线程与公开 API。
+  libavcodec/async_budget.h、async_budget.c：进程内/命名共享额度与引用生命周期。
   libavcodec/internal.h：只在 owner decoder 设置的模式位。
   libavcodec/pthread_frame.c、thread.h：早输出调度、任务计数、setup/done 唤醒。
   libavcodec/decode.c、decode.h：模式接入、fresh 生命周期检查、复用通用后处理。
@@ -167,6 +169,24 @@ results-msys2-baseline；脚本自动选择原生 probe.exe。
 summary.csv 的均值含 EOF drain 尾部；首次输出不含 demux/open 初始化时间。
 不能用单路 540p 合成样本宣称业务端到端 SLA。watchdog 失败不能删掉跳过。
 
+1080p/4K、B=3/7、2–12 每个线程数的大规格压力矩阵：
+  先用 generate-load-fixtures.ps1 生成固定种子动态噪声样本；编码完再测，
+  不让媒体生成和测量并行。保留独立的 install-linux-baseline（原版）与
+  install-linux-async（改造版），避免两个路径加载同一套动态库。
+  python3 tools/live-async/run-load-matrix.py --work /path/to/work
+  python3 tools/live-async/summarize-load.py /path/to/work/results-load
+每组分别做完整像素校验、30fps 实时供包、120fps 压力供包和三轮不限速吞吐。
+load_probe 在性能轮不拷贝/哈希像素、不逐帧写磁盘，测量完再输出记录；
+它按相同源码分别链接原版和改造版。摘要与完整比较表在 results-load/。
+“单帧时延”是对应包实际提交→完整帧返回，不等于该帧自身的 CPU 计算时间。
+还要看计划到达→出帧，防止原版阻塞或新接口背压使提交变晚，漏掉应用排队。
+稳态统计剔除起始 32、末尾 48 帧并排除 EOF drain；过载时若积压持续增长，
+只能称中段观察窗口。用吞吐随线程数的增长和进程 CPU 时间/墙钟时间一起
+判断并行优势，不能只看同时进入解码回调的峰值。更换代码、库或样本后使用
+新的结果目录，不复用旧 .ok 标记；所有延迟都不含网络与 filter/编码链。
+自动模式接入与限制见 live-async-auto-zh.txt。它有单独的功能/性能测试；
+不要把 61.4.100 的固定线程矩阵结果当成 61.5.100 自动模式的测量值。
+
 ASan/Leak（独立目录，禁用 asm，不用于性能比较）：
   export FFMPEG_LIVE_BUILD_DIR="$HOME/.cache/ffmpeg-live/build-linux-asan"
   export FFMPEG_LIVE_INSTALL_DIR="$PWD/../install-linux-asan"
@@ -196,6 +216,8 @@ TSan 在 WSL 的空程序阶段崩溃，未完成竞态检查；ASan 不能替�
 ------------------------
 “先读本指导与 async.h，列出服务送包/取帧/EOF/flush/free 的调用点与所有权。
 接入 AVCodecAsyncContext，保留 filter 单一 owner。成功转移后不再碰旧 ctx；
+要按压力自适应时，按 live-async-auto-zh.txt 在首次输入前启用自动模式；
+同进程复用预算，跨进程统一命名组及容量，不在业务中写码率/分辨率调参。
 packet 引用计数；send EAGAIN 保留原包；receive EAGAIN 回事件循环；接完成
 通知，保证没有新包也取帧；下游不接受 frame 时保留重试；drain 等真正 EOF。
 不要带入旧 EAGAIN 断言，不忙等，不在 notify 中做 codec/filter/生命周期。

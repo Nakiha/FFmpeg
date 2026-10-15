@@ -1,12 +1,16 @@
 /* Live asynchronous software decoding extension, LGPL-2.1-or-later. */
 #include "config.h"
 #include <string.h>
+#include <time.h>
 #include "async.h"
+#include "async_budget.h"
 #include "decode.h"
 #include "internal.h"
 #include "thread.h"
+#include "libavutil/avassert.h"
 #include "libavutil/mem.h"
 #include "libavutil/thread.h"
+#include "libavutil/time.h"
 
 #if HAVE_THREADS
 struct AVCodecAsyncContext {
@@ -24,7 +28,118 @@ struct AVCodecAsyncContext {
     uint64_t packets_accepted, frames_received;
     void (*notify)(void *);
     void *opaque;
+    int threads, auto_pending, minimum, maximum, target, step, peak_window;
+    int probe_previous, probe_constrained, probe_continuous, budget_waiting;
+    int *leases, lease_count;
+    int64_t next_tick, window_start, idle_since, cooldown, probe_start;
+    uint64_t window_completed, probe_completed, budget_waits;
+    double baseline_rate;
+    AVCodecAsyncBudget *budget;
+    AVCodecAsyncAutoStats auto_stats;
 };
+
+static void reconcile_budget(AVCodecAsyncContext *s, int busy)
+{
+    /* The coordinator is the only submitter. Worker states can only move toward
+     * READY during the scan, so retaining busy slots cannot undercount work. */
+    av_assert0(busy <= s->lease_count);
+    while (s->lease_count > busy)
+        ff_async_budget_release(s->budget, s->leases[--s->lease_count]);
+}
+
+static int acquire_budget(void *opaque)
+{
+    AVCodecAsyncContext *s = opaque;
+    FFThreadAsyncStatus status;
+    int ticket;
+    ff_thread_async_status(s->decoder, &status);
+    reconcile_budget(s, status.busy);
+    ticket = ff_async_budget_take(s->budget);
+    if (ticket == AVERROR(EAGAIN)) {
+        s->budget_waits++;
+        s->budget_waiting = s->probe_constrained = 1;
+        return 0;
+    }
+    if (ticket < 0)
+        return ticket;
+    av_assert0(s->lease_count < s->threads);
+    s->leases[s->lease_count++] = ticket;
+    s->budget_waiting = 0;
+    return 1;
+}
+
+static void auto_tick(AVCodecAsyncContext *s, int have_packet)
+{
+    FFThreadAsyncStatus status;
+    int pressure, space, changed = 0, old_target;
+    int64_t now = av_gettime_relative();
+    ff_thread_async_status(s->decoder, &status);
+    reconcile_budget(s, status.busy);
+    s->peak_window = FFMAX(s->peak_window, status.pending);
+    pthread_mutex_lock(&s->mutex);
+    space = s->output_count < s->capacity;
+    /* A single newly arrived packet is normal paced input, not sustained
+     * saturation. Otherwise every periodic arrival resets the shrink timer. */
+    pressure = space && !s->terminal &&
+               (s->input_count >= 2 ||
+                ((s->input_count || have_packet) && status.pending >= s->target));
+    if (!pressure) s->probe_continuous = 0;
+    s->auto_stats.inflight = status.pending;
+    s->auto_stats.busy = status.busy;
+    s->auto_stats.leased = s->lease_count;
+    s->auto_stats.completed = status.completed;
+    s->auto_stats.budget_waits = s->budget_waits;
+    if (now < s->next_tick) { pthread_mutex_unlock(&s->mutex); return; }
+    old_target = s->target;
+    if (s->probe_start && now - s->probe_start >= 250000) {
+        double rate = (status.completed - s->probe_completed) * 1000000.0 / (now - s->probe_start);
+        if (s->probe_continuous && !s->probe_constrained &&
+            s->baseline_rate > 0 && rate < s->baseline_rate * 1.03) {
+            s->target = s->probe_previous;
+            s->auto_stats.probe_rollbacks++;
+            s->auto_stats.decreases++;
+            s->step = FFMIN(s->maximum, s->step + 2);
+            s->cooldown = now + 600000;
+        } else {
+            s->step = 2;
+            s->cooldown = now + 200000;
+        }
+        s->probe_start = 0;
+    } else if (!s->probe_start && pressure && !s->budget_waiting &&
+               s->peak_window >= s->target && s->target < s->maximum && now >= s->cooldown) {
+        double rate = (status.completed - s->window_completed) * 1000000.0 / (now - s->window_start);
+        if (rate > 0) {
+            s->baseline_rate = rate;
+            s->probe_previous = s->target;
+            s->probe_start = now;
+            s->probe_completed = status.completed;
+            s->probe_continuous = 1;
+            s->probe_constrained = 0;
+            s->target = FFMIN(s->maximum, s->target + s->step);
+            s->auto_stats.increases++;
+        }
+    }
+    if (!pressure && space && s->peak_window <= FFMAX(s->minimum, s->target / 2)) {
+        if (!s->idle_since) s->idle_since = now;
+        if (!s->probe_start && s->target > s->minimum && now - s->idle_since >= 1000000) {
+            s->target = FFMAX(s->minimum, s->target - 2);
+            s->auto_stats.decreases++;
+            s->idle_since = now;
+            s->step = 2;
+            s->cooldown = now + 200000;
+        }
+    } else s->idle_since = 0;
+    changed = s->target != old_target;
+    s->auto_stats.target = s->target;
+    s->auto_stats.peak_target = FFMAX(s->auto_stats.peak_target, s->target);
+    s->window_start = now;
+    s->window_completed = status.completed;
+    s->next_tick = now + 100000;
+    s->peak_window = 0;
+    pthread_mutex_unlock(&s->mutex);
+    if (changed)
+        ff_thread_async_control(s->decoder, s->target, acquire_budget);
+}
 
 static void wake_locked(AVCodecAsyncContext *s)
 {
@@ -80,12 +195,29 @@ static void *async_coordinator(void *opaque)
             pthread_mutex_unlock(&s->mutex);
             break;
         }
+        if (s->auto_pending) {
+            int64_t now = av_gettime_relative();
+            s->auto_pending = 0;
+            pthread_mutex_unlock(&s->mutex);
+            ff_thread_async_control(s->decoder, s->target, acquire_budget);
+            s->window_start = now;
+            s->next_tick = now + 100000;
+            continue;
+        }
+        if (s->budget) {
+            pthread_mutex_unlock(&s->mutex);
+            auto_tick(s, have_packet);
+            pthread_mutex_lock(&s->mutex);
+            observed = s->generation;
+            if (s->stop) { pthread_mutex_unlock(&s->mutex); break; }
+        }
         if (s->flush_requested) {
             pthread_mutex_unlock(&s->mutex);
             av_packet_unref(packet);
             av_frame_unref(frame);
             have_packet = 0;
             avcodec_flush_buffers(s->decoder);
+            s->budget_waiting = 0;
             pthread_mutex_lock(&s->mutex);
             clear_queues(s);
             s->input_closed = s->terminal = s->flush_requested = 0;
@@ -135,8 +267,18 @@ static void *async_coordinator(void *opaque)
             continue;
         pthread_mutex_lock(&s->mutex);
         /* Progress can arrive while codec calls run outside the queue lock. */
-        while (s->generation == observed && !s->stop && !s->flush_requested)
-            pthread_cond_wait(&s->cond, &s->mutex);
+        while (s->generation == observed && !s->stop && !s->flush_requested) {
+            if (s->budget && !s->terminal &&
+                (s->budget_waiting || s->target > s->minimum || s->input_count || have_packet)) {
+                struct timespec until;
+                int64_t us = av_gettime() + (s->budget_waiting ? 2000 : 50000);
+                until.tv_sec = us / 1000000;
+                until.tv_nsec = (us % 1000000) * 1000;
+                if (pthread_cond_timedwait(&s->cond, &s->mutex, &until) == ETIMEDOUT)
+                    break;
+            } else
+                pthread_cond_wait(&s->cond, &s->mutex);
+        }
         pthread_mutex_unlock(&s->mutex);
     }
     return NULL;
@@ -160,6 +302,8 @@ int avcodec_async_create(AVCodecAsyncContext **out, AVCodecContext **decoder,
     if (!s)
         return AVERROR(ENOMEM);
     s->capacity = capacity;
+    s->threads = ctx->thread_count;
+    s->auto_stats.maximum = s->auto_stats.target = s->auto_stats.peak_target = ctx->thread_count;
     s->decoder = ctx;
     s->notify = notify;
     s->opaque = opaque;
@@ -292,6 +436,50 @@ int avcodec_async_get_stats(AVCodecAsyncContext *s, AVCodecAsyncStats *stats)
     return 0;
 }
 
+int avcodec_async_enable_auto(AVCodecAsyncContext *s, int minimum, AVCodecAsyncBudget *budget)
+{
+    AVCodecAsyncBudget *retained = NULL;
+    int *leases, ret = 0;
+    if (!s || minimum < 0 || minimum > s->threads)
+        return AVERROR(EINVAL);
+    if (!minimum) minimum = FFMIN(2, s->threads);
+    leases = av_malloc_array(s->threads, sizeof(*leases));
+    if (!leases) return AVERROR(ENOMEM);
+    if (budget) retained = ff_async_budget_ref(budget);
+    else ret = ff_async_budget_default(&retained);
+    if (ret < 0) { av_free(leases); return ret; }
+    pthread_mutex_lock(&s->mutex);
+    if (s->budget || s->packets_accepted || s->input_closed || s->terminal) {
+        ret = AVERROR(EINVAL);
+    } else {
+        s->budget = retained;
+        s->leases = leases;
+        s->maximum = FFMIN(s->threads, ff_async_budget_slots(retained));
+        minimum = FFMIN(minimum, s->maximum);
+        s->minimum = s->target = minimum;
+        s->step = 2;
+        s->auto_pending = 1;
+        s->auto_stats = (AVCodecAsyncAutoStats){ .enabled = 1, .minimum = minimum,
+            .maximum = s->maximum, .target = minimum, .peak_target = minimum,
+            .budget_slots = ff_async_budget_slots(retained) };
+        wake_locked(s);
+    }
+    pthread_mutex_unlock(&s->mutex);
+    if (ret < 0) { av_free(leases); avcodec_async_budget_free(&retained); }
+    return ret;
+}
+
+int avcodec_async_get_auto_stats(AVCodecAsyncContext *s, AVCodecAsyncAutoStats *stats)
+{
+    if (!s || !stats) return AVERROR(EINVAL);
+    pthread_mutex_lock(&s->mutex);
+    *stats = s->auto_stats;
+    stats->input_queue = s->input_count;
+    stats->output_queue = s->output_count;
+    pthread_mutex_unlock(&s->mutex);
+    return 0;
+}
+
 void avcodec_async_free(AVCodecAsyncContext **ps)
 {
     AVCodecAsyncContext *s;
@@ -306,6 +494,11 @@ void avcodec_async_free(AVCodecAsyncContext **ps)
     pthread_join(s->thread, NULL);
     /* Worker progress callbacks still reference s until all codec workers join. */
     avcodec_free_context(&s->decoder);
+    if (s->budget) {
+        reconcile_budget(s, 0);
+        avcodec_async_budget_free(&s->budget);
+        av_free(s->leases);
+    }
     for (i = 0; i < s->capacity; i++) {
         av_packet_free(&s->input[i]);
         av_frame_free(&s->output[i]);
@@ -331,4 +524,8 @@ int avcodec_async_flush(AVCodecAsyncContext *s)
 int avcodec_async_get_stats(AVCodecAsyncContext *s, AVCodecAsyncStats *stats)
 { return AVERROR(ENOSYS); }
 void avcodec_async_free(AVCodecAsyncContext **s) {}
+int avcodec_async_enable_auto(AVCodecAsyncContext *s, int minimum, AVCodecAsyncBudget *budget)
+{ return AVERROR(ENOSYS); }
+int avcodec_async_get_auto_stats(AVCodecAsyncContext *s, AVCodecAsyncAutoStats *stats)
+{ return AVERROR(ENOSYS); }
 #endif

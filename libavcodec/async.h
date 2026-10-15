@@ -5,10 +5,11 @@
 #include <stdint.h>
 #include "avcodec.h"
 
-#define AVCODEC_ASYNC_API_VERSION 1
+#define AVCODEC_ASYNC_API_VERSION 2
 
 /** Opaque owner of a decoder and a background coordinator thread. */
 typedef struct AVCodecAsyncContext AVCodecAsyncContext;
+typedef struct AVCodecAsyncBudget AVCodecAsyncBudget;
 
 typedef struct AVCodecAsyncStats {
     uint64_t packets_accepted;
@@ -16,6 +17,40 @@ typedef struct AVCodecAsyncStats {
     int peak_inflight;       /**< Submitted, uncollected frame tasks. */
     int peak_active_workers; /**< Overlapping decoder callbacks, including waits. */
 } AVCodecAsyncStats;
+
+typedef struct AVCodecAsyncAutoStats {
+    int enabled, minimum, maximum, target, peak_target, budget_slots;
+    int inflight, busy, leased, input_queue, output_queue;
+    uint64_t increases, decreases, probe_rollbacks, budget_waits, completed;
+} AVCodecAsyncAutoStats;
+
+/**
+ * Allocate a cooperative unfinished-task budget, with 1..256 slots (0 chooses
+ * about 3/4 of av_cpu_count(), at least one). NULL name is process-local; share
+ * this handle among owners. Named groups are Linux-only, same UID and /dev/shm
+ * namespace, name [A-Za-z0-9_-]{1,64}. All joiners must use the same capacity.
+ * Named slot locks are released by the kernel on process death. Their files
+ * persist: never unlink a live group's files, or fork and retain live handles.
+ * Capacity covers participating decoders, not filter/encode or other programs.
+ * Lifecycle call: may allocate/open/lock metadata. Not a frontend data call.
+ */
+int avcodec_async_budget_create(AVCodecAsyncBudget **out, int slots, const char *name);
+void avcodec_async_budget_free(AVCodecAsyncBudget **budget);
+
+/**
+ * Opt into experimental pressure-based dispatch control BEFORE accepting input,
+ * once per owner. minimum=0 defaults to 2; otherwise 1..allocated thread_count.
+ * Allocation never changes. Target bounds are clamped to the budget capacity.
+ * NULL budget uses
+ * one process-wide default; explicit budgets are retained by reference.
+ * Budget waits occur only on the coordinator. Growth uses queue pressure and
+ * completion-rate trials; low demand shrinks slowly. No hard latency, optimal
+ * throughput or cross-process fairness guarantee; queues/EAGAIN remain bounded.
+ */
+int avcodec_async_enable_auto(AVCodecAsyncContext *ctx, int minimum,
+                              AVCodecAsyncBudget *budget);
+/** Approximate coordinator snapshots; busy includes setup/reference waits. */
+int avcodec_async_get_auto_stats(AVCodecAsyncContext *ctx, AVCodecAsyncAutoStats *stats);
 
 /**
  * Transfer a freshly opened native software h264/hevc frame-threaded decoder

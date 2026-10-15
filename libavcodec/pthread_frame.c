@@ -142,9 +142,12 @@ typedef struct FrameThreadContext {
     int async_pending;
     int async_input_eof;
     int async_drain_done;
+    int async_limit;
+    int (*async_acquire)(void *);
     atomic_int async_active;
     atomic_int async_peak_active;
     atomic_int async_peak_pending;
+    atomic_uint_fast64_t async_completed;
 
     /* hwaccel state for thread-unsafe hwaccels is temporarily stored here in
      * order to transfer its ownership to the next decoding thread without the
@@ -248,8 +251,11 @@ static attribute_align_arg void *frame_worker_thread(void *arg)
             update_peak(&p->parent->async_peak_active,
                         atomic_fetch_add(&p->parent->async_active, 1) + 1);
         p->result = codec->cb.decode(avctx, p->frame, &p->got_frame, p->avpkt);
-        if (p->parent->async_wake)
+        if (p->parent->async_wake) {
             atomic_fetch_sub(&p->parent->async_active, 1);
+            if (!p->async_drain)
+                atomic_fetch_add_explicit(&p->parent->async_completed, 1, memory_order_relaxed);
+        }
 
         if ((p->result < 0 || !p->got_frame) && p->frame->buf[0])
             av_frame_unref(p->frame);
@@ -621,6 +627,8 @@ int ff_thread_async_enable(AVCodecContext *avctx, void (*wake)(void *), void *op
     atomic_init(&fctx->async_active, 0);
     atomic_init(&fctx->async_peak_active, 0);
     atomic_init(&fctx->async_peak_pending, 0);
+    atomic_init(&fctx->async_completed, 0);
+    fctx->async_limit = avctx->thread_count;
     fctx->async_opaque = opaque;
     fctx->async_wake = wake;
     avctx->internal->async_frame_threading = 1;
@@ -632,6 +640,27 @@ void ff_thread_async_stats(AVCodecContext *avctx, int *inflight, int *active)
     FrameThreadContext *fctx = avctx->internal->thread_ctx;
     *inflight = atomic_load(&fctx->async_peak_pending);
     *active = atomic_load(&fctx->async_peak_active);
+}
+
+void ff_thread_async_control(AVCodecContext *avctx, int limit, int (*acquire)(void *))
+{
+    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    av_assert0(limit >= 1 && limit <= avctx->thread_count);
+    fctx->async_limit = limit;
+    fctx->async_acquire = acquire;
+}
+
+void ff_thread_async_status(AVCodecContext *avctx, FFThreadAsyncStatus *status)
+{
+    FrameThreadContext *fctx = avctx->internal->thread_ctx;
+    status->pending = fctx->async_pending;
+    status->busy = 0;
+    /* Only the coordinator can change READY -> SETTING_UP. Workers can only
+     * complete tasks while this scan runs, so it conservatively overcounts
+     * unfinished work. Never return a budget slot still used by a worker. */
+    for (int i = 0; i < avctx->thread_count; i++)
+        status->busy += atomic_load_explicit(&fctx->threads[i].state, memory_order_acquire) != STATE_INPUT_READY;
+    status->completed = atomic_load_explicit(&fctx->async_completed, memory_order_relaxed);
 }
 
 int ff_thread_async_receive(AVCodecContext *avctx, AVFrame *frame)
@@ -668,7 +697,7 @@ int ff_thread_async_receive(AVCodecContext *avctx, AVFrame *frame)
         }
         if (fctx->async_drain_done)
             return fctx->async_pending ? AVERROR(EAGAIN) : AVERROR_EOF;
-        if (fctx->async_pending == avctx->thread_count ||
+        if (fctx->async_pending >= fctx->async_limit ||
             (fctx->prev_thread && atomic_load(&fctx->prev_thread->state) == STATE_SETTING_UP))
             return AVERROR(EAGAIN);
 
@@ -681,6 +710,11 @@ int ff_thread_async_receive(AVCodecContext *avctx, AVFrame *frame)
         }
         {
             PerThreadContext *p = &fctx->threads[fctx->next_decoding];
+            if (fctx->async_acquire) {
+                ret = fctx->async_acquire(fctx->async_opaque);
+                if (ret <= 0)
+                    return ret < 0 ? ret : AVERROR(EAGAIN);
+            }
             p->async_drain = fctx->async_input_eof;
             ret = submit_packet(p, avctx, pkt);
             if (ret < 0)

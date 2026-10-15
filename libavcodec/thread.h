@@ -56,6 +56,13 @@ int ff_thread_decode_frame(AVCodecContext *avctx, AVFrame *picture,
 int ff_thread_async_enable(AVCodecContext *avctx, void (*wake)(void *), void *opaque);
 int ff_thread_async_receive(AVCodecContext *avctx, AVFrame *frame);
 void ff_thread_async_stats(AVCodecContext *avctx, int *inflight, int *active);
+typedef struct FFThreadAsyncStatus {
+    int pending, busy;
+    uint64_t completed;
+} FFThreadAsyncStatus;
+void ff_thread_async_status(AVCodecContext *avctx, FFThreadAsyncStatus *status);
+void ff_thread_async_control(AVCodecContext *avctx, int limit,
+                             int (*acquire)(void *));
 
 int ff_thread_can_start_frame(AVCodecContext *avctx);
 
