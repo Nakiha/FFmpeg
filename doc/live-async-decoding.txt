@@ -1,0 +1,214 @@
+FFmpeg 7.0.3: asynchronous early frame output investigation
+=========================================================
+
+Status: source investigation and proposed design, not an implemented feature.
+Baseline: upstream tag n7.0.3, eaddd1d7140bab19e5a4403d3c0f61fe5f59cb75.
+Scope: native software H.264 and HEVC decoders on Linux x86_64.
+
+Goal
+----
+
+Keep up to N frame-decoding tasks in flight, return eligible completed frames
+without deliberately filling N slots first, and avoid waiting for decoder work
+on the application's filter/event-loop thread. Thread count is a concurrency
+limit, not a minimum pipeline occupancy.
+
+The application's existing scheduling pattern is send_packet(), followed by
+receive_frame() until EAGAIN. This pattern alone cannot deliver a frame which
+finishes AFTER the loop returns and BEFORE the next packet arrives. An explicit
+decoder-progress notification must schedule that same receive loop independently
+of packet arrival. A bounded timer can be a fallback, with corresponding latency.
+
+Verified source facts (line numbers refer to the unmodified baseline)
+------------------------------------------------------------------
+
+* libavcodec/pthread_frame.c:188, frame_worker_thread(): the workers already run
+  asynchronously. They publish result/frame/got_frame before storing
+  STATE_INPUT_READY at line 254 and signaling output_cond at line 257.
+  STATE_INPUT_READY also denotes a never-submitted idle worker, so this state
+  alone is NOT proof that an unconsumed result exists.
+
+* libavcodec/pthread_frame.c:424, submit_packet(): locks the destination worker
+  mutex, waits for the preceding worker to leave STATE_SETTING_UP at lines
+  448-452, copies the required codec context, and then dispatches the new task.
+  This setup dependency is needed by H.264/HEVC; it must not be deleted.
+
+* libavcodec/pthread_frame.c:488, ff_thread_decode_frame(): couples packet
+  submission with result collection. Lines 514-523 suppress early output while
+  filling the pipeline. Lines 532-540 then wait for the oldest worker, even if
+  the application wanted a nonblocking call. Initial-fill policy is not the
+  only source of a fixed backlog: steady-state submission and collection are
+  also coupled one-for-one.
+
+* libavcodec/decode.c:379, decode_simple_internal(): gets a packet first, at
+  lines 387-391. If no packet is available, it returns before calling the frame
+  threading machinery. It cannot independently harvest completed worker results.
+  Its codec .decode compatibility contract explicitly forbids returning
+  AVERROR(EAGAIN) as the consumed-byte count, at lines 437-439.
+
+* libavcodec/decode.c:675, avcodec_send_packet(): buffers the packet, but also
+  calls decode_receive_frame_internal() at lines 699-702. Changing receive-side
+  waits alone therefore cannot make both public calls nonblocking.
+
+* libavcodec/decode.c:588 and :762: generic frame finishing performs property
+  handling, colorspace processing, best-effort timestamps, private-data cleanup,
+  validation and cropping. A new path must reuse these operations; moving a raw
+  worker AVFrame directly to the application's filter bypasses required work.
+
+* libavcodec/avcodec.h:91 onwards: legacy send/receive is a progress-guaranteed
+  state machine, not a completion-polling API. Both sides must not simultaneously
+  return EAGAIN. End-of-stream receive also has different guarantees from an
+  asynchronous poll. Existing functions must keep these guarantees by default.
+
+* libavcodec/h264_slice.c:329 and libavcodec/hevcdec.c:3547: worker-to-worker
+  context updates carry reference pictures, parameter sets and reorder state.
+  Existing reference-progress synchronization and output ordering must remain.
+
+Proposed first implementation
+-----------------------------
+
+Use explicit asynchronous entry points rather than silently changing the
+meaning of EAGAIN for every avcodec_send_packet()/avcodec_receive_frame() caller.
+Names below are provisional interface sketches, not symbols available today:
+
+    avcodec_async_send_packet(ctx, pkt)
+        0: accepted; caller may unref its packet reference.
+        EAGAIN: bounded input capacity unavailable; packet was NOT accepted.
+
+    avcodec_async_receive_frame(ctx, frame)
+        0: an ordered, generically finished frame was returned.
+        EAGAIN: no output is currently available; new input OR worker progress
+                may make progress. This is explicitly different from legacy API.
+        EOF: input was closed and all tasks and codec-delayed output are drained.
+
+    progress notification registration
+        An application-provided notification hook schedules its existing event
+        loop. On Linux, the hook can write to a nonblocking eventfd. The hook
+        does not decode, call the filter graph, or re-enter AVCodecContext.
+
+Keep a single application owner for all codec API calls. A worker only publishes
+progress and sends a wakeup. The application schedules a bounded pump on input,
+setup readiness, task completion and output consumption. This first design
+does not require an extra coordinator thread for each stream.
+
+Before implementation, finalize registration lifetime and the public API shape.
+An opt-in compatibility wrapper could retain the application's function names,
+but it must document the extended polling semantics and backpressure behavior.
+Do not mix legacy and asynchronous data calls on one open decoder.
+
+Scheduler and worker accounting
+-------------------------------
+
+Split the frame engine into internal submit and collect operations. Leave the
+legacy ff_thread_decode_frame() path available for callers not using the new
+mode. Route the new mode above the .decode consumed-byte compatibility layer.
+
+Track explicit slot occupancy and monotonically increasing task sequence
+numbers. Ring positions being equal must not ambiguously mean both full and
+empty. A worker's execution state remains separate from whether it has a
+submitted, uncollected result. A completed task can legitimately have no frame.
+
+Conceptual slot lifecycle:
+
+    FREE -> SETTING_UP -> DECODING -> DONE -> FREE
+
+Submit only if there is capacity and the previous task has published its setup
+state. Use a nonwaiting worker-slot handoff; an atomic state check followed by
+a blocking mutex lock is insufficient. Preserve context copying and frame
+reference-progress waits INSIDE the worker execution. Notifications are needed
+for SETUP_FINISHED as well as DONE, since setup progress can unblock submission
+even before any frame can be returned.
+
+Collect the oldest submitted task only when it is DONE. Preserve FFmpeg's codec
+output order, including its internal B-frame reorder logic. Never scan arbitrary
+finished slots and forward whichever frame completed first. A DONE task with
+no frame still retires normally and may allow collection of the next task.
+
+On each pump, service pending output and dispatch eligible input with a bounded
+work budget. Do not require another input packet to collect existing tasks.
+Do not wait for full occupancy. Conversely, do not wait for each task to finish
+before dispatching the next eligible packet. Fairness matters: continually
+draining a large completed backlog must not starve new dispatch, or vice versa.
+
+Pass packets through the existing bitstream-filter and property pipeline.
+Capture the packet properties needed by the selected worker before advancing
+input; generic last_pkt_props must not accidentally refer to a newer packet.
+Propagate errors and completed task context updates through the collection path.
+
+Wakeup and integration rules
+---------------------------
+
+The receive loop remains a receive-until-EAGAIN loop, but runs on two triggers:
+
+    packet arrival -> submit accepted packet -> pump/receive -> send to filter
+    decoder progress -> pump/receive -> send to filter -> retry pending input
+
+If input capacity is full, retain the unaccepted packet and retry after a
+progress notification. Do not spin send/receive waiting for worker computation.
+Queue limits count unaccepted/queued input, in-flight tasks and held output
+separately. Do not create an unbounded latency queue to hide backpressure.
+
+Publish result data before readiness with appropriate acquire/release ordering.
+Ensure notification delivery cannot be lost in the gap between checking a
+predicate and arming the event loop. Account for the existing worker holding
+its mutex when it publishes completion: waking before the slot is actually
+accessible must not leave a failed try-lock without a later wakeup.
+
+Callbacks may execute on decoder workers; invocation must be bounded and
+nonblocking. A callback is a wakeup hint, not a guarantee of an available frame.
+Coalesce wakeups and inspect predicates after consuming them. Never invoke the
+filter graph on a decoder worker. Quiesce all notifications before freeing
+callback user data. The filter graph retains its current serialized owner.
+
+Drain, reset and capability boundaries
+-------------------------------------
+
+* Accept end-of-input only when ordered behind all accepted input. Submit codec
+  drain work with correct context propagation and collect outstanding output.
+  An unfinished task is not EOF. Async polling during drain can return EAGAIN;
+  this deviation from the legacy contract is part of the new API.
+* Flush discards pending work/results, invalidates stale notifications and resets
+  slot accounting. Close joins workers before freeing state. Initial lifecycle
+  functions may wait for outstanding work and must run outside the filter loop
+  if the application requires nonblocking teardown too.
+* Handle resolution changes, corrupt input, no-frame packets and decoder errors.
+* Restrict the first implementation to native software H.264/HEVC frame-threaded
+  decoding. Reject unsupported codecs/hardware configurations explicitly.
+  Existing hardware async_lock behavior must not be casually generalized.
+* Nonblocking means no deliberate wait for decoder progress on data calls, not
+  hard real-time guarantees for allocation, parsing, context copies or scheduling.
+* Thread count remains the concurrency ceiling. Actual dependency/computation
+  latency, codec reorder delay and downstream backpressure are not eliminated.
+
+Implementation order and evidence required
+------------------------------------------
+
+1. Keep the upstream baseline reproducible. Add a paced-input probe that records
+   send/receive wall times, per-frame submit-to-output time, output order/hash,
+   and peak in-flight work at 2, 4, 8 and 12 threads.
+2. Introduce separate internal submission and completion collection with exact
+   accounting. Test early collection without new input before adding wakeups.
+3. Add explicit async frontend semantics, nonwaiting setup/slot handoff and
+   progress notifications. Exercise both input-triggered and completion-triggered
+   receive loops, including queue-full retry.
+4. Compare all decoded frames/PTS with the baseline for H.264 and HEVC streams
+   with and without reorder, then test drain, flush, close, corrupt packets,
+   parameter/resolution changes and repeated open/close.
+5. Prove multiple tasks can overlap under load, not merely that latency drops
+   because work has become serial. Include an input pause immediately after a
+   submitted task; its eligible output must arrive without another packet.
+6. Use deterministic delayed-setup/delayed-worker tests for lost wakeups,
+   bounded queues and out-of-order completions. Run sanitizers where supported.
+   Record data-call duration distributions separately from total frame latency.
+
+Environment and current verification
+-------------------------------------
+
+The baseline tag and commit have been verified locally; the decoder sources
+are unmodified. Source inspection establishes feasibility, not performance.
+Linux compilation and runtime behavior have not yet been validated. A local
+Ubuntu WSL launch currently fails with HCS_E_HYPERV_NOT_INSTALLED. A native
+Windows toolchain exists, but its results would not establish Linux behavior.
+Use a working Linux host or an explicitly configured Linux CI job for target
+builds and concurrency/latency validation; no system setting changes are needed
+for this source investigation.
