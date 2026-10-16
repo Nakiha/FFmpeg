@@ -646,7 +646,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
 
         if (pktl) {
             AVStream *const st = s->streams[pktl->pkt.stream_index];
-            if (fci->raw_packet_buffer_size >= s->probesize)
+            FFStream *const sti = ffstream(st);
+            int expired = 0;
+            if (fci->live_input_probe_us && sti->request_probe > 0) {
+                int64_t now = av_gettime_relative();
+                if (!sti->live_probe_started_us) sti->live_probe_started_us = now;
+                expired = now - sti->live_probe_started_us >= fci->live_input_probe_us;
+            }
+            if (fci->raw_packet_buffer_size >= s->probesize || expired)
                 if ((err = probe_codec(s, st, NULL)) < 0)
                     return err;
             if (ffstream(st)->request_probe <= 0) {

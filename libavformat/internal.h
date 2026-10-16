@@ -196,6 +196,7 @@ typedef struct FFStream {
      * rest -> perform probing with request_probe being the minimum score to accept.
      */
     int request_probe;
+    int64_t live_probe_started_us;
     /**
      * Indicates that everything up to the next keyframe
      * should be discarded.

@@ -74,6 +74,9 @@ typedef struct FFOutputFormat {
     int flags_internal;
 
     int (*write_header)(AVFormatContext *);
+    /* Fork-only transactional allocation for fully described late audio.
+     * Must not perform I/O; failure leaves old mux state unchanged. */
+    int (*live_add_stream)(AVFormatContext *, AVStream *);
     /**
      * Write a packet. If FF_OFMT_FLAG_ALLOW_FLUSH is set in flags_internal,
      * pkt can be NULL in order to flush data buffered in the muxer.
@@ -168,6 +171,7 @@ static inline const FFOutputFormat *ffofmt(const AVOutputFormat *fmt)
 {
     return (const FFOutputFormat*)fmt;
 }
+void ff_live_mux_free(AVFormatContext *s);
 
 /**
  * Add packet to an AVFormatContext's packet_buffer list, determining its

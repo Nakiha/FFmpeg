@@ -1,0 +1,43 @@
+Fork-only live mux API 1
+=======================
+
+Public header: libavformat/live_mux.h. Not an upstream FFmpeg contract.
+libavformat 63.3.102; rebuild callers against matching headers/libraries.
+
+Lifecycle, on one demux/mux owner thread per context:
+1. Create video stream and avformat_write_header(output).
+2. avformat_live_mux_init(output, wait_us, packet_capacity, byte_capacity).
+3. Append fully described AAC/MP3 using avformat_live_add_audio(). It copies
+   parameters, performs no output I/O and rolls back failed registration.
+4. send consumes packet references only on success. EAGAIN retains the input;
+   receive into an empty AVPacket, write with av_write_frame, unref, retry.
+5. Poll receive even without new input. Force-drain at capacity pressure/EOF.
+6. Flush mux PES where needed and AVIO, then write_trailer/free_context.
+   Freeing a context also releases any remaining queue packet references.
+
+Do not mix av_interleaved_write_frame with this queue (it returns EINVAL).
+No internal thread/timer is created. Monotonic wall deadline ignores media
+DTS progress; it excludes caller scheduling, mux computation and transport
+I/O. Hard limits: 256 packets, <= INT_MAX payload bytes, 32 streams. Queued
+packets are DTS sorted across time bases; timeout, fullness or force may
+release without every stream present. The application must explicitly handle
+globally late arrivals; the library does not silently drop packets. Per-stream
+timestamps must remain monotonic. Release-reason statistics may overlap.
+
+FLV: append-only per-type track IDs, expanded state arrays, deferred sequence
+headers and metadata before media; keyframe indexing is unsupported here.
+MPEG-TS: single service, no explicit AVPrograms, non-M2TS; unused PID allocation,
+PMT version increment/PAT+PMT re-emission; preserve old PID/counters/PCR source.
+No removal, video addition, parameter replacement or general audio codec claim.
+
+Demux helper avformat_live_input_probe_limit(input, wait_us), after initial
+find_stream_info, caps later raw codec probing while packets keep arriving.
+It preserves buffering/replay and does not cap a blocking transport read;
+the caller still needs its regular I/O interrupt deadline. This is separate
+from initial stream-info probing. Enable raw AAC/MP3 demuxers for TS probing.
+
+The application repository tests/live_mux_test.c checks transactional rejection,
+no I/O at registration, constant-DTS timeout, exact capacity/backpressure and
+ownership. tests/live_mux_integration.py tests real RTMP/SRT, dynamic discovery
+and independent decoding of VVC+AAC tracks, silent/resuming audio, late unknown
+PES, MP3, complete EOF drain and video-only mode, with no reconnect/task restart.

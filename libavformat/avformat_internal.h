@@ -32,6 +32,9 @@
 
 typedef struct FormatContextInternal {
     FFFormatContext fc;
+    struct LiveMuxContext *live_mux;
+    int live_header_written;
+    int64_t live_input_probe_us;
 
     union {
         // muxing only

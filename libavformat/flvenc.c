@@ -136,6 +136,7 @@ typedef struct FLVContext {
     int64_t *last_ts;
     int *metadata_pkt_written;
     int *track_idx_map;
+    uint32_t live_headers_pending;
 } FLVContext;
 
 static int get_audio_flags(AVFormatContext *s, AVCodecParameters *par)
@@ -1080,6 +1081,34 @@ static int flv_init(struct AVFormatContext *s)
     return 0;
 }
 
+static int flv_live_add_stream(AVFormatContext *s, AVStream *st)
+{
+    FLVContext *flv = s->priv_data;
+    unsigned n = s->nb_streams, old = n - 1;
+    int track = 0;
+    int64_t *last;
+    int *metadata, *map;
+    if (flv->flags & FLV_ADD_KEYFRAME_INDEX || get_audio_flags(s, st->codecpar) < 0)
+        return AVERROR(ENOSYS);
+    for (unsigned i = 0; i < old; ++i)
+        track += s->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO;
+    last = av_calloc(n, sizeof(*last));
+    metadata = av_calloc(n, sizeof(*metadata));
+    map = av_calloc(n, sizeof(*map));
+    if (!last || !metadata || !map) { av_free(last); av_free(metadata); av_free(map); return AVERROR(ENOMEM); }
+    memcpy(last, flv->last_ts, old * sizeof(*last));
+    memcpy(metadata, flv->metadata_pkt_written, old * sizeof(*metadata));
+    memcpy(map, flv->track_idx_map, old * sizeof(*map));
+    last[old] = -1; map[old] = track;
+    av_free(flv->last_ts); av_free(flv->metadata_pkt_written); av_free(flv->track_idx_map);
+    flv->last_ts = last; flv->metadata_pkt_written = metadata; flv->track_idx_map = map;
+    if (!flv->audio_par) flv->audio_par = st->codecpar;
+    flv->live_headers_pending |= UINT32_C(1) << st->index;
+    avpriv_set_pts_info(st, 32, 1, 1000);
+    s->event_flags |= AVFMT_EVENT_FLAG_METADATA_UPDATED;
+    return 0;
+}
+
 static int flv_write_header(AVFormatContext *s)
 {
     int i;
@@ -1219,6 +1248,11 @@ static int flv_write_packet(AVFormatContext *s, AVPacket *pkt)
     int flags = -1, flags_size, ret = 0;
     int64_t cur_offset = avio_tell(pb);
     int track_idx = flv->track_idx_map[pkt->stream_index];
+
+    if (pkt->stream_index < 32 && flv->live_headers_pending & (UINT32_C(1) << pkt->stream_index)) {
+        flv_write_codec_header(s, par, pkt->dts, pkt->stream_index);
+        flv->live_headers_pending &= ~(UINT32_C(1) << pkt->stream_index);
+    }
 
     int extended_audio = (par->codec_id == AV_CODEC_ID_AAC && track_idx)
                             || (par->codec_id == AV_CODEC_ID_MP3 && track_idx)
@@ -1547,6 +1581,7 @@ const FFOutputFormat ff_flv_muxer = {
     .p.video_codec  = AV_CODEC_ID_FLV1,
     .init           = flv_init,
     .write_header   = flv_write_header,
+    .live_add_stream = flv_live_add_stream,
     .write_packet   = flv_write_packet,
     .write_trailer  = flv_write_trailer,
     .deinit         = flv_deinit,

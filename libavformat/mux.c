@@ -437,6 +437,7 @@ static void deinit_muxer(AVFormatContext *s)
 {
     FormatContextInternal *const fci = ff_fc_internal(s);
     const FFOutputFormat *const of = ffofmt(s->oformat);
+    fci->live_header_written = 0;
     if (of && of->deinit && fci->initialized)
         of->deinit(s);
     fci->initialized =
@@ -493,6 +494,7 @@ int avformat_write_header(AVFormatContext *s, AVDictionary **options)
             goto fail;
     }
 
+    fci->live_header_written = 1;
     return streams_already_initialized;
 
 fail:
@@ -1223,6 +1225,10 @@ fail:
 int av_interleaved_write_frame(AVFormatContext *s, AVPacket *pkt)
 {
     int ret;
+    if (ff_fc_internal(s)->live_mux) {
+        if (pkt) av_packet_unref(pkt);
+        return AVERROR(EINVAL);
+    }
 
     if (pkt) {
         ret = write_packets_common(s, pkt, 1/*interleaved*/);

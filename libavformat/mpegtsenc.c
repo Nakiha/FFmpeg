@@ -2263,6 +2263,51 @@ static void mpegts_write_flush(AVFormatContext *s)
     }
 }
 
+static int mpegts_live_add_stream(AVFormatContext *s, AVStream *st)
+{
+    MpegTSWrite *ts = s->priv_data;
+    MpegTSWriteStream *stream;
+    int pid, ret = 0;
+    if (s->nb_programs || ts->m2ts_mode || ts->nb_services != 1) return AVERROR(ENOSYS);
+    for (pid = FFMAX(ts->start_pid, 32); pid < 0x1fff; ++pid) {
+        int used = pid == ts->services[0]->pmt.pid || pid == ts->services[0]->pcr_pid;
+        for (unsigned i = 0; i < s->nb_streams - 1; ++i)
+            used |= ((MpegTSWriteStream *)s->streams[i]->priv_data)->pid == pid;
+        if (!used) break;
+    }
+    if (pid == 0x1fff) return AVERROR(ENOSPC);
+    stream = av_mallocz(sizeof(*stream));
+    if (!stream) return AVERROR(ENOMEM);
+    stream->pid = pid;
+    stream->cc = 15;
+    stream->payload_pts = stream->payload_dts = AV_NOPTS_VALUE;
+    stream->discontinuity = 1;
+    stream->payload = av_mallocz(ts->pes_payload_size);
+    if (!stream->payload) {ret = AVERROR(ENOMEM); goto fail;}
+    if (st->codecpar->codec_id == AV_CODEC_ID_AAC) {
+        AVStream *audio;
+        stream->amux = avformat_alloc_context();
+        if (!stream->amux) {ret = AVERROR(ENOMEM); goto fail;}
+        stream->amux->oformat = av_guess_format(ts->flags & MPEGTS_FLAG_AAC_LATM ? "latm" : "adts", NULL, NULL);
+        if (!stream->amux->oformat) {ret = AVERROR(ENOSYS); goto fail;}
+        audio = avformat_new_stream(stream->amux, NULL);
+        if (!audio) {ret = AVERROR(ENOMEM); goto fail;}
+        if ((ret = avcodec_parameters_copy(audio->codecpar, st->codecpar)) < 0) goto fail;
+        audio->time_base = (AVRational){1, 90000};
+        if ((ret = avformat_write_header(stream->amux, NULL)) < 0) goto fail;
+    }
+    st->priv_data = stream;
+    avpriv_set_pts_info(st, 33, 1, 90000);
+    // Preserve all existing stream counters, PCR source and PES buffers.
+    ts->tables_version = (ts->tables_version + 1) & 31;
+    ts->flags |= MPEGTS_FLAG_REEMIT_PAT_PMT;
+    return 0;
+fail:
+    if (stream->amux) avformat_free_context(stream->amux);
+    av_free(stream->payload); av_free(stream);
+    return ret;
+}
+
 static int mpegts_write_packet(AVFormatContext *s, AVPacket *pkt)
 {
     if (!pkt) {
@@ -2414,6 +2459,7 @@ const FFOutputFormat ff_mpegts_muxer = {
     .p.audio_codec  = AV_CODEC_ID_MP2,
     .p.video_codec  = AV_CODEC_ID_MPEG2VIDEO,
     .init           = mpegts_init,
+    .live_add_stream = mpegts_live_add_stream,
     .write_packet   = mpegts_write_packet,
     .write_trailer  = mpegts_write_end,
     .deinit         = mpegts_deinit,

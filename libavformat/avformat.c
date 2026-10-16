@@ -152,6 +152,7 @@ void avformat_free_context(AVFormatContext *s)
 
     if (!s)
         return;
+    ff_live_mux_free(s);
     fci = ff_fc_internal(s);
     si  = &fci->fc;
 
