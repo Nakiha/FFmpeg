@@ -1,0 +1,31 @@
+TCP/UDP 传输观测扩展（fork，2026-10-16）
+=====================================
+
+公开头文件 libavformat/network_observer.h，API 1，libavformat 61.2.100。
+解码异步 API 2 / libavcodec 61.5.100 不变。
+
+avformat_set_network_observer(callback, opaque) 只能在所有网络上下文打开前调用；
+全部协议及 UDP 后台线程关闭后才可清除或替换。它是进程范围的生命周期配置，
+不支持运行中并发注册/注销。回调须线程安全，不分配、不记录日志、不阻塞，
+不重入 FFmpeg，也不可保留传入事件指针。
+
+事件包括协议、收发方向、后台线程标志、socket fd、opaque 连接身份、请求字节、
+实际字节/负 AVERROR，以及单调时钟 started_us/syscall_start_us/completed_us。
+readiness 失败时 syscall_start_us=0。连接身份可能在关闭后重用，不是持久 ID。
+
+TCP recv/send，UDP 直接 recvfrom/send/sendto，以及 UDP 后台 RX/TX 均覆盖。
+后台 RX 回调在 FIFO 入队前；后台 TX 位于实际发送调用处，不在前端 FIFO 入队处。
+UDP 后台 recv 本身可能等待数据；其耗时不等于网络传播时延。显式 readiness
+等待包含在 TCP/UDP 直接路径操作耗时中，syscall 时间另列。未启用时不读时钟。
+
+回调前后保存/恢复 errno；Windows 网络构建另保存/恢复 Winsock 错误。
+不改变原调用的返回值、重试、EOF、超时或队列行为。不读取/复制媒体载荷。
+未覆盖 connect/accept/close、内核/NIC 时间戳、TLS/QUIC 等其他协议层。
+
+这些是 socket API 收发边界：send 成功只说明操作系统接受数据。TCP 字节块、
+UDP 数据报、解封装 AVPacket 和转码帧没有自动的一一映射。本扩展没有把网络
+事件附加到视频帧，也不保证远端收到或显示。逐帧网络时延需要额外的字节区间、
+封装/解封装映射和接收端证据，不能用最新一次 recv 时间代替某帧的到达时间。
+
+完整服务集成和验证在 Nakiha/NakiLiveTranscode 的 app/netstats.c、
+tests/service_integration.py、tests/observability_integration.py 中。

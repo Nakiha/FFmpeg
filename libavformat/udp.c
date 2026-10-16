@@ -496,6 +496,7 @@ static void *circular_buffer_task_rx( void *_URLContext)
     }
     while(1) {
         int len;
+        int64_t observed;
         struct sockaddr_storage addr;
         socklen_t addr_len = sizeof(addr);
 
@@ -504,8 +505,10 @@ static void *circular_buffer_task_rx( void *_URLContext)
            see "General Information" / "Thread Cancelation Overview"
            in Single Unix. */
         pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &old_cancelstate);
+        observed = ff_network_observer_begin();
         len = recvfrom(s->udp_fd, s->tmp+4, sizeof(s->tmp)-4, 0, (struct sockaddr *)&addr, &addr_len);
         pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &old_cancelstate);
+        ff_network_observer_end(observed, observed, AV_NETWORK_UDP, AV_NETWORK_RECEIVE, 1, h, s->udp_fd, sizeof(s->tmp)-4, len < 0 ? ff_neterrno() : len);
         pthread_mutex_lock(&s->mutex);
         if (len < 0) {
             if (ff_neterrno() != AVERROR(EAGAIN) && ff_neterrno() != AVERROR(EINTR)) {
@@ -610,6 +613,7 @@ static void *circular_buffer_task_tx( void *_URLContext)
         p = s->tmp;
         while (len) {
             int ret;
+            int64_t observed = ff_network_observer_begin();
             av_assert0(len > 0);
             if (!s->is_connected) {
                 ret = sendto (s->udp_fd, p, len, 0,
@@ -617,6 +621,7 @@ static void *circular_buffer_task_tx( void *_URLContext)
                             s->dest_addr_len);
             } else
                 ret = send(s->udp_fd, p, len, 0);
+            ff_network_observer_end(observed, observed, AV_NETWORK_UDP, AV_NETWORK_SEND, 1, h, s->udp_fd, len, ret < 0 ? ff_neterrno() : ret);
             if (ret >= 0) {
                 len -= ret;
                 p   += ret;
@@ -991,6 +996,7 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
 {
     UDPContext *s = h->priv_data;
     int ret;
+    int64_t observed, call;
     struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
 #if HAVE_PTHREAD_CANCEL
@@ -1038,12 +1044,17 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
     }
 #endif
 
+    observed = ff_network_observer_begin();
     if (!(h->flags & AVIO_FLAG_NONBLOCK)) {
         ret = ff_network_wait_fd(s->udp_fd, 0);
-        if (ret < 0)
+        if (ret < 0) {
+            ff_network_observer_end(observed, 0, AV_NETWORK_UDP, AV_NETWORK_RECEIVE, 0, h, s->udp_fd, size, ret);
             return ret;
+        }
     }
+    call = ff_network_observer_begin();
     ret = recvfrom(s->udp_fd, buf, size, 0, (struct sockaddr *)&addr, &addr_len);
+    ff_network_observer_end(observed, call, AV_NETWORK_UDP, AV_NETWORK_RECEIVE, 0, h, s->udp_fd, size, ret < 0 ? ff_neterrno() : ret);
     if (ret < 0)
         return ff_neterrno();
     if (ff_ip_check_source_lists(&addr, &s->filters))
@@ -1055,6 +1066,7 @@ static int udp_write(URLContext *h, const uint8_t *buf, int size)
 {
     UDPContext *s = h->priv_data;
     int ret;
+    int64_t observed, call;
 
 #if HAVE_PTHREAD_CANCEL
     if (s->fifo) {
@@ -1085,12 +1097,16 @@ static int udp_write(URLContext *h, const uint8_t *buf, int size)
         return size;
     }
 #endif
+    observed = ff_network_observer_begin();
     if (!(h->flags & AVIO_FLAG_NONBLOCK)) {
         ret = ff_network_wait_fd(s->udp_fd, 1);
-        if (ret < 0)
+        if (ret < 0) {
+            ff_network_observer_end(observed, 0, AV_NETWORK_UDP, AV_NETWORK_SEND, 0, h, s->udp_fd, size, ret);
             return ret;
+        }
     }
 
+    call = ff_network_observer_begin();
     if (!s->is_connected) {
         ret = sendto (s->udp_fd, buf, size, 0,
                       (struct sockaddr *) &s->dest_addr,
@@ -1098,6 +1114,7 @@ static int udp_write(URLContext *h, const uint8_t *buf, int size)
     } else
         ret = send(s->udp_fd, buf, size, 0);
 
+    ff_network_observer_end(observed, call, AV_NETWORK_UDP, AV_NETWORK_SEND, 0, h, s->udp_fd, size, ret < 0 ? ff_neterrno() : ret);
     return ret < 0 ? ff_neterrno() : ret;
 }
 

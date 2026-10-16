@@ -287,13 +287,18 @@ static int tcp_read(URLContext *h, uint8_t *buf, int size)
 {
     TCPContext *s = h->priv_data;
     int ret;
+    int64_t start = ff_network_observer_begin(), call;
 
     if (!(h->flags & AVIO_FLAG_NONBLOCK)) {
         ret = ff_network_wait_fd_timeout(s->fd, 0, h->rw_timeout, &h->interrupt_callback);
-        if (ret)
+        if (ret) {
+            ff_network_observer_end(start, 0, AV_NETWORK_TCP, AV_NETWORK_RECEIVE, 0, h, s->fd, size, ret);
             return ret;
+        }
     }
+    call = ff_network_observer_begin();
     ret = recv(s->fd, buf, size, 0);
+    ff_network_observer_end(start, call, AV_NETWORK_TCP, AV_NETWORK_RECEIVE, 0, h, s->fd, size, ret < 0 ? ff_neterrno() : ret);
     if (ret == 0)
         return AVERROR_EOF;
     return ret < 0 ? ff_neterrno() : ret;
@@ -303,13 +308,18 @@ static int tcp_write(URLContext *h, const uint8_t *buf, int size)
 {
     TCPContext *s = h->priv_data;
     int ret;
+    int64_t start = ff_network_observer_begin(), call;
 
     if (!(h->flags & AVIO_FLAG_NONBLOCK)) {
         ret = ff_network_wait_fd_timeout(s->fd, 1, h->rw_timeout, &h->interrupt_callback);
-        if (ret)
+        if (ret) {
+            ff_network_observer_end(start, 0, AV_NETWORK_TCP, AV_NETWORK_SEND, 0, h, s->fd, size, ret);
             return ret;
+        }
     }
+    call = ff_network_observer_begin();
     ret = send(s->fd, buf, size, MSG_NOSIGNAL);
+    ff_network_observer_end(start, call, AV_NETWORK_TCP, AV_NETWORK_SEND, 0, h, s->fd, size, ret < 0 ? ff_neterrno() : ret);
     return ret < 0 ? ff_neterrno() : ret;
 }
 
