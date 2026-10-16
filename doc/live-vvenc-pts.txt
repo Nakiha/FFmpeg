@@ -1,0 +1,19 @@
+Fork-only libvvenc live-pts-gop option
+====================================
+
+libavcodec 63.4.102 adds live-pts-gop=1 (default 0). It requires the VVenC
+fork header VVENC_LIVE_PTS_GOP_VERSION and its compatible library; unsupported
+builds fail with ENOSYS. The service must also reject unconsumed AVOptions.
+
+The live service supplies an explicit P4/B2/B1/B3 structure and time_base=1/90000.
+The wrapper enables VVenC LivePtsGop and passes TicksPerSecond matching that
+time base. RefreshSec=2 is a CTS-grid interval; IntraPeriod remains an RC hint.
+VVenC decides groups before publishing reference lists and coding numbers.
+See the fork's doc/live-pts-gop.md for its supported configuration constraints.
+
+PTS values are passed without nominal-frame quantization. A fixed 256-entry
+timestamp FIFO supplies DTS in coding order, following the input display
+timeline delayed by two pictures. The first two DTS values extrapolate nominal
+intervals before the first PTS. Strictly increasing input PTS, bounded FIFO,
+strictly increasing output DTS and DTS <= PTS are checked. This FIFO contains
+timestamps only, not video buffers. Default libvvenc operation is unchanged.

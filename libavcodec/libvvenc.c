@@ -54,6 +54,11 @@ typedef struct VVenCContext {
     int   qp;
     int   qpa;
     int   intra_refresh_sec;
+    int   live_pts_gop;
+    int64_t pts_queue[256];
+    unsigned pts_read, pts_write, pts_count;
+    int64_t pts_first, pts_last, dts_last;
+    uint64_t packets_out;
     char *level;
     int   tier;
     char *stats;
@@ -294,6 +299,22 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     if (ret != 0)
         return ret;
 
+    if (s->live_pts_gop) {
+#ifdef VVENC_LIVE_PTS_GOP_VERSION
+        if (avctx->time_base.num != 1 || avctx->time_base.den < 1 ||
+            avctx->time_base.den > 27000000 || avctx->framerate.num <= 0) {
+            av_log(avctx, AV_LOG_ERROR, "live-pts-gop needs time_base=1/N and a nominal frame rate\n");
+            return AVERROR(EINVAL);
+        }
+        params.m_livePtsGop = 1;
+        params.m_TicksPerSecond = avctx->time_base.den;
+        avctx->has_b_frames = 2;
+#else
+        av_log(avctx, AV_LOG_ERROR, "live-pts-gop requires the matching VVenC fork\n");
+        return AVERROR(ENOSYS);
+#endif
+    }
+
     s->encoder = vvenc_encoder_create();
     if (!s->encoder) {
         av_log(avctx, AV_LOG_ERROR, "cannot create libvvenc encoder\n");
@@ -370,6 +391,16 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 
     pyuvbuf = NULL;
     if (frame) {
+        if (s->live_pts_gop) {
+            if (frame->pts == AV_NOPTS_VALUE || s->pts_count == FF_ARRAY_ELEMS(s->pts_queue) ||
+                ((s->pts_count || s->packets_out) && frame->pts <= s->pts_last))
+                return AVERROR_INVALIDDATA;
+            if (!s->pts_count && !s->packets_out)
+                s->pts_first = frame->pts;
+            s->pts_last = frame->pts;
+            s->pts_queue[s->pts_write++ % FF_ARRAY_ELEMS(s->pts_queue)] = frame->pts;
+            s->pts_count++;
+        }
         vvenc_YUVBuffer_default(&yuvbuf);
         yuvbuf.planes[0].ptr = (int16_t *) frame->data[0];
         yuvbuf.planes[1].ptr = (int16_t *) frame->data[1];
@@ -393,8 +424,10 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
     }
 
     if (!s->encode_done) {
-        if (vvenc_encode(s->encoder, pyuvbuf, s->au, &s->encode_done) != 0)
+        if (vvenc_encode(s->encoder, pyuvbuf, s->au, &s->encode_done) != 0) {
+            av_log(avctx, AV_LOG_ERROR, "libvvenc encode: %s\n", vvenc_get_last_error(s->encoder));
             return AVERROR_EXTERNAL;
+        }
     } else
         return 0;
 
@@ -409,6 +442,28 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
             pkt->pts = s->au->cts;
         if (s->au->dtsValid)
             pkt->dts = s->au->dts;
+        if (s->live_pts_gop) {
+            /* Decode timestamps follow the input display timeline shifted by
+             * two pictures, the maximum reordering of this GOP4 profile.
+             * POC arithmetic with a nominal frame duration fails for VFR.
+             * No extra frame buffer: this is a bounded timestamp FIFO. */
+            if (s->packets_out < 2) {
+                int64_t lead = av_rescale_q(2 - s->packets_out,
+                                            av_inv_q(avctx->framerate), avctx->time_base);
+                if (lead <= 0 || s->pts_first < INT64_MIN + lead)
+                    return AVERROR_INVALIDDATA;
+                pkt->dts = s->pts_first - lead;
+            } else {
+                if (!s->pts_count)
+                    return AVERROR_BUG;
+                pkt->dts = s->pts_queue[s->pts_read++ % FF_ARRAY_ELEMS(s->pts_queue)];
+                s->pts_count--;
+            }
+            if (pkt->dts > pkt->pts || (s->packets_out && pkt->dts <= s->dts_last))
+                return AVERROR_INVALIDDATA;
+            s->dts_last = pkt->dts;
+            s->packets_out++;
+        }
         pkt->flags |= AV_PKT_FLAG_KEY * s->au->rap;
 
         *got_packet = 1;
@@ -437,6 +492,7 @@ static const AVOption options[] = {
     { "passlogfile",  "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "stats",        "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "period",       "set (intra) refresh period in seconds", OFFSET(intra_refresh_sec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
+    { "live-pts-gop", "fork: PTS-grid CRA and timestamp FIFO for the live GOP4 profile", OFFSET(live_pts_gop), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "tier",         "set vvc tier", OFFSET(tier), AV_OPT_TYPE_INT, {.i64 = 0},  0, 1, VE, "tier"},
