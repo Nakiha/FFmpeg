@@ -1,0 +1,35 @@
+FFmpeg n9.0.2 live 扩展移植
+=========================
+
+上游基线 n9.0.2：946fcce07b6dcd0331c8cc609192aeff5e1924f8。
+移植来源：n7.0.3 live 分支 cbf2341520725a4f8b217052f864aa7dd3028a8d。
+保留原 n7.0.3 分支及 tools/live-async/validation 中的冻结历史证据；
+那些历史性能结果不代表 n9.0.2 的性能。
+
+AVCODEC_ASYNC_API_VERSION 仍为 2；AVFORMAT_NETWORK_OBSERVER_VERSION
+仍为 1。libavcodec 为 63.3.102，libavformat 为 63.2.102，区别于上游的
+63.1.102。新增 API 与所有权约定见 live-async-guide-zh.txt、
+live-async-auto-zh.txt 和 network-observer-zh.txt；它们的 7.0.3 版本号、
+旧库文件名和原实验路径为历史信息，不要混用跨 major 的头文件和库。
+
+n9.0.2 的帧线程已使用 receive-frame 回调与 DecodedFrames 输出队列。
+本移植保留该 worker 循环和多帧/错误顺序，不再调用旧 cb.decode 或访问
+已删除的 PerThreadContext.frame/got_frame。协调线程只在 worker READY
+后按提交顺序接管其输出队列；先交付所有输出，再报告错误。
+
+异步分支在 owner 的 decode_receive_frame_internal 选择，不在 worker 的
+ff_decode_receive_frame_internal 再次分发；因此仍经过 n9 通用属性、
+时间戳、后处理和公开 receive_frame 的验证/裁剪流程。drain 的 EOF 在
+有序退休剩余任务后才交付；flush 清理 owner/worker 两级帧队列。
+
+预算和自动目标仍只限制在途软件解码任务，前台接口不等预算/解码。
+计数包住一次 worker 的完整 receive 循环，drain 不计入控制速率。
+允许的解码器仍是原生软件 h264/hevc；新增 VVC 支持不自动扩展此 API。
+
+UDP 接收现使用 UDPQueuedPacketHeader 和独立 rx_fifo/tx_fifo；埋点保留
+新版本的来源地址、FIFO 和协议选项行为，socket 请求字节数不含 FIFO
+内部头。回调仍只用于观测，不能阻塞、分配、日志或重入 FFmpeg。
+
+FFmpeg n9.0.2 原生包含 libvvenc 封装，configure 检查 libvvenc >= 1.6.1。
+仍需单独提供 VVenC 库并启用 --enable-libvvenc/对应 encoder；仅升级
+源码版本不代表已经编译该编码器，也不代表直播服务已经支持 VVC 输出。

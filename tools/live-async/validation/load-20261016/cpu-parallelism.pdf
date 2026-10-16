@@ -1,0 +1,57 @@
+                                                        Ryzen 7 97U0n0lXim/iWteSdLi2n;p1u9t:2p-frroacmesessCePeUdetdimneoi/swy aYlUl Vti4m2e0P samples
+                                                        H.264-1080p-b3                                                             H.264-1080p-b7
+
+Logical CPU time equivalents            Original 7.0.3                           Logical CPU time equivalents      Original 7.0.3
+                                        Async fork                                                                 Async fork
+                                                                                                               8
+                              8
+
+                              6                                                                                6
+
+                              4                                                                                4
+
+                              2                         5 6 7 8 9 10 11 12                                     2                   5 6 7 8 9 10 11 12
+                                   234                    Decoder frame threads                                     234              Decoder frame threads
+
+                              4.5  Original 7.0.3           HEVC-1080p-b3                                          Original 7.0.3      HEVC-1080p-b7
+                                                                                                                   Async fork
+Logical CPU time equivalents  4.0  Async fork           5 6 7 8 9 10 11 12       Logical CPU time equivalents  6                   5 6 7 8 9 10 11 12
+                                                          Decoder frame threads                                                      Decoder frame threads
+                              3.5                                                                              5
+                                                             H.264-4k-b3                                                                H.264-4k-b7
+                              3.0                                                                              4
+
+                              2.5                                                                              3
+
+                              2.0                                                                              2
+                                                                                                                    234
+                                   234
+
+                                        Original 7.0.3                                                         10  Original 7.0.3
+                                        Async fork
+Logical CPU time equivalents                                                     Logical CPU time equivalents      Async fork
+                              8
+                                                                                                               8
+                              6
+                                                                                                               6
+                              4
+                                                                                                               4
+                              2
+                                   234                  5 6 7 8 9 10 11 12                                     2                   5 6 7 8 9 10 11 12
+                                                          Decoder frame threads                                     234              Decoder frame threads
+
+                              7    Original 7.0.3            HEVC-4k-b3                                        8   Original 7.0.3       HEVC-4k-b7
+                                   Async fork
+Logical CPU time equivalents                            5 6 7 8 9 10 11 12       Logical CPU time equivalents  7   Async fork      5 6 7 8 9 10 11 12
+                                                          Decoder frame threads                                                      Decoder frame threads
+                              6                                                                                6
+
+                              5                                                                                5
+
+                              4                                                                                4
+
+                              3                                                                                3
+
+                              2                                                                                2
+                                   234                                                                              234
+

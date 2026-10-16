@@ -114,6 +114,16 @@ static DecodeContext *decode_ctx(AVCodecInternal *avci)
     return (DecodeContext *)avci;
 }
 
+int ff_decode_async_is_fresh(const AVCodecContext *avctx)
+{
+    const AVCodecInternal *avci = avctx->internal;
+    const DecodeContext *dc = (const DecodeContext *)avci;
+    return !avctx->frame_num && !dc->draining_started &&
+           !avci->draining && !avci->draining_done &&
+           !avci->buffer_pkt->data && !avci->buffer_frame->buf[0] &&
+           (!avci->in_pkt || !avci->in_pkt->data);
+}
+
 static int apply_param_change(AVCodecContext *avctx, const AVPacket *avpkt)
 {
     int ret;
@@ -665,7 +675,9 @@ static int decode_receive_frame_internal(AVCodecContext *avctx, AVFrame *frame,
     DecodeContext     *dc = decode_ctx(avci);
     int ret, ok;
 
-    if (avctx->active_thread_type & FF_THREAD_FRAME)
+    if (HAVE_THREADS && avci->async_frame_threading)
+        ret = ff_thread_async_receive(avctx, frame);
+    else if (avctx->active_thread_type & FF_THREAD_FRAME)
         ret = ff_thread_receive_frame(avctx, frame, flags);
     else
         ret = ff_decode_receive_frame_internal(avctx, frame);

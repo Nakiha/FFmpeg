@@ -1,0 +1,71 @@
+                                      RyzenU7nli9m7i0t0edX-i/nWpuStL2d;ec1o9d2i-nfrgamtherosuegehdpeudt n(moiesdyiaYUnVo4f230rPunsasm) ples
+                                      H.264-1080p-b3                                                        H.264-1080p-b7
+
+                 800  Original 7.0.3                                            800  Original 7.0.3
+                      Async fork                                                     Async fork
+                 700                                                            700
+Frames / second                                                Frames / second
+                 600                                                            600
+
+                 500                                                            500
+
+                 400                                                            400
+
+                 300                                                            300
+
+                 200                  5 6 7 8 9 10 11 12                        200                                                          10 11 12
+                        234             Decoder frame threads                          23456789                                              10 11 12
+                                                                                                             Decoder frame threads           10 11 12
+                                         HEVC-1080p-b3                                                                                       10 11 12
+                                                                                                          HEVC-1080p-b7
+
+                 350  Original 7.0.3                                                 Original 7.0.3
+                      Async fork                                                     Async fork
+                                                                                500
+                 300
+Frames / second                                                Frames / second
+                 250                                                            400
+
+                 200                                                            300
+
+                 150                                                            200
+
+                 100
+
+                 50 2 3 4             5 6 7 8 9 10 11 12                               234                  56789
+                                        Decoder frame threads                                                 Decoder frame threads
+                 225                                                                        Original 7.0.3
+                                           H.264-4k-b3                                      Async fork           H.264-4k-b7
+
+                 200  Original 7.0.3                                            200
+                      Async fork
+
+Frames / second  175                                           Frames / second
+
+                 150                                                            150
+
+                 125
+
+                 100                                                            100
+
+                 75
+
+                 50                   5 6 7 8 9 10 11 12                        50                          56789
+                       234              Decoder frame threads                         234                     Decoder frame threads
+
+                      Original 7.0.3       HEVC-4k-b3                           180  Original 7.0.3              HEVC-4k-b7
+
+                 140  Async fork      5 6 7 8 9 10 11 12                        160  Async fork             56789
+                                        Decoder frame threads                                                 Decoder frame threads
+Frames / second  120                                           Frames / second  140
+
+                 100                                                            120
+
+                 80                                                             100
+
+                 60                                                             80
+
+                 40 2 3 4                                                       60
+
+                                                                                     234
+

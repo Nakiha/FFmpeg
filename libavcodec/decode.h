@@ -229,5 +229,7 @@ int ff_decode_content_light_new(const AVCodecContext *avctx, AVFrame *frame,
 int ff_decode_content_light_new_ext(const AVCodecContext *avctx,
                                     AVFrameSideData ***sd, int *nb_sd,
                                     struct AVContentLightMetadata **clm);
+/* Lifecycle guard for the live asynchronous frontend. */
+int ff_decode_async_is_fresh(const AVCodecContext *avctx);
 
 #endif /* AVCODEC_DECODE_H */

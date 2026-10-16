@@ -1,0 +1,48 @@
+                                          Ryzen 7 9172000fXps/ WinpSuL2t:;m19id2d-flera-wmiendsoewedaerdrivnaolislayteYnUcVy42p09P5 samples
+                                          H.264-1080p-b3                                                        H.264-1080p-b7
+
+                          Original 7.0.3                                                     Original 7.0.3
+                          Async fork                                                         Async fork
+
+Milliseconds  102                                                         Milliseconds
+
+                                                                                        102
+
+                     234                  5 6 7 8 9 10 11 12                                 234                5 6 7 8 9 10 11 12
+                                            Decoder frame threads                                                 Decoder frame threads
+                          Original 7.0.3                                                        Original 7.0.3
+                          Async fork         HEVC-1080p-b3                                      Async fork         HEVC-1080p-b7
+
+Milliseconds  102                                                         Milliseconds
+
+                                                                                        102
+
+                   2 3 4 5 6 7 8 9 10 11 12                                                  2 3 4 5 6 7 8 9 10 11 12
+                                         Decoder frame threads                                                     Decoder frame threads
+
+                                         H.264-4k-b3                                                               H.264-4k-b7
+
+                                                          Original 7.0.3                                                                     Original 7.0.3
+                                                          Async fork                                                                         Async fork
+              103                                                                       103
+
+Milliseconds                                                              Milliseconds
+
+              102
+
+                   2 3 4 5 6 7 8 9 10 11 12                                                  2 3 4 5 6 7 8 9 10 11 12
+                                         Decoder frame threads                                                     Decoder frame threads
+
+                                         HEVC-4k-b3                                                                HEVC-4k-b7
+
+                                                          Original 7.0.3                                                                     Original 7.0.3
+                                                          Async fork                                                                         Async fork
+
+              103                                                                       103
+
+Milliseconds                                                              Milliseconds
+
+              102                                                                            2 3 4 5 6 7 8 9 10 11 12
+                     2 3 4 5 6 7 8 9 10 11 12                                                                      Decoder frame threads
+                                           Decoder frame threads
+

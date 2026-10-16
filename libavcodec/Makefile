@@ -2,6 +2,7 @@ NAME = avcodec
 DESC = FFmpeg codec library
 
 HEADERS = ac3_parser.h                                                  \
+          async.h                                                       \
           adts_parser.h                                                 \
           avcodec.h                                                     \
           avdct.h                                                       \
@@ -28,6 +29,7 @@ HEADERS = ac3_parser.h                                                  \
           vorbis_parser.h                                               \
 
 OBJS = ac3_parser.o                                                     \
+       async.o async_budget.o                                           \
        adts_parser.o                                                    \
        allcodecs.o                                                      \
        avcodec.o                                                        \

@@ -29,6 +29,7 @@
 #include "os_support.h"
 #include "avio.h"
 #include "url.h"
+#include "network_observer_internal.h"
 
 #if HAVE_UNISTD_H
 #include <unistd.h>

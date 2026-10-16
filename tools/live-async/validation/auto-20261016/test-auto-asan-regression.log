@@ -1,0 +1,17 @@
+[h264 @ 0x518000001880] Invalid NAL unit size (-1 > 124).
+[h264 @ 0x518000001880] Error splitting the input into NAL units.
+[hevc @ 0x518000001480] Invalid NAL unit size (-1 > 124).
+[hevc @ 0x518000001480] Error splitting the input into NAL units.
+{'codec': 'h264', 'threads': 2, 'legacy_first_frame_ms': 40.437, 'legacy_mean_latency_ms': 39.346, 'first_frame_ms': 2.31, 'mean_latency_ms': 2.14, 'max_send_ms': 0.04, 'max_receive_ms': 0.034, 'bulk_peak_active_workers': 2}
+{'codec': 'h264', 'threads': 4, 'legacy_first_frame_ms': 120.723, 'legacy_mean_latency_ms': 115.493, 'first_frame_ms': 2.405, 'mean_latency_ms': 2.079, 'max_send_ms': 0.038, 'max_receive_ms': 0.037, 'bulk_peak_active_workers': 2}
+{'codec': 'h264', 'threads': 8, 'legacy_first_frame_ms': 280.609, 'legacy_mean_latency_ms': 258.811, 'first_frame_ms': 2.347, 'mean_latency_ms': 2.227, 'max_send_ms': 0.048, 'max_receive_ms': 0.037, 'bulk_peak_active_workers': 2}
+{'codec': 'h264', 'threads': 12, 'legacy_first_frame_ms': 440.707, 'legacy_mean_latency_ms': 389.788, 'first_frame_ms': 2.28, 'mean_latency_ms': 2.155, 'max_send_ms': 0.043, 'max_receive_ms': 0.035, 'bulk_peak_active_workers': 2}
+{'codec': 'hevc', 'threads': 2, 'legacy_first_frame_ms': 40.688, 'legacy_mean_latency_ms': 39.351, 'first_frame_ms': 10.156, 'mean_latency_ms': 3.338, 'max_send_ms': 0.038, 'max_receive_ms': 0.074, 'bulk_peak_active_workers': 4}
+{'codec': 'hevc', 'threads': 4, 'legacy_first_frame_ms': 120.345, 'legacy_mean_latency_ms': 115.498, 'first_frame_ms': 10.212, 'mean_latency_ms': 3.404, 'max_send_ms': 0.047, 'max_receive_ms': 0.041, 'bulk_peak_active_workers': 4}
+{'codec': 'hevc', 'threads': 8, 'legacy_first_frame_ms': 280.432, 'legacy_mean_latency_ms': 258.752, 'first_frame_ms': 9.448, 'mean_latency_ms': 3.426, 'max_send_ms': 0.051, 'max_receive_ms': 0.051, 'bulk_peak_active_workers': 4}
+{'codec': 'hevc', 'threads': 12, 'legacy_first_frame_ms': 440.61, 'legacy_mean_latency_ms': 389.618, 'first_frame_ms': 10.16, 'mean_latency_ms': 3.619, 'max_send_ms': 0.044, 'max_receive_ms': 0.062, 'bulk_peak_active_workers': 4}
+PASS: H.264/HEVC, B=0/B=3, 2/12 threads: hashes, PTS, DTS, duration, format and color match legacy.
+PASS: input pause, capacity-one retry, 3 drain/flush cycles, slow callbacks, corrupt-packet recovery, close-inflight.
+PASS: multiple decoder callbacks overlapped on both codecs (includes dependency waits).
+PASS: blocked-decoder gate, input validation, empty drain, resolution changes, 10-bit and delayed intra frames.
+PASS: pixel hashes and PTS match the saved, unmodified 7.0.3 baseline.

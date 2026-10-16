@@ -1,0 +1,19 @@
+PASS 8 concurrent callers, 160 default-budget owner create/active-close lifetimes
+PASS h264-1080p-b7-budget1-correct (6.6s)
+PASS h264-1080p-b7-budget2-correct (3.6s)
+PASS h264-1080p-b7-budget4-correct (2.2s)
+PASS h264-1080p-b7-budget12-correct (2.5s)
+PASS hevc-1080p-b7-budget1-correct (13.4s)
+PASS hevc-1080p-b7-budget2-correct (7.3s)
+PASS hevc-1080p-b7-budget4-correct (4.2s)
+PASS hevc-1080p-b7-budget12-correct (3.4s)
+PASS asan-large (14.5s)
+PASS same-process (19.5s)
+PASS default-process-budget (4.1s)
+PASS output-stall (5.1s)
+PASS frontend-gate (7.1s)
+PASS api-checks (2.4s)
+PASS separate-handles (13.6s)
+PASS cross-process one-slot exclusion, incompatible capacity rejection, SIGKILL recovery
+PASS two simultaneous processes, shared four-slot budget, all pixels/metadata
+PASS all automatic-dispatch functional tests

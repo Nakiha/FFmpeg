@@ -1,0 +1,74 @@
+                                                Ryzen307 f9p7s0in0pXu/t:WfiSrLst2;o1u9tp2u-ftraanmdessteeeaddeydanrroivisayl-tYoU-Vfr4a2m0eP ps9a5mples
+                                                H.264-1080p-b3                                                              H.264-1080p-b7
+
+              500  Original 7.0.3 first output                                                 Original 7.0.3 first output
+                   Original 7.0.3 steady p95                                              600  Original 7.0.3 steady p95
+                   Async fork first output                                                     Async fork first output
+                   Async fork steady p95                                                       Async fork steady p95
+              400                                                                         500
+Milliseconds                                                                Milliseconds
+              300                                                                         400
+
+              200                                                                         300
+
+                                                                                          200
+
+              100                                                                         100
+
+                   23456789                                       10 11 12                     23456789                                                  10 11 12
+                                         Decoder frame threads    10 11 12                                           Decoder frame threads               10 11 12
+
+                                       HEVC-1080p-b3                                                               HEVC-1080p-b7
+
+              500  Original 7.0.3 first output                                                 Original 7.0.3 first output
+                   Original 7.0.3 steady p95                                              600  Original 7.0.3 steady p95
+                   Async fork first output                                                     Async fork first output
+                   Async fork steady p95                                                       Async fork steady p95
+              400                                                                         500
+Milliseconds                                                                Milliseconds
+              300                                                                         400
+
+              200                                                                         300
+
+                                                                                          200
+
+              100                                                                         100
+
+                   23456789                                                                    23456789
+                                         Decoder frame threads                                                       Decoder frame threads
+
+                                        H.264-4k-b3                                                                 H.264-4k-b7
+
+              500  Original 7.0.3 first output                                                 Original 7.0.3 first output
+                   Original 7.0.3 steady p95                                              600  Original 7.0.3 steady p95
+                   Async fork first output                                                     Async fork first output
+                   Async fork steady p95                                                       Async fork steady p95
+              400                                                                         500
+Milliseconds                                                                Milliseconds
+              300                                                                         400
+
+              200                                                                         300
+
+                                                                                          200
+
+              100                                                 10 11 12                100                                                            10 11 12
+                     23456789                                                                    23456789
+                                           Decoder frame threads                                                       Decoder frame threads
+
+                                          HEVC-4k-b3                                                                  HEVC-4k-b7
+
+              500  Original 7.0.3 first output                                                 Original 7.0.3 first output
+                   Original 7.0.3 steady p95                                              600  Original 7.0.3 steady p95
+                   Async fork first output                                                     Async fork first output
+                   Async fork steady p95                                                       Async fork steady p95
+              400                                                                         500
+Milliseconds                                                                Milliseconds
+              300                                                                         400
+
+                                                                                          300
+
+              200                                                                         200
+
+              100 2 3 4 5 6 7 8 9 10 11 12                                                100 2 3 4 5 6 7 8 9 10 11 12
+                                           Decoder frame threads                                                       Decoder frame threads
+

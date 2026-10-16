@@ -2,12 +2,14 @@ NAME = avformat
 DESC = FFmpeg container format library
 
 HEADERS = avformat.h                                                    \
+          network_observer.h                                           \
           avio.h                                                        \
           version.h                                                     \
           version_major.h                                               \
 
 OBJS = allformats.o         \
        av1.o                \
+       network_observer.o  \
        avformat.o           \
        avio.o               \
        aviobuf.o            \

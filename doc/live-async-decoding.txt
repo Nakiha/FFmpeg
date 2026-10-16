@@ -1,0 +1,131 @@
+FFmpeg 7.0.3 live asynchronous early-output extension
+===================================================
+
+Base: n7.0.3, eaddd1d7140bab19e5a4403d3c0f61fe5f59cb75.
+Public contract: libavcodec/async.h, AVCODEC_ASYNC_API_VERSION == 2.
+Integration/porting guide: doc/live-async-guide-zh.txt.
+This is a fork extension, not an upstream feature or an enabled default.
+
+Architecture
+------------
+
+caller/event loop      background coordinator          existing frame workers
+input queue ----------> bitstream/property pipeline ---> up to N codec tasks
+output queue <--------- ordered early collection <------ setup/done progress
+     |
+     +-- progress notification --> caller's existing filter owner
+
+avcodec_async_create() takes ownership of a freshly opened native software h264
+or hevc AVCodecContext with active FF_THREAD_FRAME and more than one worker.
+It clears the caller's decoder pointer on success and adds one coordinator per
+stream. Ordinary legacy send/receive callers retain their original behavior.
+
+Frontend data calls use short queue locks and reference operations. No parser,
+codec callback, setup wait or completion wait runs on the caller's thread.
+Positive-size packets require packet->buf; non-refcounted payloads are rejected
+rather than copied. Allocation, reference release and OS scheduling are not
+hard real-time operations. Lifecycle flush/free wait.
+
+The coordinator owns AVCodecContext exclusively. All codec calls run outside
+the frontend queue mutex. This boundary covers packet parsing, context copying
+and worker-slot handoff waits as well as frame computation.
+
+Core changes
+------------
+
+AVCodecInternal.async_frame_threading routes only the transferred context through
+ff_thread_async_receive(), above the legacy .decode consumed-byte compatibility
+layer. The old ff_thread_decode_frame() path is retained.
+
+async_pending explicitly distinguishes ring occupancy from equal read/write
+positions. The oldest task is collected only after an acquire load observes
+STATE_INPUT_READY. Never-submitted slots are not mistaken for completed tasks.
+No-frame results retire a task; errors propagate to the frontend.
+
+New input can be dispatched while previous tasks execute. No full-pipeline
+startup is required. Context setup and reference-progress dependencies remain.
+Completed output is collected without fetching another packet. A bounded pump
+budget yields with a generation wakeup rather than spinning indefinitely.
+
+Packet bitstream filtering, worker property snapshots, context updates, generic
+frame finishing, timestamp handling, validation and cropping are reused. A raw
+worker frame never bypasses generic processing.
+
+Notifications and lifetime
+--------------------------
+
+Workers publish setup readiness and completion to the coordinator. Completion
+notification happens after the worker handoff mutex is released. The coordinator
+uses a mutex-protected generation counter around codec calls and condition
+waiting so progress during those calls cannot be lost.
+
+Application notifications run only on the coordinator, outside queue locks, for
+input capacity, output or terminal state. They are hints, not frame guarantees.
+The callback must only post a wakeup; it must not block or re-enter the API.
+
+Free joins the coordinator, then all codec workers while their progress target
+is still alive, then destroys queues and locks. Flush is a coordinator command
+that parks workers and resets decoder and queue state. Lifetime statistics and
+peaks deliberately survive flush.
+
+Drain and errors
+----------------
+
+NULL is an ordered input-close marker. It can be rejected with EAGAIN when the
+input queue is full. After acceptance further sends return EOF. Empty drain
+tasks propagate codec context until all pending output is retired before EOF.
+Polling during drain can return EAGAIN.
+
+Both frontend directions may return EAGAIN together. Wait for progress; do not
+apply the old send/receive progress guarantee. Already queued output is returned
+before a stored terminal state. Non-EAGAIN decoder errors persist until flush
+or free/recreate; corrupt packets are not silently skipped.
+
+Verification and limits
+-----------------------
+
+tools/live-async/test-async.sh compares pixel hashes, PTS, best-effort timestamps,
+packet DTS, duration, dimensions, format, SAR and color metadata against legacy
+decoding. Pixel hashes/PTS also match saved unmodified 7.0.3 baseline files.
+
+Native Windows and Linux tests cover H.264/HEVC, B=0/B=3, 2/12 frame threads,
+25-fps paced input at 2/4/8/12 threads, capacity-one backpressure, repeated
+drain/flush/replay, input pause, slow callbacks, active-work flush/free, invalid
+input recovery, empty drain, lifecycle validation, 10-bit and resolution changes.
+
+A closed get_buffer2 gate proves frontend calls return while a decoder cannot
+finish. Delayed intra pictures exercise independent completions. Atomic counters
+record overlapping decoder callbacks separately from occupancy; callbacks may
+include reference waits, so this is not a CPU utilization or throughput metric.
+
+Linux AddressSanitizer with leak detection passes the suite. Its build disables
+assembly to avoid the FFmpeg 7.0.3/GCC ASan ODR symbol-prefix detection problem.
+Sanitizer timings are not performance claims. ThreadSanitizer could not execute
+configure's empty test program in this WSL environment (segmentation fault).
+
+Captured summaries: tools/live-async/validation/.
+These synthetic tests are not a production SLA. Acceptance still needs the
+actual server OS, stream corpus, concurrent load and filter/encode/output chain.
+
+Opt-in adaptive dispatch (API 2 / libavcodec 61.5.100)
+---------------------------------------------------
+avcodec_async_enable_auto must run before first input. Worker/context allocation
+is fixed; the coordinator changes only the permitted pending-task count. It
+uses input pressure, completed non-drain callbacks, short throughput trials,
+rollback/cooldown and slow shrink. Output backpressure suppresses growth.
+
+Cooperative budgets cap unfinished tasks. Anonymous handles/default budgets are
+process-local; Linux named groups use same-UID /dev/shm slot-file locks, with
+matching immutable capacity and kernel cleanup on process death. Never unlink
+active groups or retain live handles across fork. No heartbeat/PID lease reclaim.
+All budget acquisition occurs on the coordinator; frontend data calls retain
+their queue-only contract. Completed tasks return slots even when output is full.
+Cross-process contenders use bounded timed sleeps to retry slot acquisition.
+
+The process-default budget uses reference-counted weak registration protected
+against concurrent last-release/acquisition. The existing AVCodecAsyncStats ABI
+is unchanged; new control statistics use a separate AVCodecAsyncAutoStats type.
+The controller neither reads video dimensions/bitrate nor directly measures
+system PSI/cgroup pressure. Capacity covers participating decode work only.
+It provides no global optimality, strict fairness or hard latency guarantee.
+See doc/live-async-auto-zh.txt for integration, exact limits and validation tools.
