@@ -20,7 +20,9 @@ n9.0.2 的帧线程已使用 receive-frame 回调与 DecodedFrames 输出队列�
 异步分支在 owner 的 decode_receive_frame_internal 选择，不在 worker 的
 ff_decode_receive_frame_internal 再次分发；因此仍经过 n9 通用属性、
 时间戳、后处理和公开 receive_frame 的验证/裁剪流程。drain 的 EOF 在
-有序退休剩余任务后才交付；flush 清理 owner/worker 两级帧队列。
+有序退休剩余任务后才交付；flush 清理 owner/worker 两级帧队列，以及预算
+争用时已预取、尚未交给 worker 的 next_pkt。auto_lifetime_test 用持有唯一
+额度的 gate owner 和一个等待者，验证等待者 flush 后空 drain 不吐旧帧。
 
 预算和自动目标仍只限制在途软件解码任务，前台接口不等预算/解码。
 计数包住一次 worker 的完整 receive 循环，drain 不计入控制速率。

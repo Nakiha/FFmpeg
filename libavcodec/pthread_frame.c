@@ -1152,6 +1152,9 @@ av_cold void ff_thread_flush(AVCodecContext *avctx)
     fctx->next_decoding = fctx->next_finished = 0;
     fctx->prev_thread = NULL;
 
+    /* The async coordinator may have fetched a packet before a shared-budget
+     * acquisition failed. It has not reached a worker and must not survive flush. */
+    av_packet_unref(fctx->next_pkt);
     decoded_frames_flush(&fctx->df);
     fctx->result = 0;
 
