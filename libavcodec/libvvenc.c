@@ -55,6 +55,7 @@ typedef struct VVenCContext {
     int   qpa;
     int   intra_refresh_sec;
     int   live_pts_gop;
+    int   live_frame_intra;
     int64_t pts_queue[256];
     unsigned pts_read, pts_write, pts_count;
     int64_t pts_first, pts_last, dts_last;
@@ -299,6 +300,14 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     if (ret != 0)
         return ret;
 
+    if (s->live_frame_intra) {
+#ifdef VVENC_LIVE_FRAME_INTRA_VERSION
+        if (!s->live_pts_gop) return AVERROR(EINVAL);
+        params.m_liveFrameIntra = 1;
+#else
+        return AVERROR(ENOSYS);
+#endif
+    }
     if (s->live_pts_gop) {
 #ifdef VVENC_LIVE_PTS_GOP_VERSION
         if (avctx->time_base.num != 1 || avctx->time_base.den < 1 ||
@@ -420,6 +429,9 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 
         yuvbuf.cts = frame->pts;
         yuvbuf.ctsValid = true;
+#ifdef VVENC_LIVE_FRAME_INTRA_VERSION
+        yuvbuf.forceIntra = s->live_frame_intra && frame->pict_type == AV_PICTURE_TYPE_I;
+#endif
         pyuvbuf = &yuvbuf;
     }
 
@@ -465,6 +477,10 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
             s->packets_out++;
         }
         pkt->flags |= AV_PKT_FLAG_KEY * s->au->rap;
+        ret = ff_encode_add_stats_side_data(pkt, 0, NULL, 0,
+                    s->au->sliceType == VVENC_I_SLICE ? AV_PICTURE_TYPE_I :
+                    s->au->sliceType == VVENC_P_SLICE ? AV_PICTURE_TYPE_P : AV_PICTURE_TYPE_B);
+        if (ret < 0) return ret;
 
         *got_packet = 1;
         return 0;
@@ -493,6 +509,7 @@ static const AVOption options[] = {
     { "stats",        "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "period",       "set (intra) refresh period in seconds", OFFSET(intra_refresh_sec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
     { "live-pts-gop", "fork: PTS-grid CRA and timestamp FIFO for the live GOP4 profile", OFFSET(live_pts_gop), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
+    { "live-frame-intra", "fork: explicit ordinary I pictures, disable automatic CRA grid", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "tier",         "set vvc tier", OFFSET(tier), AV_OPT_TYPE_INT, {.i64 = 0},  0, 1, VE, "tier"},

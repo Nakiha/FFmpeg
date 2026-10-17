@@ -1485,6 +1485,13 @@ typedef struct AVFormatContext {
 #define AVFMT_FLAG_SORT_DTS    0x10000 ///< try to interleave outputted packets by dts (using this flag can slow demuxing down)
 #define AVFMT_FLAG_FAST_SEEK   0x80000 ///< Enable fast, but inaccurate seeks for some formats
 #define AVFMT_FLAG_AUTO_BSF   0x200000 ///< Add bitstream filters as requested by the muxer
+/** Fork-only: buffered readiness probe for the first non-attached H.264/HEVC
+ * video. Other streams may remain incomplete or appear later. Frame rate is
+ * only a nominal estimate; bounded inconclusive cadence uses the normal
+ * fallback. Preserves the packet buffer and propagates read/interrupt errors.
+ * Incompatible with NOBUFFER/NOPARSE. Subject to probe bytes/time/I/O limits. */
+#define AVFMT_FLAG_LIVE_VIDEO_PROBE 0x400000
+#define AVFORMAT_LIVE_VIDEO_PROBE_VERSION 1
 
     /**
      * Maximum number of bytes read from input in order to determine stream

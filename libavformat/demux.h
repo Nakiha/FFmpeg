@@ -190,6 +190,11 @@ static inline const FFInputFormat *ffifmt(const AVInputFormat *fmt)
 
 #define MAX_STD_TIMEBASES (30*12+30+3+6)
 typedef struct FFStreamInfo {
+    /* Fork-only, bounded cadence evidence for buffered live video probing. */
+    int live_dts_count;
+    int64_t live_first_dts, live_last_dts, live_min_delta, live_max_delta;
+    int live_probe_have_ts;
+    int64_t live_probe_first_ts_us, live_probe_duration_us;
     int64_t last_dts;
     int64_t duration_gcd;
     int duration_count;

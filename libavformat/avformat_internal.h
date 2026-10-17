@@ -35,6 +35,9 @@ typedef struct FormatContextInternal {
     struct LiveMuxContext *live_mux;
     int live_header_written;
     int64_t live_input_probe_us;
+    /* Scoped to opt-in find_stream_info, including nested raw/parser loops. */
+    int live_video_probe_active, live_video_probe_error, live_video_probe_limit_error;
+    int64_t live_video_probe_deadline_us, live_video_probe_bytes, live_video_probe_max_bytes;
 
     union {
         // muxing only

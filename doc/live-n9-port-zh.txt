@@ -7,14 +7,24 @@ FFmpeg n9.0.2 live 扩展移植
 那些历史性能结果不代表 n9.0.2 的性能。
 
 AVCODEC_ASYNC_API_VERSION 仍为 2；AVFORMAT_NETWORK_OBSERVER_VERSION
-仍为 1。PTS 调度扩展后的 libavcodec 为 63.4.102，live mux 扩展后的
-libavformat 为 63.3.102，区别于上游的
+仍为 1。显式普通 I 与实际帧型统计扩展后的 libavcodec 为 63.4.103，
+AVCODEC_LIVE_FRAME_INTRA_VERSION=1。live mux 扩展后的
+libavformat 的 live mux 版本为 63.3.102，带缓存快速视频探流扩展后为
+63.3.103（AVFORMAT_LIVE_VIDEO_PROBE_VERSION=1），区别于上游的
 63.1.102。新增 API 与所有权约定见 live-async-guide-zh.txt、
 live-async-auto-zh.txt 和 network-observer-zh.txt；它们的 7.0.3 版本号、
 旧库文件名和原实验路径为历史信息，不要混用跨 major 的头文件和库。
 
 live_mux.h 的 API 1 提供有界墙钟交织、FLV/TS 追加音轨，以及初始探流后
 的 raw codec probe 期限。调用顺序与限制见 live-mux.txt。
+初始视频就绪探测保留 packet buffer，调用合同见 live-video-probe.txt。
+
+live-frame-intra 是显式启用的编码 wrapper 选项，不改异步解码 API。
+libx264.c 将请求映射为普通 I，关闭自动 keyint/scenecut，并以有限输入
+帧数硬出口避免无 B 帧配置在 min-keyint 处静默提升 IDR；外部 x264 源码
+和系统库没有修改。libvvenc.c 通过匹配 VVenC fork 的逐帧 forceIntra
+接口关闭隐含 CRA 调度，并提供实际 I/P/B 类型统计。默认旧路径不启用
+此选项；匹配库的功能验证与适用范围见父项目 docs/frame-policy.md。
 
 n9.0.2 的帧线程已使用 receive-frame 回调与 DecodedFrames 输出队列。
 本移植保留该 worker 循环和多帧/错误顺序，不再调用旧 cb.decode 或访问
