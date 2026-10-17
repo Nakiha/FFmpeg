@@ -216,6 +216,9 @@ typedef struct VVCFrameContext {
 } VVCFrameContext;
 
 typedef struct VVCContext {
+#if defined(VP_ANALYSIS_ONLY) && VP_ANALYSIS_ONLY
+    const AVClass *c;  /* needed by private avoptions */
+#endif
     struct AVCodecContext *avctx;
 
     CodedBitstreamContext *cbc;
@@ -233,6 +236,13 @@ typedef struct VVCContext {
     int no_output_before_recovery_flag; ///< NoOutputBeforeRecoveryFlag
     int gdr_recovery_point_poc;         ///< recoveryPointPocVal
     int film_grain_warning_shown;
+#if defined(VP_ANALYSIS_ONLY) && VP_ANALYSIS_ONLY
+    int vp_analysis_mode;
+    int vp_analysis_path;
+    int vp_analysis_started;
+    int vp_analysis_reason;
+    int vp_analysis_ps_seen;
+#endif
 
     /**
      * Sequence counters for decoded and output frames, so that old
