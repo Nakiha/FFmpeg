@@ -551,20 +551,48 @@ static inline int retry_transfer_wrapper(URLContext *h, uint8_t *buf,
     return len;
 }
 
+static _Thread_local unsigned read_poll_depth;
+
+int ffurl_read_is_polling(void)
+{
+    return read_poll_depth != 0;
+}
+
+static int url_read_scoped(URLContext *h, uint8_t *buf, int size, int minimum)
+{
+    int nonblock = h->flags & AVIO_FLAG_NONBLOCK;
+    int ret;
+    if (read_poll_depth)
+        h->flags |= AVIO_FLAG_NONBLOCK;
+    ret = retry_transfer_wrapper(h, buf, NULL, size, minimum, 1);
+    if (read_poll_depth && !nonblock)
+        h->flags &= ~AVIO_FLAG_NONBLOCK;
+    return ret;
+}
+
 int ffurl_read2(void *urlcontext, uint8_t *buf, int size)
 {
     URLContext *h = urlcontext;
 
     if (!(h->flags & AVIO_FLAG_READ))
         return AVERROR(EIO);
-    return retry_transfer_wrapper(h, buf, NULL, size, 1, 1);
+    return url_read_scoped(h, buf, size, 1);
+}
+
+int ffurl_read_poll(void *urlcontext, uint8_t *buf, int size)
+{
+    int ret;
+    read_poll_depth++;
+    ret = ffurl_read2(urlcontext, buf, size);
+    read_poll_depth--;
+    return ret;
 }
 
 int ffurl_read_complete(URLContext *h, unsigned char *buf, int size)
 {
     if (!(h->flags & AVIO_FLAG_READ))
         return AVERROR(EIO);
-    return retry_transfer_wrapper(h, buf, NULL, size, size, 1);
+    return url_read_scoped(h, buf, size, size);
 }
 
 int ffurl_write2(void *urlcontext, const uint8_t *buf, int size)

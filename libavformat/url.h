@@ -169,6 +169,9 @@ int ffurl_accept(URLContext *s, URLContext **c);
 int ffurl_handshake(URLContext *c);
 
 int ffurl_read2(void *urlcontext, uint8_t *buf, int size);
+/* Owner-thread scoped nonblocking reads, including nested URL transports. */
+int ffurl_read_poll(void *urlcontext, uint8_t *buf, int size);
+int ffurl_read_is_polling(void);
 /**
  * Read up to size bytes from the resource accessed by h, and store
  * the read bytes in buf.

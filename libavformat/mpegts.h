@@ -303,5 +303,7 @@ int ff_parse_mpeg2_descriptor(AVFormatContext *fc, AVStream *st, int stream_type
  * @return <0 to stop processing
  */
 int ff_check_h264_startcode(AVFormatContext *s, const AVStream *st, const AVPacket *pkt);
+/* After initial probing, on the sole demux owner. */
+void ff_mpegts_enable_live_poll(AVFormatContext *s);
 
 #endif /* AVFORMAT_MPEGTS_H */

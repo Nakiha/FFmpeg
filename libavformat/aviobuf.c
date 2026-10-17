@@ -30,6 +30,7 @@
 #include "libavcodec/defs.h"
 #include "avio.h"
 #include "avio_internal.h"
+#include "url.h"
 #include "internal.h"
 #include <stdarg.h>
 
@@ -712,6 +713,21 @@ int avio_read_partial(AVIOContext *s, unsigned char *buf, int size)
         if (avio_feof(s))  return AVERROR_EOF;
     }
     return len;
+}
+
+int ffio_read_partial_poll(AVIOContext *s, unsigned char *buf, int size)
+{
+    int (*read_packet)(void *, uint8_t *, int) = s->read_packet;
+    int ret;
+    if (ffio_geturlcontext(s))
+        s->read_packet = ffurl_read_poll;
+    ret = avio_read_partial(s, buf, size);
+    s->read_packet = read_packet;
+    if (s->error == AVERROR(EAGAIN)) {
+        s->error = 0;
+        s->eof_reached = 0;
+    }
+    return ret;
 }
 
 unsigned int avio_rl16(AVIOContext *s)

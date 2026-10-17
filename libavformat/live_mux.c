@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
+#include "config_components.h"
 #include "live_mux.h"
 #include "avformat_internal.h"
 #include "mux.h"
+#include "mpegts.h"
 #include "libavutil/mem.h"
 #include "libavutil/time.h"
 
@@ -11,6 +13,21 @@ int avformat_live_input_probe_limit(AVFormatContext *s, int64_t wait_us)
     if (!s || !s->iformat || wait_us < 1 || wait_us > 1000000) return AVERROR(EINVAL);
     ff_fc_internal(s)->live_input_probe_us = wait_us;
     return 0;
+}
+int avformat_live_input_probe_poll(AVFormatContext *s, int64_t wait_us)
+{
+    if (!s || !s->iformat || !s->pb || !s->nb_streams || wait_us < 1 || wait_us > 1000000)
+        return AVERROR(EINVAL);
+#if CONFIG_MPEGTS_DEMUXER
+    if (strcmp(s->iformat->name, "mpegts"))
+        return AVERROR(ENOSYS);
+    ff_mpegts_enable_live_poll(s);
+    ff_fc_internal(s)->live_input_probe_us = wait_us;
+    ff_fc_internal(s)->live_input_poll = 1;
+    return 0;
+#else
+    return AVERROR(ENOSYS);
+#endif
 }
 typedef struct LiveMuxContext {
     LiveEntry queue[256];

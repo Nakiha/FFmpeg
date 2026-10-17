@@ -118,6 +118,8 @@ void ffio_init_write_context(FFIOContext *s, uint8_t *buffer, int buffer_size);
  * @return number of bytes read or AVERROR
  */
 int ffio_read_indirect(AVIOContext *s, unsigned char *buf, int size, const unsigned char **data);
+/* No sticky EOF/error for EAGAIN. Custom read_packet must be nonblocking. */
+int ffio_read_partial_poll(AVIOContext *s, unsigned char *buf, int size);
 
 void ffio_fill(AVIOContext *s, int b, int64_t count);
 

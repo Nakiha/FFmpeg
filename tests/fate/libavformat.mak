@@ -41,6 +41,11 @@ fate-seek_utils: libavformat/tests/seek_utils$(EXESUF)
 fate-seek_utils: CMD = run libavformat/tests/seek_utils$(EXESUF)
 fate-seek_utils: CMP = null
 
+FATE_LIBAVFORMAT += fate-live-input-genpts
+fate-live-input-genpts: libavformat/tests/live_input_genpts$(EXESUF)
+fate-live-input-genpts: CMD = run libavformat/tests/live_input_genpts$(EXESUF)
+fate-live-input-genpts: CMP = null
+
 FATE_LIBAVFORMAT += $(FATE_LIBAVFORMAT-yes)
 FATE-$(CONFIG_AVFORMAT) += $(FATE_LIBAVFORMAT)
 fate-libavformat: $(FATE_LIBAVFORMAT)

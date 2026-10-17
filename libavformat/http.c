@@ -78,6 +78,11 @@ typedef struct HTTPContext {
     /* Used if "Transfer-Encoding: chunked" otherwise -1. */
     uint64_t chunksize;
     int chunkend;
+    /* Only the explicit live read-poll path can suspend inside a chunk line. */
+    char live_chunk_line[32];
+    unsigned live_chunk_line_used;
+    unsigned live_icy_size, live_icy_used;
+    char live_icy_data[255 * 16 + 1];
     uint64_t off, end_off, filesize, range_end;
     char *uri;
     char *location;
@@ -883,6 +888,26 @@ static int http_get_line(HTTPContext *s, char *line, int line_size)
             if ((q - line) < line_size - 1)
                 *q++ = ch;
         }
+    }
+}
+
+static int http_get_chunk_line(HTTPContext *s, char *line, int line_size)
+{
+    for (;;) {
+        int ch = http_getc(s);
+        if (ch < 0)
+            return ch;
+        if (ch == '\n') {
+            unsigned n = s->live_chunk_line_used;
+            if (n && s->live_chunk_line[n - 1] == '\r')
+                n--;
+            s->live_chunk_line[n] = 0;
+            av_strlcpy(line, s->live_chunk_line, line_size);
+            s->live_chunk_line_used = 0;
+            return 0;
+        }
+        if (s->live_chunk_line_used < sizeof(s->live_chunk_line) - 1)
+            s->live_chunk_line[s->live_chunk_line_used++] = ch;
     }
 }
 
@@ -1731,7 +1756,9 @@ static int http_buf_read(URLContext *h, uint8_t *buf, int size)
             int err;
 
             do {
-                if ((err = http_get_line(s, line, sizeof(line))) < 0)
+                err = ffurl_read_is_polling() ? http_get_chunk_line(s, line, sizeof(line)) :
+                                               http_get_line(s, line, sizeof(line));
+                if (err < 0)
                     return err;
             } while (!*line);    /* skip CR LF from last chunk */
 
@@ -1823,6 +1850,8 @@ static int http_buf_read_compressed(URLContext *h, uint8_t *buf, int size)
         av_log(h, AV_LOG_WARNING, "inflate return value: %d, %s\n",
                ret, s->inflate_stream.msg);
 
+    if (ffurl_read_is_polling() && ret == Z_OK && size == s->inflate_stream.avail_out)
+        return AVERROR(EAGAIN); /* Compressed input consumed, no output yet. */
     return size - s->inflate_stream.avail_out;
 }
 #endif /* CONFIG_ZLIB */
@@ -1860,6 +1889,9 @@ retry:
 
         if (read_ret == AVERROR_EXIT)
             break;
+        else if (read_ret == AVERROR(EAGAIN) && ffurl_read_is_polling() &&
+                 !(s->range_end && s->off == s->range_end))
+            break; /* Temporary transport starvation, not an exhausted range. */
         else if (read_ret == AVERROR(EAGAIN)) {
             /* send new request for more data on existing connection */
             AVDictionary *options = NULL;
@@ -1959,7 +1991,34 @@ static int store_icy(URLContext *h, int size)
         return AVERROR_INVALIDDATA;
     remaining = s->icy_metaint - s->icy_data_read;
 
-    if (!remaining) {
+    if (!remaining && ffurl_read_is_polling()) {
+        /* The metadata length byte and body may arrive in different polls.
+         * Keep the same bounded 255*16-byte maximum as the ordinary path. */
+        if (!s->live_icy_size) {
+            uint8_t ch;
+            int ret = http_read_stream(h, &ch, 1);
+            if (ret <= 0)
+                return ret < 0 ? ret : AVERROR_EOF;
+            s->live_icy_size = ch * 16;
+        }
+        while (s->live_icy_used < s->live_icy_size) {
+            int ret = http_read_stream(h, s->live_icy_data + s->live_icy_used,
+                                       s->live_icy_size - s->live_icy_used);
+            if (ret <= 0)
+                return ret < 0 ? ret : AVERROR_EOF;
+            s->live_icy_used += ret;
+        }
+        if (s->live_icy_size) {
+            int ret;
+            s->live_icy_data[s->live_icy_size] = 0;
+            if ((ret = av_opt_set(s, "icy_metadata_packet", s->live_icy_data, 0)) < 0)
+                return ret;
+            update_metadata(h, s->live_icy_data);
+        }
+        s->live_icy_size = s->live_icy_used = 0;
+        s->icy_data_read = 0;
+        remaining = s->icy_metaint;
+    } else if (!remaining) {
         /* The metadata packet is variable sized. It has a 1 byte header
          * which sets the length of the packet (divided by 16). If it's 0,
          * the metadata doesn't change. After the packet, icy_metaint bytes

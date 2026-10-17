@@ -44,6 +44,7 @@
 #include "mpeg.h"
 #include "isom.h"
 #include "id3v2.h"
+#include "url.h"
 #if CONFIG_ICONV
 #include <iconv.h>
 #endif
@@ -148,6 +149,9 @@ struct MpegTSContext {
     AVFormatContext *stream;
     /** raw packet size, including FEC if present */
     int raw_packet_size;
+    /* Opt-in resumable physical packet reader. Never flush PES on starvation. */
+    int live_read_poll, live_read_have, live_resync_bytes;
+    uint8_t live_read_buffer[TS_FEC_PACKET_SIZE + AV_INPUT_BUFFER_PADDING_SIZE];
 
     int64_t pos47_full;
 
@@ -3370,6 +3374,43 @@ static int mpegts_resync(AVFormatContext *s, int seekback, const uint8_t *curren
     return AVERROR_INVALIDDATA;
 }
 
+void ff_mpegts_enable_live_poll(AVFormatContext *s)
+{
+    MpegTSContext *ts = s->priv_data;
+    ts->live_read_poll = 1;
+}
+
+static int read_packet_poll(AVFormatContext *s, const uint8_t **data)
+{
+    MpegTSContext *ts = s->priv_data;
+    int prefix = ts->raw_packet_size == TS_DVHS_PACKET_SIZE ? 4 : 0;
+    if (ts->raw_packet_size < TS_PACKET_SIZE || ts->raw_packet_size > TS_FEC_PACKET_SIZE)
+        return AVERROR_INVALIDDATA;
+    for (;;) {
+        if (ff_check_interrupt(&s->interrupt_callback))
+            return AVERROR_EXIT;
+        if (ts->live_read_have < ts->raw_packet_size) {
+            int ret = ffio_read_partial_poll(s->pb, ts->live_read_buffer + ts->live_read_have,
+                                             ts->raw_packet_size - ts->live_read_have);
+            if (ret < 0)
+                return ret;
+            if (!ret)
+                return AVERROR(EAGAIN);
+            ts->live_read_have += ret;
+            continue;
+        }
+        if (ts->live_read_buffer[prefix] == SYNC_BYTE) {
+            *data = ts->live_read_buffer + prefix;
+            memset(ts->live_read_buffer + prefix + TS_PACKET_SIZE, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+            ts->live_read_have = ts->live_resync_bytes = 0;
+            return 0;
+        }
+        if (++ts->live_resync_bytes > ts->resync_size)
+            return AVERROR_INVALIDDATA;
+        memmove(ts->live_read_buffer, ts->live_read_buffer + 1, --ts->live_read_have);
+    }
+}
+
 /* return AVERROR_something if error or EOF. Return 0 if OK. */
 static int read_packet(AVFormatContext *s, uint8_t *buf, int raw_packet_size,
                        const uint8_t **data)
@@ -3424,6 +3465,7 @@ static int handle_packets(MpegTSContext *ts, int64_t nb_packets)
 
     if (avio_tell(s->pb) != ts->last_pos) {
         int i;
+        ts->live_read_have = ts->live_resync_bytes = 0;
         av_log(ts->stream, AV_LOG_TRACE, "Skipping after seek\n");
         /* seek detected, flush pes buffer */
         for (i = 0; i < NB_PID_MAX; i++) {
@@ -3455,11 +3497,15 @@ static int handle_packets(MpegTSContext *ts, int64_t nb_packets)
         if (ts->stop_parse > 0)
             break;
 
-        ret = read_packet(s, packet, ts->raw_packet_size, &data);
+        ret = ts->live_read_poll ? read_packet_poll(s, &data) :
+                                  read_packet(s, packet, ts->raw_packet_size, &data);
         if (ret != 0)
             break;
-        ret = handle_packet(ts, data, avio_tell(s->pb));
-        finished_reading_packet(s, ts->raw_packet_size);
+        ret = handle_packet(ts, data, avio_tell(s->pb) -
+                            (ts->live_read_poll && ts->raw_packet_size == TS_FEC_PACKET_SIZE ?
+                             TS_FEC_PACKET_SIZE - TS_PACKET_SIZE : 0));
+        if (!ts->live_read_poll)
+            finished_reading_packet(s, ts->raw_packet_size);
         if (ret != 0)
             break;
     }
@@ -3705,6 +3751,8 @@ static int mpegts_read_packet(AVFormatContext *s, AVPacket *pkt)
     ret = handle_packets(ts, 0);
     if (ret < 0) {
         av_packet_unref(ts->pkt);
+        if (ts->live_read_poll && ret != AVERROR_EOF)
+            return ret;
         /* flush pes data left */
         for (i = 0; i < NB_PID_MAX; i++)
             if (ts->pids[i] && ts->pids[i]->type == MPEGTS_PES) {

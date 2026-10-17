@@ -9,6 +9,16 @@
  * transport reads still need the caller's ordinary I/O interrupt deadline. */
 int avformat_live_input_probe_limit(AVFormatContext *s, int64_t wait_us);
 
+#define AVFORMAT_LIVE_INPUT_POLL_VERSION 1
+/* Demux owner only, after initial probing. MPEG-TS only; other demuxers return
+ * ENOSYS. Preserve partial TS/PES/section state on temporary input starvation,
+ * returning EAGAIN so the raw codec-probe deadline can be checked again.
+ * Standard URL reads are polled without changing cancellation/EOF/error into
+ * starvation. Custom AVIO callbacks must themselves return EAGAIN rather than
+ * block. Caller must retry and keep a logical I/O deadline across retries.
+ * Does not promise preemption of filesystem/codec calls or socket wire time. */
+int avformat_live_input_probe_poll(AVFormatContext *s, int64_t wait_us);
+
 typedef struct AVLiveMuxStats {
     unsigned queued_packets, high_water_packets;
     uint64_t queued_bytes, high_water_bytes, timeout_releases, pressure_releases, forced_releases;

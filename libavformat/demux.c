@@ -670,6 +670,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
     for (;;) {
         PacketListEntry *pktl = fci->raw_packet_buffer.head;
 
+        if (fci->live_input_poll && ff_check_interrupt(&s->interrupt_callback))
+            return AVERROR_EXIT;
+
         if ((err = live_video_probe_check(s)) < 0)
             return err;
 
@@ -701,6 +704,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
                We must re-call the demuxer to get the real packet. */
             if (err == FFERROR_REDO)
                 continue;
+            if (fci->live_input_poll && err != AVERROR_EOF && err != AVERROR(EAGAIN))
+                return err;
             if (fci->live_video_probe_active && err != AVERROR_EOF && err != AVERROR(EAGAIN))
                 return live_video_probe_read_error(s, err);
             if (!pktl || err == AVERROR(EAGAIN))
@@ -1441,6 +1446,8 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
         if (ret < 0) {
             if (ret == AVERROR(EAGAIN))
                 return ret;
+            if (fci->live_input_poll && ret != AVERROR_EOF)
+                return ret;
             /* A readiness budget/cancellation is not media EOF. Preserve any
              * partial AU in its parser for later buffered reads, or cleanup;
              * flushing it here would invent a truncated packet on success. */
@@ -1639,6 +1646,9 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
     int ret;
     AVStream *st;
 
+    if (ff_fc_internal(s)->live_input_poll && ff_check_interrupt(&s->interrupt_callback))
+        return AVERROR_EXIT;
+
     if (!genpts) {
         ret = si->packet_buffer.head
               ? ff_packet_list_get(&si->packet_buffer, pkt)
@@ -1696,6 +1706,9 @@ int av_read_frame(AVFormatContext *s, AVPacket *pkt)
 
         ret = read_frame_internal(s, pkt);
         if (ret < 0) {
+            /* Only a true EOF may synthesize/drain buffered GENPTS packets. */
+            if (ff_fc_internal(s)->live_input_poll && ret != AVERROR_EOF)
+                return ret;
             if (pktl && ret != AVERROR(EAGAIN)) {
                 eof = 1;
                 continue;
