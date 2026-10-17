@@ -20,6 +20,7 @@
 
 #ifndef AVCODEC_AVCODEC_H
 #define AVCODEC_AVCODEC_H
+#define AVCODEC_LIVE_FRAME_INTRA_VERSION 1
 
 /**
  * @file

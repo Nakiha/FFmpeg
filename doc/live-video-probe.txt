@@ -1,0 +1,56 @@
+Buffered live video readiness probe (fork API 1)
+================================================
+
+AVFMT_FLAG_LIVE_VIDEO_PROBE explicitly opts avformat_find_stream_info into
+readiness for the first non-attached H.264/HEVC video. The flag is off by default;
+ordinary clients retain the upstream probing path. API marker:
+AVFORMAT_LIVE_VIDEO_PROBE_VERSION=1, libavformat 63.3.103.
+
+Set the flag before find_stream_info. Do not combine it with NOBUFFER or NOPARSE:
+these combinations return EINVAL. Packets read by probing stay in the ordinary
+packet buffer, and av_read_frame replays them before reading more input. Keep
+the interrupt callback, probesize and analyzeduration limits. Read failures and
+interrupts must remain errors even if some stream parameters are already known.
+The opt-in path skips whole-file duration estimation/seeking to the tail;
+duration and future tracks are not part of startup video readiness.
+
+Independent budgets in the opt-in path:
+  - max_analyze_duration limits every stream's analyzed media span/accumulated
+    packet duration, even audio/data or video without SPS/PPS/usable parameters.
+    It also sets a monotonic elapsed deadline (0 selects the 5s default).
+  - probesize bounds analyzed demux payload, including nested raw/parser loops.
+    Packet/framing and AVIO prefetch can overshoot a boundary; it is not a wire
+    byte limit and excludes avformat_open_input's earlier work.
+  - Checks occur between demux/parser/decode steps and retries. A single blocking
+    protocol/demux/decoder call is not forcibly preempted: keep a caller-owned
+    interrupt/I/O deadline too (the service uses 10s). This is not a hard realtime
+    wall deadline for arbitrary drivers or kernel I/O.
+If no usable selected video exists, time exhaustion returns ETIMEDOUT and byte
+exhaustion ENOBUFS; earlier EOF without usable video remains invalid data. Usable
+parameters may finish with the nominal-rate fallback at a budget boundary.
+Budget exit preserves a partial parser AU for subsequent buffered reads, rather
+than flushing it as EOF. The scope is cleared before normal av_read_frame use.
+Transport errors and cancellation always win over usable parameters, including
+errors followed by a parser's last buffered picture.
+
+This is video readiness, not topology completeness. The selected video's codec
+parameters, pixel format and time base must be usable. Other streams may remain
+incomplete, and more audio/data streams may be discovered later. Select the same
+first supported non-attached video after return, rather than a different stream
+chosen by av_find_best_stream. Audio parameters still need bounded preparation
+on the demux-owner path. Do not share mutable input stream arrays with mux code.
+
+When available, container rate or a bounded DTS cadence check supplies a nominal
+frame rate. Inconclusive/variable cadence falls back at the existing limits;
+it does not promise accurate VFR classification from a short prefix. The 1..240
+range applies to early cadence guesses, not to a new media-time rewrite. Normal
+PTS parsing, correction and buffering remain enabled. This API neither strips
+B frames nor implements strict raw timestamp passthrough.
+
+Service integration is isolated in app/input_probe.c in NakiLiveTranscode.
+tests/probe_integration.py compares complete compressed packet ledgers, pixel
+hashes and timestamps against ordinary buffered probing, including short EOF,
+8/10-bit H.264/HEVC, fractional rates, multiple video streams, interrupt errors,
+and late TS/FLV tracks. Probe timings are diagnostic observations, not wire time
+or a latency SLA. RTMP/SRT delivery and same-connection late audio are separately
+covered by the service live mux integration test.

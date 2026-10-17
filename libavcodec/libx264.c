@@ -106,6 +106,8 @@ typedef struct X264Context {
     int avcintra_class;
     int motion_est;
     int forced_idr;
+    int live_frame_intra;
+    uint64_t live_frames_in;
     int coder;
     int a53_cc;
     int b_frame_strategy;
@@ -479,6 +481,15 @@ static int setup_frame(AVCodecContext *ctx, const AVFrame *frame,
     *ppic = NULL;
     if (!frame)
         return 0;
+    if (x4->live_frame_intra) {
+        /* x264 disables open-GOP without B pictures and upgrades I at min-keyint.
+         * Keep ordinary I below that finite boundary, then fail, never upgrade. */
+        if (x4->live_frames_in >= X264_KEYINT_MAX_INFINITE / 2) {
+            av_log(ctx, AV_LOG_ERROR, "ordinary-I session frame limit reached\n");
+            return AVERROR(ERANGE);
+        }
+        x4->live_frames_in++;
+    }
 
     x264_picture_init(pic);
     pic->img.i_csp   = x4->params.i_csp;
@@ -514,7 +525,7 @@ static int setup_frame(AVCodecContext *ctx, const AVFrame *frame,
 
     switch (frame->pict_type) {
     case AV_PICTURE_TYPE_I:
-        pic->i_type = x4->forced_idr > 0 ? X264_TYPE_IDR : X264_TYPE_KEYFRAME;
+        pic->i_type = x4->live_frame_intra ? X264_TYPE_I : x4->forced_idr > 0 ? X264_TYPE_IDR : X264_TYPE_KEYFRAME;
         break;
     case AV_PICTURE_TYPE_P:
         pic->i_type = X264_TYPE_P;
@@ -1393,6 +1404,15 @@ static av_cold int X264_init(AVCodecContext *avctx)
         }
     }
 
+    if (x4->live_frame_intra) {
+        if (x4->forced_idr > 0) return AVERROR(EINVAL);
+        x4->params.i_keyint_max = X264_KEYINT_MAX_INFINITE;
+        x4->params.i_keyint_min = X264_KEYINT_MAX_INFINITE / 2 + 1;
+        x4->params.i_scenecut_threshold = 0;
+        x4->params.b_intra_refresh = 0;
+        x4->params.b_open_gop = 1;
+        avctx->gop_size = x4->params.i_keyint_max;
+    }
     x4->params.analyse.b_mb_info = x4->mb_info;
 
     // update AVCodecContext with x264 parameters
@@ -1557,6 +1577,7 @@ static const AVOption options[] = {
     { "esa",           NULL, 0, AV_OPT_TYPE_CONST, { .i64 = X264_ME_ESA },  INT_MIN, INT_MAX, VE, .unit = "motion-est" },
     { "tesa",          NULL, 0, AV_OPT_TYPE_CONST, { .i64 = X264_ME_TESA }, INT_MIN, INT_MAX, VE, .unit = "motion-est" },
     { "forced-idr",   "If forcing keyframes, force them as IDR frames.",                                  OFFSET(forced_idr),  AV_OPT_TYPE_BOOL,   { .i64 = 0 }, -1, 1, VE },
+    { "live-frame-intra", "fork: ordinary forced I, disable automatic periodic/scenecut I", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "coder",    "Coder type",                                           OFFSET(coder), AV_OPT_TYPE_INT, { .i64 = -1 }, -1, 1, VE, .unit = "coder" },
     { "default",          NULL, 0, AV_OPT_TYPE_CONST, { .i64 = -1 }, INT_MIN, INT_MAX, VE, .unit = "coder" },
     { "cavlc",            NULL, 0, AV_OPT_TYPE_CONST, { .i64 = 0 },  INT_MIN, INT_MAX, VE, .unit = "coder" },

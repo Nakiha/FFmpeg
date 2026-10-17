@@ -626,6 +626,32 @@ int ff_buffer_packet(AVFormatContext *s, AVPacket *pkt)
     return err < 0 ? err : 0;
 }
 
+static int live_video_probe_check(AVFormatContext *s)
+{
+    FormatContextInternal *fci = ff_fc_internal(s);
+    if (!fci->live_video_probe_active)
+        return 0;
+    if (!fci->live_video_probe_error && ff_check_interrupt(&s->interrupt_callback))
+        fci->live_video_probe_error = AVERROR_EXIT;
+    if (fci->live_video_probe_error)
+        return fci->live_video_probe_error;
+    if (av_gettime_relative() >= fci->live_video_probe_deadline_us)
+        fci->live_video_probe_limit_error = AVERROR(ETIMEDOUT);
+    if (!fci->live_video_probe_limit_error &&
+        fci->live_video_probe_bytes >= fci->live_video_probe_max_bytes)
+        fci->live_video_probe_limit_error = AVERROR(ENOBUFS);
+    return fci->live_video_probe_limit_error;
+}
+
+static int live_video_probe_read_error(AVFormatContext *s, int err)
+{
+    FormatContextInternal *fci = ff_fc_internal(s);
+    if (fci->live_video_probe_active && err < 0 &&
+        err != AVERROR_EOF && err != AVERROR(EAGAIN))
+        fci->live_video_probe_error = err;
+    return err;
+}
+
 int ff_read_packet(AVFormatContext *s, AVPacket *pkt)
 {
     FormatContextInternal *const fci = ff_fc_internal(s);
@@ -644,6 +670,9 @@ FF_ENABLE_DEPRECATION_WARNINGS
     for (;;) {
         PacketListEntry *pktl = fci->raw_packet_buffer.head;
 
+        if ((err = live_video_probe_check(s)) < 0)
+            return err;
+
         if (pktl) {
             AVStream *const st = s->streams[pktl->pkt.stream_index];
             FFStream *const sti = ffstream(st);
@@ -655,7 +684,7 @@ FF_ENABLE_DEPRECATION_WARNINGS
             }
             if (fci->raw_packet_buffer_size >= s->probesize || expired)
                 if ((err = probe_codec(s, st, NULL)) < 0)
-                    return err;
+                    return live_video_probe_read_error(s, err);
             if (ffstream(st)->request_probe <= 0) {
                 ff_packet_list_get(&fci->raw_packet_buffer, pkt);
                 fci->raw_packet_buffer_size -= pkt->size;
@@ -672,6 +701,8 @@ FF_ENABLE_DEPRECATION_WARNINGS
                We must re-call the demuxer to get the real packet. */
             if (err == FFERROR_REDO)
                 continue;
+            if (fci->live_video_probe_active && err != AVERROR_EOF && err != AVERROR(EAGAIN))
+                return live_video_probe_read_error(s, err);
             if (!pktl || err == AVERROR(EAGAIN))
                 return err;
             for (unsigned i = 0; i < s->nb_streams; i++) {
@@ -688,12 +719,14 @@ FF_ENABLE_DEPRECATION_WARNINGS
         err = av_packet_make_refcounted(pkt);
         if (err < 0) {
             av_packet_unref(pkt);
-            return err;
+            return live_video_probe_read_error(s, err);
         }
 
+        if (fci->live_video_probe_active)
+            fci->live_video_probe_bytes = av_sat_add64(fci->live_video_probe_bytes, pkt->size);
         err = handle_new_packet(s, pkt, 1);
         if (err <= 0) /* Error or passthrough */
-            return err;
+            return live_video_probe_read_error(s, err);
     }
 }
 
@@ -1407,6 +1440,12 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
         ret = ff_read_packet(s, pkt);
         if (ret < 0) {
             if (ret == AVERROR(EAGAIN))
+                return ret;
+            /* A readiness budget/cancellation is not media EOF. Preserve any
+             * partial AU in its parser for later buffered reads, or cleanup;
+             * flushing it here would invent a truncated packet on success. */
+            if (fci->live_video_probe_active && ret != AVERROR_EOF &&
+                (fci->live_video_probe_error || fci->live_video_probe_limit_error))
                 return ret;
             /* flush the parsers */
             for (unsigned i = 0; i < s->nb_streams; i++) {
@@ -2621,9 +2660,101 @@ fail:
     return ret;
 }
 
+static int64_t live_video_probe_media_duration(AVStream *st, const AVPacket *pkt)
+{
+    FFStreamInfo *info = ffstream(st)->info;
+    int64_t timestamp = pkt->dts != AV_NOPTS_VALUE ? pkt->dts : pkt->pts;
+    int64_t span = 0;
+    if (st->time_base.num <= 0 || st->time_base.den <= 0)
+        return 0;
+    if (pkt->duration > 0) {
+        int64_t duration = av_rescale_q(pkt->duration, st->time_base, AV_TIME_BASE_Q);
+        if (duration > 0)
+            info->live_probe_duration_us = av_sat_add64(info->live_probe_duration_us, duration);
+    }
+    if (timestamp != AV_NOPTS_VALUE) {
+        timestamp = av_rescale_q(timestamp, st->time_base, AV_TIME_BASE_Q);
+        if (!info->live_probe_have_ts) {
+            info->live_probe_first_ts_us = timestamp;
+            info->live_probe_have_ts = 1;
+        }
+        span = av_sat_sub64(timestamp, info->live_probe_first_ts_us);
+    }
+    return FFMAX(span, info->live_probe_duration_us);
+}
+
+static int live_video_probe_ready(AVFormatContext *ic, AVRational *rate, int eof)
+{
+    for (unsigned i = 0; i < ic->nb_streams; i++) {
+        AVStream *st = ic->streams[i];
+        FFStream *sti = ffstream(st);
+        AVCodecContext *avctx = sti->avctx;
+        FFStreamInfo *info = sti->info;
+        AVRational header = avctx->framerate;
+        int64_t span, expected, tolerance;
+
+        if (st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO ||
+            (st->disposition & AV_DISPOSITION_ATTACHED_PIC) ||
+            (st->codecpar->codec_id != AV_CODEC_ID_H264 &&
+             st->codecpar->codec_id != AV_CODEC_ID_HEVC))
+            continue;
+        /* Select the first supported video consistently, not whichever stream
+         * happens to become ready first. No claim that topology is complete. */
+        if (!has_codec_parameters(st, NULL) || avctx->pix_fmt == AV_PIX_FMT_NONE ||
+            st->time_base.num <= 0 || st->time_base.den <= 0)
+            return -1;
+        if (st->avg_frame_rate.num > 0 && st->avg_frame_rate.den > 0 &&
+            !(ic->ctx_flags & AVFMTCTX_NOHEADER)) {
+            *rate = st->avg_frame_rate;
+            return i;
+        }
+        if (header.num <= 0 || header.den <= 0 ||
+            av_cmp_q(header, (AVRational){1, 1}) < 0 ||
+            av_cmp_q(header, (AVRational){240, 1}) > 0)
+            header = (AVRational){0, 1};
+        if (info->live_dts_count < 3) {
+            if (eof) { *rate = header; return i; }
+            return -1;
+        }
+        span = av_sat_sub64(info->live_last_dts, info->live_first_dts);
+        if (span <= 0 || span > INT64_MAX / st->time_base.num)
+            return -1;
+        if (header.num) {
+            expected = av_rescale_q(info->live_dts_count - 1,
+                                    av_inv_q(header), st->time_base);
+            tolerance = FFMAX(2, expected / 50);
+            if (expected <= 0 || FFABS(span - expected) > tolerance) {
+                if (eof || info->live_dts_count >= 16) {
+                    *rate = (AVRational){0, 1};
+                    return i;
+                }
+                return -1;
+            }
+            *rate = header;
+        } else {
+            if (info->live_max_delta - info->live_min_delta > 1) {
+                if (eof || info->live_dts_count >= 16) {
+                    *rate = (AVRational){0, 1};
+                    return i;
+                }
+                return -1;
+            }
+            av_reduce(&rate->num, &rate->den,
+                      (int64_t)(info->live_dts_count - 1) * st->time_base.den,
+                      span * st->time_base.num, INT_MAX);
+            if (av_cmp_q(*rate, (AVRational){1, 1}) < 0 ||
+                av_cmp_q(*rate, (AVRational){240, 1}) > 0)
+                return -1;
+        }
+        return i;
+    }
+    return -1;
+}
+
 int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 {
-    FFFormatContext *const si = ffformatcontext(ic);
+    FormatContextInternal *const fci = ff_fc_internal(ic);
+    FFFormatContext *const si = &fci->fc;
     int count = 0, ret = 0, err;
     int64_t read_size;
     AVPacket *pkt1 = si->pkt;
@@ -2636,6 +2767,14 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
     int64_t max_subtitle_analyze_duration;
     int64_t probesize = ic->probesize;
     int eof_reached = 0;
+    int live_video = !!(ic->flags & AVFMT_FLAG_LIVE_VIDEO_PROBE);
+    int live_stream = -1;
+    int live_error = 0;
+    int live_budget_error = 0;
+    AVRational live_rate = {0, 1};
+
+    if (live_video && (ic->flags & (AVFMT_FLAG_NOBUFFER | AVFMT_FLAG_NOPARSE)))
+        return AVERROR(EINVAL);
 
     flush_codecs = probesize > 0;
 
@@ -2651,6 +2790,14 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
             max_stream_analyze_duration = 90*AV_TIME_BASE;
         if (!strcmp(ic->iformat->name, "mpeg") || !strcmp(ic->iformat->name, "mpegts"))
             max_stream_analyze_duration = 7*AV_TIME_BASE;
+    }
+
+    if (live_video) {
+        fci->live_video_probe_active = 1;
+        fci->live_video_probe_error = fci->live_video_probe_limit_error = 0;
+        fci->live_video_probe_bytes = 0;
+        fci->live_video_probe_max_bytes = probesize;
+        fci->live_video_probe_deadline_us = av_sat_add64(av_gettime_relative(), max_analyze_duration);
     }
 
     if (ic->pb) {
@@ -2725,7 +2872,16 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         unsigned i;
         if (ff_check_interrupt(&ic->interrupt_callback)) {
             ret = AVERROR_EXIT;
+            if (live_video)
+                live_error = ret;
             av_log(ic, AV_LOG_DEBUG, "interrupted\n");
+            break;
+        }
+        if (live_video && (ret = live_video_probe_check(ic)) < 0) {
+            if (fci->live_video_probe_error)
+                live_error = fci->live_video_probe_error;
+            else
+                live_budget_error = ret;
             break;
         }
 
@@ -2735,6 +2891,14 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         ret = update_stream_avctx(ic);
         if (ret < 0)
             goto unref_then_goto_end;
+
+        if (live_video && (live_stream = live_video_probe_ready(ic, &live_rate, 0)) >= 0) {
+            av_log(ic, AV_LOG_DEBUG, "Buffered live video ready: stream %d, rate %d/%d, packets %d\n",
+                   live_stream, live_rate.num, live_rate.den, count);
+            ret = count;
+            flush_codecs = 0;
+            break;
+        }
 
         /* check if one codec still needs to be handled */
         for (i = 0; i < ic->nb_streams; i++) {
@@ -2781,7 +2945,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                 break;
         }
         analyzed_all_streams = 0;
-        if (i == ic->nb_streams && !si->missing_streams) {
+        if (!live_video && i == ic->nb_streams && !si->missing_streams) {
             analyzed_all_streams = 1;
             /* NOTE: If the format has no header, then we need to read some
              * packets to get most of the streams, so we cannot stop here. */
@@ -2796,6 +2960,8 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         /* We did not get all the codec info, but we read too much data. */
         if (read_size >= probesize) {
             ret = count;
+            if (live_video)
+                live_budget_error = AVERROR(ENOBUFS);
             av_log(ic, AV_LOG_DEBUG,
                    "Probe buffer size limit of %"PRId64" bytes reached\n", probesize);
             for (unsigned i = 0; i < ic->nb_streams; i++) {
@@ -2820,6 +2986,12 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 
         if (ret < 0) {
             /* EOF or error*/
+            if (live_video && ret != AVERROR_EOF) {
+                if (fci->live_video_probe_limit_error && !fci->live_video_probe_error)
+                    live_budget_error = fci->live_video_probe_limit_error;
+                else
+                    live_error = ret;
+            }
             eof_reached = 1;
             break;
         }
@@ -2839,6 +3011,36 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         sti = ffstream(st);
         if (!(st->disposition & AV_DISPOSITION_ATTACHED_PIC))
             read_size += pkt->size;
+
+        /* Every stream consumes the analysis budget, whether its parameters
+         * are complete or it will be decoded by this video-only probe. */
+        if (live_video && live_video_probe_media_duration(st, pkt) >= max_analyze_duration) {
+            live_budget_error = AVERROR(ETIMEDOUT);
+            count++;
+            break;
+        }
+
+        if (live_video && st->codecpar->codec_type != AVMEDIA_TYPE_VIDEO) {
+            /* Keep the packet, but do not wait for audio/data readiness. */
+            sti->codec_info_nb_frames++;
+            count++;
+            continue;
+        }
+        if (live_video && pkt->dts != AV_NOPTS_VALUE && sti->info->live_dts_count < 16) {
+            FFStreamInfo *info = sti->info;
+            if (!info->live_dts_count || pkt->dts <= info->live_last_dts) {
+                info->live_dts_count = 1;
+                info->live_first_dts = info->live_last_dts = pkt->dts;
+                info->live_min_delta = INT64_MAX;
+                info->live_max_delta = 0;
+            } else {
+                int64_t delta = av_sat_sub64(pkt->dts, info->live_last_dts);
+                info->live_min_delta = FFMIN(info->live_min_delta, delta);
+                info->live_max_delta = FFMAX(info->live_max_delta, delta);
+                info->live_last_dts = pkt->dts;
+                info->live_dts_count++;
+            }
+        }
 
         avctx = sti->avctx;
         if (!sti->avctx_inited) {
@@ -2909,6 +3111,8 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
             else                                                     limit = max_stream_analyze_duration;
 
             if (t >= limit) {
+                if (live_video)
+                    live_budget_error = AVERROR(ETIMEDOUT);
                 av_log(ic, AV_LOG_VERBOSE, "max_analyze_duration %"PRId64" reached at %"PRId64" microseconds st:%d\n",
                        limit,
                        t, pkt->stream_index);
@@ -3010,6 +3214,16 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
 
     ff_rfps_calculate(ic);
 
+    if (live_video && live_stream < 0 && !live_error)
+        live_stream = live_video_probe_ready(ic, &live_rate, 1);
+    if (live_stream >= 0 && live_rate.num > 0) {
+        /* Do not turn a progressive H.264 header rate into a doubled field
+         * rate in the generic short-probe fallback. */
+        AVStream *st = ic->streams[live_stream];
+        st->avg_frame_rate = st->r_frame_rate = live_rate;
+        ffstream(st)->avctx->framerate = live_rate;
+    }
+
     for (unsigned i = 0; i < ic->nb_streams; i++) {
         AVStream *const st  = ic->streams[i];
         FFStream *const sti = ffstream(st);
@@ -3107,7 +3321,9 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         }
     }
 
-    if (probesize)
+    /* Seeking to the tail for duration estimation defeats readiness probing
+     * and can discover future tracks before buffered playback even starts. */
+    if (probesize && !live_video)
         estimate_timings(ic, old_offset);
 
     av_opt_set_int(ic, "skip_clear", 0, AV_OPT_SEARCH_CHILDREN);
@@ -3222,6 +3438,21 @@ find_stream_info_err:
         FFIOContext *const ctx = ffiocontext(ic->pb);
         av_log(ic, AV_LOG_DEBUG, "After avformat_find_stream_info() pos: %"PRId64" bytes read:%"PRId64" seeks:%d frames:%d\n",
                avio_tell(ic->pb), ctx->bytes_read, ctx->seek_count, count);
+    }
+    if (live_video) {
+        /* Parser flushing may return a final picture after a read failure.
+         * Never turn that picture's usable parameters into transport success. */
+        if (fci->live_video_probe_error)
+            ret = fci->live_video_probe_error;
+        else if (live_error)
+            ret = live_error;
+        else if (live_stream < 0 && (ret >= 0 || fci->live_video_probe_limit_error)) {
+            int budget = live_budget_error ? live_budget_error : fci->live_video_probe_limit_error;
+            ret = budget ? budget : AVERROR_INVALIDDATA;
+        }
+        fci->live_video_probe_active = 0;
+        fci->live_video_probe_error = fci->live_video_probe_limit_error = 0;
+        fci->live_video_probe_deadline_us = fci->live_video_probe_bytes = 0;
     }
     return ret;
 

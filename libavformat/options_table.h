@@ -50,6 +50,7 @@ static const AVOption avformat_options[] = {
 {"sortdts", "try to interleave outputted packets by dts", 0, AV_OPT_TYPE_CONST, {.i64 = AVFMT_FLAG_SORT_DTS }, INT_MIN, INT_MAX, D, .unit = "fflags"},
 {"fastseek", "fast but inaccurate seeks", 0, AV_OPT_TYPE_CONST, {.i64 = AVFMT_FLAG_FAST_SEEK }, INT_MIN, INT_MAX, D, .unit = "fflags"},
 {"nobuffer", "reduce the latency introduced by optional buffering", 0, AV_OPT_TYPE_CONST, {.i64 = AVFMT_FLAG_NOBUFFER }, 0, INT_MAX, D, .unit = "fflags"},
+{"live_video_probe", "buffered readiness probe for one H.264/HEVC video; stream topology remains open", 0, AV_OPT_TYPE_CONST, {.i64 = AVFMT_FLAG_LIVE_VIDEO_PROBE }, 0, INT_MAX, D, .unit = "fflags"},
 {"bitexact", "do not write random/volatile data", 0, AV_OPT_TYPE_CONST, { .i64 = AVFMT_FLAG_BITEXACT }, 0, 0, E, .unit = "fflags" },
 {"autobsf", "add needed bsfs automatically", 0, AV_OPT_TYPE_CONST, { .i64 = AVFMT_FLAG_AUTO_BSF }, 0, 0, E, .unit = "fflags" },
 {"seek2any", "allow seeking to non-keyframes on demuxer level when supported", OFFSET(seek2any), AV_OPT_TYPE_BOOL, {.i64 = 0 }, 0, 1, D},
