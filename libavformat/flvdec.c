@@ -36,6 +36,8 @@
 #include "libavutil/intreadwrite.h"
 #include "libavutil/mastering_display_metadata.h"
 #include "avformat.h"
+#include "avio_internal.h"
+#include "url.h"
 #include "demux.h"
 #include "internal.h"
 #include "flv.h"
@@ -1861,6 +1863,20 @@ retry_duration:
         pkt->pts          = pts == AV_NOPTS_VALUE ? dts : pts;
         pkt->stream_index = st->index;
         pkt->pos          = pos;
+        {
+            URLContext *url = ffio_geturlcontext(s->pb);
+            AVReadOrigin origin;
+            if (url && url->prot->url_read_origin) {
+                int traced = url->prot->url_read_origin(url, pos, &origin);
+                if (traced < 0) return traced;
+                if (traced) {
+                    if (pkt->opaque_ref) return AVERROR_BUG;
+                    pkt->opaque_ref = av_buffer_alloc(sizeof(origin));
+                    if (!pkt->opaque_ref) return AVERROR(ENOMEM);
+                    memcpy(pkt->opaque_ref->data, &origin, sizeof(origin));
+                }
+            }
+        }
         if (!multitrack && flv->new_extradata[stream_type]) {
             ret = av_packet_add_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA,
                                           flv->new_extradata[stream_type],

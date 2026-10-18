@@ -182,6 +182,7 @@ static int rtmp_packet_read_one_chunk(URLContext *h, RTMPPacket *p,
     int ret, toread;
     RTMPPacket *prev_pkt;
 
+    const int64_t first_read_us = h->read_origin_us;
     written++;
     channel_id = hdr & 0x3F;
 
@@ -248,6 +249,7 @@ static int rtmp_packet_read_one_chunk(URLContext *h, RTMPPacket *p,
                                          size)) < 0)
             return ret;
         p->read = written;
+        p->first_read_us = first_read_us;
         p->offset = 0;
         prev_pkt[channel_id].ts_field   = ts_field;
         prev_pkt[channel_id].timestamp  = timestamp;
@@ -263,6 +265,7 @@ static int rtmp_packet_read_one_chunk(URLContext *h, RTMPPacket *p,
         p->offset        = prev->offset;
         p->read          = prev->read + written;
         p->timestamp     = prev->timestamp;
+        p->first_read_us = prev->first_read_us;
         prev->data       = NULL;
     }
     p->extra = extra;
@@ -287,6 +290,7 @@ static int rtmp_packet_read_one_chunk(URLContext *h, RTMPPacket *p,
        prev->data = p->data;
        prev->read = p->read;
        prev->offset = p->offset;
+       prev->first_read_us = p->first_read_us;
        p->data      = NULL;
        return AVERROR(EAGAIN);
     }

@@ -28,6 +28,7 @@
 
 #include "libavutil/dict.h"
 #include "libavutil/log.h"
+#include "read_origin.h"
 
 #define URL_PROTOCOL_FLAG_NESTED_SCHEME 1 /*< The protocol name can be the first part of a nested protocol scheme */
 #define URL_PROTOCOL_FLAG_NETWORK       2 /*< The protocol uses network */
@@ -46,9 +47,12 @@ typedef struct URLContext {
     const char *protocol_whitelist;
     const char *protocol_blacklist;
     int min_packet_size;        /**< if non zero, the stream is packetized with this min packet size */
+    int read_origin_enabled;
+    int64_t read_origin_us;
 } URLContext;
 
 typedef struct URLProtocol {
+    int (*url_read_origin)(URLContext *h, int64_t position, AVReadOrigin *origin);
     const char *name;
     int     (*url_open)( URLContext *h, const char *url, int flags);
     /**

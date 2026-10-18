@@ -2,6 +2,7 @@ NAME = avformat
 DESC = FFmpeg container format library
 
 HEADERS = avformat.h                                                    \
+          read_origin.h                                                \
           network_observer.h                                           \
           live_mux.h                                                   \
           avio.h                                                        \

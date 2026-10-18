@@ -281,6 +281,8 @@ static int tcp_read(URLContext *h, uint8_t *buf, int size)
     }
     call = ff_network_observer_begin();
     ret = recv(s->fd, buf, size, 0);
+    if (ret > 0 && h->read_origin_enabled)
+        h->read_origin_us = av_gettime_relative();
     ff_network_observer_end(start, call, AV_NETWORK_TCP, AV_NETWORK_RECEIVE, 0, h, s->fd, size, ret < 0 ? ff_neterrno() : ret);
     if (ret == 0)
         return AVERROR_EOF;

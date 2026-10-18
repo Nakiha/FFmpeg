@@ -28,6 +28,7 @@
 
 #include "libavcodec/bytestream.h"
 #include "libavutil/avstring.h"
+#include "libavutil/time.h"
 #include "libavutil/base64.h"
 #include "libavutil/intfloat.h"
 #include "libavutil/lfg.h"
@@ -91,6 +92,10 @@ typedef struct RTMPContext {
     ClientState   state;                      ///< current state
     int           stream_id;                  ///< ID assigned by the server for the stream
     uint8_t*      flv_data;                   ///< buffer with data for demuxer
+    int read_origin;
+    int64_t flv_base;
+    AVReadOrigin origins[256];
+    unsigned origin_head, origin_count;
     int           flv_size;                   ///< current buffer size
     int           flv_off;                    ///< number of bytes read from current buffer
     int           flv_nb_packets;             ///< number of flv packets published
@@ -2285,6 +2290,7 @@ static int update_offset(RTMPContext *rt, int size)
         rt->flv_size += size;
     } else {
         // All data has been read, write the new data at the start of the buffer
+        rt->flv_base += rt->flv_size;
         old_flv_size = 0;
         rt->flv_size = size;
         rt->flv_off  = 0;
@@ -2312,6 +2318,15 @@ static int append_flv_data(RTMPContext *rt, RTMPPacket *pkt, int skip)
     old_flv_size = update_offset(rt, size + 15);
     if (old_flv_size < 0)
         return old_flv_size;
+
+    if (rt->read_origin) {
+        AVReadOrigin *o;
+        if (!pkt->first_read_us || rt->origin_count == FF_ARRAY_ELEMS(rt->origins))
+            return AVERROR(ENOBUFS);
+        o = &rt->origins[(rt->origin_head + rt->origin_count++) % FF_ARRAY_ELEMS(rt->origins)];
+        *o = (AVReadOrigin){ AV_READ_ORIGIN_MAGIC, pkt->first_read_us,
+                             av_gettime_relative(), rt->flv_base + old_flv_size };
+    }
 
     if ((ret = av_reallocp(&rt->flv_data, rt->flv_size)) < 0) {
         rt->flv_size = rt->flv_off = 0;
@@ -2440,6 +2455,7 @@ static int rtmp_parse_result(URLContext *s, RTMPContext *rt, RTMPPacket *pkt)
 
 static int handle_metadata(RTMPContext *rt, RTMPPacket *pkt)
 {
+    if (rt->read_origin) return AVERROR(ENOSYS); /* aggregate message scope unsupported */
     int ret, old_flv_size, type;
     PutByteContext pbc;
     GetByteContext gbc;
@@ -2703,6 +2719,9 @@ static int rtmp_open(URLContext *s, const char *uri, int flags, AVDictionary **o
                  hostname, sizeof(hostname), &port,
                  path, sizeof(path), s->filename);
 
+    if (rt->read_origin && (strcmp(proto, "rtmp") || !rt->is_input))
+        return AVERROR(EINVAL);
+
     n = strchr(path, ' ');
     if (n) {
         av_log(s, AV_LOG_WARNING,
@@ -2765,6 +2784,7 @@ reconnect:
         goto fail;
     }
 
+    rt->stream->read_origin_enabled = rt->read_origin;
     if (rt->swfverify) {
         if ((ret = rtmp_calc_swfhash(s)) < 0)
             goto fail;
@@ -2970,6 +2990,7 @@ reconnect:
         // the server returned a valid duration, create a fake metadata packet
         // to inform the FLV decoder about the duration.
         if (!rt->received_metadata && rt->duration > 0) {
+            if (rt->read_origin) { ret = AVERROR(ENOSYS); goto fail; }
             if ((ret = inject_fake_duration_metadata(rt)) < 0)
                 goto fail;
         }
@@ -3022,6 +3043,7 @@ static int64_t rtmp_seek(void *opaque, int stream_index, int64_t timestamp,
     URLContext *s = opaque;
     RTMPContext *rt = s->priv_data;
     int ret;
+    if (rt->read_origin) return AVERROR(ENOSYS);
     av_log(s, AV_LOG_DEBUG,
            "Seek on stream index %d at timestamp %"PRId64" with flags %08x\n",
            stream_index, timestamp, flags);
@@ -3202,7 +3224,22 @@ static int rtmp_write(URLContext *s, const uint8_t *buf, int size)
 #define DEC AV_OPT_FLAG_DECODING_PARAM
 #define ENC AV_OPT_FLAG_ENCODING_PARAM
 
+static int rtmp_read_origin(URLContext *s, int64_t position, AVReadOrigin *origin)
+{
+    RTMPContext *rt = s->priv_data;
+    if (!rt->read_origin) return 0;
+    while (rt->origin_count) {
+        AVReadOrigin *o = &rt->origins[rt->origin_head];
+        if (o->tag_position == position) { *origin = *o; return 1; }
+        if (o->tag_position > position) return AVERROR_INVALIDDATA;
+        rt->origin_head = (rt->origin_head + 1) % FF_ARRAY_ELEMS(rt->origins);
+        rt->origin_count--;
+    }
+    return AVERROR_INVALIDDATA;
+}
+
 static const AVOption rtmp_options[] = {
+    {"rtmp_read_origin", "fork: immutable first TCP read origin on FLV media packets", OFFSET(read_origin), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, DEC},
     {"rtmp_app", "Name of application to connect to on the RTMP server", OFFSET(app), AV_OPT_TYPE_STRING, {.str = NULL }, 0, 0, DEC|ENC},
     {"rtmp_buffer", "Set buffer time in milliseconds. The default is 3000.", OFFSET(client_buffer_time), AV_OPT_TYPE_INT, {.i64 = 3000}, 0, INT_MAX, DEC|ENC},
     {"rtmp_conn", "Append arbitrary AMF data to the Connect message", OFFSET(conn), AV_OPT_TYPE_STRING, {.str = NULL }, 0, 0, DEC|ENC},
@@ -3241,6 +3278,7 @@ const URLProtocol ff_##flavor##_protocol = {     \
     .name           = #flavor,                   \
     .url_open2      = rtmp_open,                 \
     .url_read       = rtmp_read,                 \
+    .url_read_origin= rtmp_read_origin,          \
     .url_read_seek  = rtmp_seek,                 \
     .url_read_pause = rtmp_pause,                \
     .url_write      = rtmp_write,                \

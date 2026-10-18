@@ -75,6 +75,7 @@ enum RTMPPacketSize {
  * structure for holding RTMP packets
  */
 typedef struct RTMPPacket {
+    int64_t first_read_us;
     int            channel_id; ///< RTMP channel ID (nothing to do with audio/video channels though)
     RTMPPacketType type;       ///< packet payload type
     uint32_t       timestamp;  ///< packet full timestamp

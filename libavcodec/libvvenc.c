@@ -56,6 +56,10 @@ typedef struct VVenCContext {
     int   intra_refresh_sec;
     int   live_pts_gop;
     int   live_frame_intra;
+    int   live_max_future;
+    int64_t live_cts[256];
+    uint64_t live_index[256], live_submitted;
+    uint8_t live_used[256];
     int64_t pts_queue[256];
     unsigned pts_read, pts_write, pts_count;
     int64_t pts_first, pts_last, dts_last;
@@ -299,6 +303,9 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     ret = vvenc_set_rc_mode(avctx, &params);
     if (ret != 0)
         return ret;
+    if (s->live_max_future && (!s->live_pts_gop || avctx->bit_rate ||
+        params.m_LookAhead > 0 || params.m_maxParallelFrames || params.m_vvencMCTF.MCTFFutureReference))
+        return AVERROR(EINVAL);
 
     if (s->live_frame_intra) {
 #ifdef VVENC_LIVE_FRAME_INTRA_VERSION
@@ -401,6 +408,14 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
     pyuvbuf = NULL;
     if (frame) {
         if (s->live_pts_gop) {
+            if (s->live_max_future) {
+                int slot;
+                for (slot = 0; slot < FF_ARRAY_ELEMS(s->live_used) && s->live_used[slot]; slot++);
+                if (slot == FF_ARRAY_ELEMS(s->live_used)) return AVERROR(ENOBUFS);
+                s->live_used[slot] = 1;
+                s->live_cts[slot] = frame->pts;
+                s->live_index[slot] = s->live_submitted++;
+            }
             if (frame->pts == AV_NOPTS_VALUE || s->pts_count == FF_ARRAY_ELEMS(s->pts_queue) ||
                 ((s->pts_count || s->packets_out) && frame->pts <= s->pts_last))
                 return AVERROR_INVALIDDATA;
@@ -444,11 +459,32 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
         return 0;
 
     if (s->au->payloadUsedSize > 0) {
+        int future = -1;
+        if (s->live_max_future) {
+            int slot;
+            for (slot = 0; slot < FF_ARRAY_ELEMS(s->live_used); slot++)
+                if (s->live_used[slot] && s->live_cts[slot] == s->au->cts) break;
+            if (slot == FF_ARRAY_ELEMS(s->live_used)) return AVERROR_INVALIDDATA;
+            future = s->live_submitted - 1 - s->live_index[slot];
+            s->live_used[slot] = 0;
+            if (future > s->live_max_future) return AVERROR(ENOBUFS);
+        }
         ret = ff_get_encode_buffer(avctx, pkt, s->au->payloadUsedSize, 0);
         if (ret < 0)
             return ret;
 
         memcpy(pkt->data, s->au->payload, s->au->payloadUsedSize);
+        if (future >= 0) {
+            AVDictionary *info = NULL;
+            size_t size;
+            uint8_t *data;
+            av_dict_set_int(&info, "live_future_frames", future, 0);
+            data = av_packet_pack_dictionary(info, &size);
+            av_dict_free(&info);
+            if (!data) return AVERROR(ENOMEM);
+            ret = av_packet_add_side_data(pkt, AV_PKT_DATA_STRINGS_METADATA, data, size);
+            if (ret < 0) { av_free(data); return ret; }
+        }
 
         if (s->au->ctsValid)
             pkt->pts = s->au->cts;
@@ -509,6 +545,7 @@ static const AVOption options[] = {
     { "stats",        "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "period",       "set (intra) refresh period in seconds", OFFSET(intra_refresh_sec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
     { "live-pts-gop", "fork: PTS-grid CRA and timestamp FIFO for the live GOP4 profile", OFFSET(live_pts_gop), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
+    { "live-max-future", "fork: fail if CQF AU release has more than N submitted future pictures (0 disables)", OFFSET(live_max_future), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 4, VE },
     { "live-frame-intra", "fork: explicit ordinary I pictures, disable automatic CRA grid", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
