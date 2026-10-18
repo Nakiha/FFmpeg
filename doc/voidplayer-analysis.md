@@ -19,7 +19,8 @@ option `vp_analysis_mode=1` requests no-pixels execution; its default is zero.
 Admission reuses FFmpeg's existing parameter parser, without a second CABAC
 scan. Coefficient/sign/Rice/context consumption, QP, CU/TU traversal, intra modes,
 merge/MVP/temporal motion tables, references, DPB, allocation, reordering and
-picture completion stay active. Only filter pixels, prediction/MC and residual
+picture completion stay active. Only filter pixels (including the parse-inline
+boundary-strength derivation), prediction/MC and residual
 materialization/dequant/inverse transform/add-back are bypassed.
 
 After pruning starts, successfully parsed parameter replacements (including
@@ -54,7 +55,8 @@ report the same values as HEVC). Admission requires the current SPS to be
 Main 10 (8/10-bit), 4:2:0, single-layer, progressive software decode with
 1 thread and no CRC verification, and a present PTL. Prediction/MC (`run_inter`),
 reconstruction (`run_recon`), LMCS, the whole deblocking stage (boundary
-strength derivation and pixel filters), SAO and ALF are bypassed; parameter-set
+strength derivation and pixel filters), SAO, ALF and residual coefficient
+materialization are bypassed; parameter-set
 parsing, CABAC consumption, QP/CU/TU traversal, intra
 modes, merge/MVP/temporal motion tables, references, DPB and picture
 completion stay active, so published blocks/references are byte-identical to
