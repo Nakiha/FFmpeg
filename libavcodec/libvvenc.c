@@ -50,6 +50,8 @@ typedef struct VVenCContext {
     vvencEncoder    *encoder;
     vvencAccessUnit *au;
     bool             encode_done;
+    AVFrame         *input_frame;
+    int              draining;
     int   preset;
     int   qp;
     int   qpa;
@@ -306,6 +308,13 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     if (s->live_max_future && (!s->live_pts_gop || avctx->bit_rate ||
         params.m_LookAhead > 0 || params.m_maxParallelFrames || params.m_vvencMCTF.MCTFFutureReference))
         return AVERROR(EINVAL);
+    if (s->live_max_future) {
+#ifdef VVENC_LIVE_CQF_POLL_VERSION
+        params.m_liveCqfPoll = 1;
+#else
+        return AVERROR(ENOSYS);
+#endif
+    }
 
     if (s->live_frame_intra) {
 #ifdef VVENC_LIVE_FRAME_INTRA_VERSION
@@ -377,6 +386,8 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
         return ret;
 
     s->encode_done = false;
+    s->input_frame = av_frame_alloc();
+    if (!s->input_frame) return AVERROR(ENOMEM);
     return 0;
 }
 
@@ -384,6 +395,7 @@ static av_cold int vvenc_close(AVCodecContext *avctx)
 {
     VVenCContext *s = avctx->priv_data;
 
+    av_frame_free(&s->input_frame);
     if (s->au)
         vvenc_accessUnit_free(s->au, true);
 
@@ -398,7 +410,7 @@ static av_cold int vvenc_close(AVCodecContext *avctx)
 }
 
 static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFrame *frame,
-                               int *got_packet)
+                               int *got_packet, int pending)
 {
     VVenCContext *s = avctx->priv_data;
     vvencYUVBuffer *pyuvbuf;
@@ -451,7 +463,14 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
     }
 
     if (!s->encode_done) {
-        if (vvenc_encode(s->encoder, pyuvbuf, s->au, &s->encode_done) != 0) {
+        int status;
+#ifdef VVENC_LIVE_CQF_POLL_VERSION
+        status = pending ? vvenc_encode_pending(s->encoder, s->au) :
+                           vvenc_encode(s->encoder, pyuvbuf, s->au, &s->encode_done);
+#else
+        status = vvenc_encode(s->encoder, pyuvbuf, s->au, &s->encode_done);
+#endif
+        if (status != 0) {
             av_log(avctx, AV_LOG_ERROR, "libvvenc encode: %s\n", vvenc_get_last_error(s->encoder));
             return AVERROR_EXTERNAL;
         }
@@ -467,7 +486,10 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
             if (slot == FF_ARRAY_ELEMS(s->live_used)) return AVERROR_INVALIDDATA;
             future = s->live_submitted - 1 - s->live_index[slot];
             s->live_used[slot] = 0;
-            if (future > s->live_max_future) return AVERROR(ENOBUFS);
+            if (future > s->live_max_future) {
+                av_log(avctx, AV_LOG_ERROR, "live future bound exceeded: %d > %d\n", future, s->live_max_future);
+                return AVERROR(ENOBUFS);
+            }
         }
         ret = ff_get_encode_buffer(avctx, pkt, s->au->payloadUsedSize, 0);
         if (ret < 0)
@@ -530,6 +552,25 @@ static const enum AVPixelFormat pix_fmts_vvenc[] = {
     AV_PIX_FMT_NONE
 };
 
+static int vvenc_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
+{
+    VVenCContext *s = avctx->priv_data;
+    int ret, got = 0;
+    if (s->encode_done) return AVERROR_EOF;
+    if (s->live_max_future && s->live_submitted && !s->draining) {
+        ret = vvenc_frame(avctx, pkt, NULL, &got, 1);
+        if (ret < 0) return ret;
+        if (got) return 0;
+    }
+    ret = ff_encode_get_frame(avctx, s->input_frame);
+    if (ret == AVERROR_EOF) s->draining = 1;
+    else if (ret < 0) return ret;
+    ret = vvenc_frame(avctx, pkt, s->draining ? NULL : s->input_frame, &got, 0);
+    av_frame_unref(s->input_frame);
+    if (ret < 0) return ret;
+    return got ? 0 : s->encode_done ? AVERROR_EOF : AVERROR(EAGAIN);
+}
+
 #define OFFSET(x) offsetof(VVenCContext, x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
@@ -581,7 +622,7 @@ const FFCodec ff_libvvenc_encoder = {
     .priv_data_size = sizeof(VVenCContext),
     CODEC_PIXFMTS_ARRAY(pix_fmts_vvenc),
     .init           = vvenc_init,
-    FF_CODEC_ENCODE_CB(vvenc_frame),
+    FF_CODEC_RECEIVE_PACKET_CB(vvenc_receive_packet),
     .close          = vvenc_close,
     .defaults       = vvenc_defaults,
     .caps_internal  = FF_CODEC_CAP_INIT_CLEANUP | FF_CODEC_CAP_AUTO_THREADS
