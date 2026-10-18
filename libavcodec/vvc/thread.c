@@ -32,6 +32,7 @@
 #include "inter.h"
 #include "intra.h"
 #include "refs.h"
+#include "vp_analysis_prune.h"
 
 typedef struct ProgressListener {
     VVCProgressListener l;
@@ -496,7 +497,9 @@ static int run_parse(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 
 static int run_deblock_bs(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 {
-    if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
+    /* Pruned frames discard the whole deblocking stage, including the
+     * boundary-strength derivation, mirroring HEVC's filter prune. */
+    if (!vp_vvc_prune(s) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
         ff_vvc_deblock_bs(lc, t->rx, t->ry, t->rs);
 
     return 0;
@@ -508,9 +511,11 @@ static int run_inter(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const CTU *ctu      = fc->tab.ctus + t->rs;
     int ret;
 
-    ret = ff_vvc_predict_inter(lc, t->rs);
-    if (ret < 0)
-        return ret;
+    if (!vp_vvc_prune(s)) {
+        ret = ff_vvc_predict_inter(lc, t->rs);
+        if (ret < 0)
+            return ret;
+    }
 
     if (ctu->has_dmvr)
         report_frame_progress(fc, t->ry, VVC_PROGRESS_MV);
@@ -520,6 +525,9 @@ static int run_inter(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 
 static int run_recon(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 {
+    if (vp_vvc_prune(s))
+        return 0;
+
     return ff_vvc_reconstruct(lc, t->rs, t->rx, t->ry);
 }
 
@@ -531,7 +539,8 @@ static int run_lmcs(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctu_size;
     const int y0        = t->ry * ctu_size;
 
-    ff_vvc_lmcs_filter(lc, x0, y0);
+    if (!vp_vvc_prune(s))
+        ff_vvc_lmcs_filter(lc, x0, y0);
 
     return 0;
 }
@@ -544,7 +553,7 @@ static int run_deblock_v(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
 
-    if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
+    if (!vp_vvc_prune(s) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
         ff_vvc_deblock_vertical(lc, x0, y0, t->rs);
     }
@@ -559,6 +568,9 @@ static int run_deblock_h(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int ctb_size  = ft->ctu_size;
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
+
+    if (vp_vvc_prune(s))
+        return 0;
 
     if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
@@ -577,6 +589,9 @@ static int run_sao(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int ctb_size  = ft->ctu_size;
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
+
+    if (vp_vvc_prune(s))
+        return 0;
 
     if (fc->ps.sps->r->sps_sao_enabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
@@ -597,7 +612,7 @@ static int run_alf(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctu_size;
     const int y0        = t->ry * ctu_size;
 
-    if (fc->ps.sps->r->sps_alf_enabled_flag) {
+    if (!vp_vvc_prune(s) && fc->ps.sps->r->sps_alf_enabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
         ff_vvc_alf_filter(lc, x0, y0);
     }

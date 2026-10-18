@@ -1646,7 +1646,7 @@ do {                                                                            
                     l->cbf_luma[y_tu * min_tu_width + x_tu] = 1;
                 }
         }
-        if (!s->sh.disable_deblocking_filter_flag) {
+        if (!s->sh.disable_deblocking_filter_flag && !vp_hevc_prune(s, 1)) {
             ff_hevc_deblocking_boundary_strengths(lc, l, pps, x0, y0, log2_trafo_size);
             if (pps->transquant_bypass_enable_flag &&
                 lc->cu.cu_transquant_bypass_flag)
@@ -1673,7 +1673,7 @@ static int hls_pcm_sample(HEVCLocalContext *lc, const HEVCLayerContext *l,
     const uint8_t *pcm = skip_bytes(&lc->cc, (length + 7) >> 3);
     int ret;
 
-    if (!s->sh.disable_deblocking_filter_flag)
+    if (!s->sh.disable_deblocking_filter_flag && !vp_hevc_prune(s, 1))
         ff_hevc_deblocking_boundary_strengths(lc, l, pps, x0, y0, log2_cb_size);
 
     ret = init_get_bits(&gb, pcm, length);
@@ -2627,7 +2627,7 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
                             x0, y0, cb_size, cb_size, log2_cb_size, 0, idx);
         intra_prediction_unit_default_value(lc, l, sps, x0, y0, log2_cb_size);
 
-        if (!s->sh.disable_deblocking_filter_flag)
+        if (!s->sh.disable_deblocking_filter_flag && !vp_hevc_prune(s, 1))
             ff_hevc_deblocking_boundary_strengths(lc, l, pps, x0, y0, log2_cb_size);
     } else {
         int pcm_flag = 0;
@@ -2732,7 +2732,7 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
                 if (ret < 0)
                     return ret;
             } else {
-                if (!s->sh.disable_deblocking_filter_flag)
+                if (!s->sh.disable_deblocking_filter_flag && !vp_hevc_prune(s, 1))
                     ff_hevc_deblocking_boundary_strengths(lc, l, pps, x0, y0, log2_cb_size);
             }
         }

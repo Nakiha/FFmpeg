@@ -27,11 +27,13 @@
 #include "libavcodec/hwaccel_internal.h"
 #include "libavcodec/hwconfig.h"
 #include "libavcodec/profiles.h"
+#include "libavcodec/version.h"
 #include "libavutil/refstruct.h"
 #include "libavcodec/aom_film_grain.h"
 #include "libavcodec/thread.h"
 #include "libavutil/cpu.h"
 #include "libavutil/mem.h"
+#include "libavutil/opt.h"
 #include "libavutil/thread.h"
 #include "libavutil/film_grain_params.h"
 
@@ -40,6 +42,7 @@
 #include "data.h"
 #include "refs.h"
 #include "thread.h"
+#include "vp_analysis_prune.h"
 #include "config_components.h"
 
 #define TAB_MAX 32
@@ -740,8 +743,9 @@ static int frame_context_setup(VVCFrameContext *fc, VVCContext *s)
     return 0;
 }
 
-/* SEI does not affect decoding, so we ignore the return value */
-static void decode_prefix_sei(VVCFrameContext *fc, VVCContext *s)
+/* SEI does not affect decoding, so decode errors are ignored. The analysis
+ * extension still propagates the full-path retry for film grain. */
+static int decode_prefix_sei(VVCFrameContext *fc, VVCContext *s)
 {
     CodedBitstreamFragment *frame = &s->current_frame;
 
@@ -751,9 +755,15 @@ static void decode_prefix_sei(VVCFrameContext *fc, VVCContext *s)
         if (unit->type == VVC_PREFIX_SEI_NUT) {
             int ret = ff_vvc_sei_decode(&fc->sei, unit->content_ref, fc);
             if (ret < 0)
-                return;
+                return 0;
+#if VP_ANALYSIS_ONLY
+            if ((ret = vp_vvc_sei_grain(s, &fc->sei)) < 0)
+                return ret;
+#endif
         }
     }
+
+    return 0;
 }
 
 static int set_side_data(VVCContext *s, VVCFrameContext *fc)
@@ -810,7 +820,8 @@ static int frame_start(VVCContext *s, VVCFrameContext *fc, SliceContext *sc)
     if (!s->temporal_id && !ph->r->ph_non_ref_pic_flag && !(IS_RASL(s) || IS_RADL(s)))
         s->poc_tid0 = ph->poc;
 
-    decode_prefix_sei(fc, s);
+    if ((ret = decode_prefix_sei(fc, s)) < 0)
+        goto fail;
 
     if ((ret = ff_vvc_set_new_ref(s, fc, &fc->frame)) < 0)
         goto fail;
@@ -931,6 +942,26 @@ static int frame_setup(VVCFrameContext *fc, VVCContext *s)
     if (ret < 0)
         return ret;
 
+#if VP_ANALYSIS_ONLY
+    /* In-band parameter sets that parsed successfully (new, replaced or a
+     * deduplicated re-send) retry full once pruning already started. Malformed
+     * parameter sets returned above and keep their parser failure. */
+    if (s->vp_analysis_ps_seen) {
+        s->vp_analysis_ps_seen = 0;
+        if ((ret = vp_vvc_parameter_set(s)) < 0)
+            return ret;
+    }
+    /* Select full/no-pixels execution for this picture from its SPS. */
+    ret = vp_vvc_admit_config(s, fc->ps.sps);
+    if (ret < 0)
+        return ret;
+    if (s->vp_analysis_path)
+        s->vp_analysis_started = 1;
+    /* Residual parsing only has the local context; publish the picture path
+     * there so it can skip coefficient materialization. */
+    fc->vp_analysis_prune = s->vp_analysis_path;
+#endif
+
     ret = frame_context_setup(fc, s);
     if (ret < 0)
         return ret;
@@ -1007,6 +1038,10 @@ static int decode_nal_unit(VVCContext *s, VVCFrameContext *fc, AVBufferRef *buf_
     case VVC_SPS_NUT:
     case VVC_PPS_NUT:
         /* vps, sps, sps cached by s->cbc */
+#if VP_ANALYSIS_ONLY
+        /* Deferred: only a successfully parsed parameter set retries full. */
+        s->vp_analysis_ps_seen = 1;
+#endif
         break;
     case VVC_TRAIL_NUT:
     case VVC_STSA_NUT:
@@ -1083,6 +1118,12 @@ static int frame_end(VVCContext *s, VVCFrameContext *fc)
 {
     const AVFilmGrainParams *fgp;
     int ret;
+
+#if VP_ANALYSIS_ONLY
+    /* Film grain and decoded-picture-hash SEI require real pixels. */
+    if ((ret = vp_vvc_frame_sei(s, &fc->sei)) < 0)
+        return ret;
+#endif
 
     if (fc->ref->needs_fg) {
         av_assert0(fc->ref->frame_grain->buf[0]);
@@ -1283,6 +1324,12 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
             return ret;
     }
 
+#if VP_ANALYSIS_ONLY
+    /* Report the selected execution path before the first frame. Per-frame
+     * admission re-checks the SPS that is actually decoded. */
+    vp_vvc_admit_extradata(s);
+#endif
+
     s->nb_fcs = (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) ? 1 : delayed;
     s->fcs = av_calloc(s->nb_fcs, sizeof(*s->fcs));
     if (!s->fcs)
@@ -1308,11 +1355,33 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
+#if VP_ANALYSIS_ONLY
+#define VVC_PRUNE_OPT (AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
+#define OFFSET(x) offsetof(VVCContext, x)
+
+static const AVOption vvc_analysis_options[] = {
+    { "vp_analysis_mode", "request Main10 analysis pixel pruning", OFFSET(vp_analysis_mode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VVC_PRUNE_OPT },
+    { "vp_analysis_path", "selected analysis path: full=0, no-pixels=1", OFFSET(vp_analysis_path), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VVC_PRUNE_OPT | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
+    { "vp_analysis_reason", "analysis full-path reason", OFFSET(vp_analysis_reason), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 4, VVC_PRUNE_OPT | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
+    { NULL },
+};
+
+static const AVClass vvc_decoder_class = {
+    .class_name = "vvc",
+    .item_name  = av_default_item_name,
+    .option     = vvc_analysis_options,
+    .version    = LIBAVCODEC_VERSION_INT,
+};
+#endif
+
 const FFCodec ff_vvc_decoder = {
     .p.name         = "vvc",
     .p.long_name    = NULL_IF_CONFIG_SMALL("VVC (Versatile Video Coding)"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_VVC,
+#if VP_ANALYSIS_ONLY
+    .p.priv_class   = &vvc_decoder_class,
+#endif
     .priv_data_size = sizeof(VVCContext),
     .init           = vvc_decode_init,
     .close          = vvc_decode_free,

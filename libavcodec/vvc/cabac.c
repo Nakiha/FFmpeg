@@ -27,6 +27,7 @@
 #include "cabac.h"
 #include "ctu.h"
 #include "data.h"
+#include "vp_analysis_prune.h"
 
 #define CABAC_MAX_BIN 31
 
@@ -2232,12 +2233,14 @@ static int residual_ts_coding_subblock(VVCLocalContext *lc, ResidualCoding* rc, 
                 (*abs_level)--;
         }
         if (*abs_level) {
-            tb->coeffs[off] = *coeff_sign_level * *abs_level;
-            tb->max_scan_x = FFMAX(xc, tb->max_scan_x);
-            tb->max_scan_y = FFMAX(yc, tb->max_scan_y);
-            tb->min_scan_x = FFMIN(xc, tb->min_scan_x);
-            tb->min_scan_y = FFMIN(yc, tb->min_scan_y);
-        } else {
+            if (!VP_VVC_PRUNE_FRAME(lc)) {
+                tb->coeffs[off] = *coeff_sign_level * *abs_level;
+                tb->max_scan_x = FFMAX(xc, tb->max_scan_x);
+                tb->max_scan_y = FFMAX(yc, tb->max_scan_y);
+                tb->min_scan_x = FFMIN(xc, tb->min_scan_x);
+                tb->min_scan_y = FFMIN(yc, tb->min_scan_y);
+            }
+        } else if (!VP_VVC_PRUNE_FRAME(lc)) {
             tb->coeffs[off] = 0;
         }
     }
@@ -2392,9 +2395,11 @@ static inline int residual_coding_subblock(VVCLocalContext *lc, ResidualCoding *
                         trans_coeff_level = -trans_coeff_level;
                 }
             }
-            tb->coeffs[off] = trans_coeff_level;
-            tb->max_scan_x = FFMAX(xc, tb->max_scan_x);
-            tb->max_scan_y = FFMAX(yc, tb->max_scan_y);
+            if (!VP_VVC_PRUNE_FRAME(lc)) {
+                tb->coeffs[off] = trans_coeff_level;
+                tb->max_scan_x = FFMAX(xc, tb->max_scan_x);
+                tb->max_scan_y = FFMAX(yc, tb->max_scan_y);
+            }
         }
         if (rsh->sh_dep_quant_used_flag)
             rc->qstate = qstate_translate_table[rc->qstate][*abs_level & 1];
@@ -2483,7 +2488,8 @@ static int hls_residual_coding(VVCLocalContext *lc, TransformBlock *tb)
     if ((rc.last_sub_block > 0 || rc.last_scan_pos > 0 ) && !c_idx)
         lc->parse.mts_dc_only = 0;
 
-    memset(tb->coeffs, 0, tb->tb_width * tb->tb_height * sizeof(*tb->coeffs));
+    if (!VP_VVC_PRUNE_FRAME(lc))
+        memset(tb->coeffs, 0, tb->tb_width * tb->tb_height * sizeof(*tb->coeffs));
     memset(rc.abs_level, 0, tb->tb_width * tb->tb_height * sizeof(rc.abs_level[0]));
     memset(rc.sb_coded_flag, 0, rc.nb_sbs);
     memset(rc.abs_level_pass1, 0, tb->tb_width * tb->tb_height * sizeof(rc.abs_level_pass1[0]));

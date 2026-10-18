@@ -27,10 +27,20 @@ static AVFrame *frame;
 static size_t allocated;
 static int failure;
 static Picture *ready;
+/* Repeated per-block callers stay on one picture; memoized entries only hold
+ * accepted (ref,list) pairs of the live picture they were keyed to. */
+static Picture *memo_pic;
+static uintptr_t memo_id;
+static uintptr_t memo_ref[64];
+static uint8_t memo_list[64];
+static int memo_count;
 static Picture *find(uintptr_t id,int create) {
+    static Picture *cached;
     if (!id) { failure=AVERROR_INVALIDDATA; return NULL; }
-    for(int i=0;i<MAX_PICTURES;i++) if(pictures[i].id==id) return &pictures[i];
-    if(create) for(int i=0;i<MAX_PICTURES;i++) if(!pictures[i].id) { pictures[i].id=id; return &pictures[i]; }
+    /* release() clears the cached id, so a stale entry falls through. */
+    if (cached && cached->id==id) return cached;
+    for(int i=0;i<MAX_PICTURES;i++) if(pictures[i].id==id) return cached=&pictures[i];
+    if(create) for(int i=0;i<MAX_PICTURES;i++) if(!pictures[i].id) { pictures[i].id=id; return cached=&pictures[i]; }
     failure=AVERROR(ENOMEM); return NULL;
 }
 static void release(Picture *p) { if(!p)return; allocated-=p->capacity*sizeof(Block);free(p->blocks);memset(p,0,sizeof(*p)); }
@@ -55,8 +65,13 @@ static void append(const VoidPlayerVachunkFrameInfo *info,uint16_t x,uint16_t y,
  * POC wrap/reset ambiguity. These are candidates, not per-block MV usage. */
 void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list) {
     if(!decoder||failure)return;
+    if(memo_id==id&&memo_pic&&memo_pic->id==id)
+        for(int i=0;i<memo_count;i++)
+            if(memo_ref[i]==ref&&memo_list[i]==list)return;
     Picture *p=find(id,1);if(!p)return;
     if(!ref||ref==id||ref>2000000||list<0||list>1){p->refs_invalid=1;return;}
+    if(memo_id!=id||memo_pic!=p){memo_pic=p;memo_id=id;memo_count=0;}
+    if(memo_count<64){memo_ref[memo_count]=ref;memo_list[memo_count]=list;memo_count++;}
     for(unsigned i=0;i<p->ref_count;i++)if(p->refs[2*i]==ref-1&&p->refs[2*i+1]==list)return;
     if(p->ref_count>=64){p->refs_invalid=1;return;}
     p->refs[2*p->ref_count]=ref-1;p->refs[2*p->ref_count+1]=list;p->ref_count++;
@@ -75,7 +90,7 @@ int ff_voidplayer_vachunk_write_frame_summary(const VoidPlayerVachunkFrameInfo *
 uint32_t ff_voidplayer_vachunk_frame_count(void){return 0;}
 uint32_t ff_voidplayer_vachunk_last_frame_cu_count(void){return 0;}
 int vpa_abi(void){return 1;}
-void vpa_close(void){ready=NULL;for(int i=0;i<MAX_PICTURES;i++)release(&pictures[i]);av_frame_free(&frame);avcodec_free_context(&decoder);failure=0;}
+void vpa_close(void){ready=NULL;memo_pic=NULL;memo_id=0;memo_count=0;for(int i=0;i<MAX_PICTURES;i++)release(&pictures[i]);av_frame_free(&frame);avcodec_free_context(&decoder);failure=0;}
 int vpa_open(int codec,const uint8_t *extra,int size){
     if(decoder)return AVERROR(EBUSY);
     if(size<0||size>1024*1024)return AVERROR(EINVAL);
