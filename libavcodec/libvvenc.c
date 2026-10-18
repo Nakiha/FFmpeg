@@ -59,6 +59,7 @@ typedef struct VVenCContext {
     int   live_pts_gop;
     int   live_frame_intra;
     int   live_max_future;
+    int   live_qp_feedback;
     int64_t live_cts[256];
     uint64_t live_index[256], live_submitted;
     uint8_t live_used[256];
@@ -308,6 +309,7 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     if (s->live_max_future && (!s->live_pts_gop || avctx->bit_rate ||
         params.m_LookAhead > 0 || params.m_maxParallelFrames || params.m_vvencMCTF.MCTFFutureReference))
         return AVERROR(EINVAL);
+    if (s->live_qp_feedback && !s->live_max_future) return AVERROR(EINVAL);
     if (s->live_max_future) {
 #ifdef VVENC_LIVE_CQF_POLL_VERSION
         params.m_liveCqfPoll = 1;
@@ -459,6 +461,17 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 #ifdef VVENC_LIVE_FRAME_INTRA_VERSION
         yuvbuf.forceIntra = s->live_frame_intra && frame->pict_type == AV_PICTURE_TYPE_I;
 #endif
+#ifdef VVENC_LIVE_QP_OFFSET_VERSION
+        if (s->live_qp_feedback) {
+            const AVDictionaryEntry *entry = av_dict_get(frame->metadata, "naki_qp_offset", NULL, 0);
+            char *end = NULL;
+            long delta = entry ? strtol(entry->value, &end, 10) : 100;
+            if (!entry || !end || *end || delta < -63 || delta > 63) return AVERROR_INVALIDDATA;
+            yuvbuf.liveQpOffset = delta;
+        }
+#else
+        if (s->live_qp_feedback) return AVERROR(ENOSYS);
+#endif
         pyuvbuf = &yuvbuf;
     }
 
@@ -501,6 +514,9 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
             size_t size;
             uint8_t *data;
             av_dict_set_int(&info, "live_future_frames", future, 0);
+#ifdef VVENC_LIVE_QP_OFFSET_VERSION
+            if (s->live_qp_feedback) av_dict_set_int(&info, "live_slice_qp", s->au->liveSliceQp, 0);
+#endif
             data = av_packet_pack_dictionary(info, &size);
             av_dict_free(&info);
             if (!data) return AVERROR(ENOMEM);
@@ -586,6 +602,7 @@ static const AVOption options[] = {
     { "stats",        "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "period",       "set (intra) refresh period in seconds", OFFSET(intra_refresh_sec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
     { "live-pts-gop", "fork: PTS-grid CRA and timestamp FIFO for the live GOP4 profile", OFFSET(live_pts_gop), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
+    { "live-qp-feedback", "fork: require per-picture naki_qp_offset metadata in live CQF", OFFSET(live_qp_feedback), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "live-max-future", "fork: fail if CQF AU release has more than N submitted future pictures (0 disables)", OFFSET(live_max_future), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 4, VE },
     { "live-frame-intra", "fork: explicit ordinary I pictures, disable automatic CRA grid", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
