@@ -19,3 +19,8 @@ produce no telemetry; applications must reject a required missing mapping.
 Only opt-in diagnostics should pay these clocks and one side-data allocation per
 picture. Compare trace on/off on the same source; do not use diagnostic timings
 as zero-overhead production performance claims. API 1 is tested on Linux.
+
+The matching VVenC wrapper now exports live-frame-trace API 2 metadata,
+including GOP admission/init, serial predecessor release and rejected-check
+counters, through VVENC_LIVE_FRAME_TRACE_FIELDS. Decode trace remains API 1.
+Rebuild against the pinned VVenC ABI; consumers must validate its version.
