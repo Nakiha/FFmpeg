@@ -53,8 +53,9 @@ default, `vp_analysis_mode` runtime request, `vp_analysis_path`/`vp_analysis_rea
 report the same values as HEVC). Admission requires the current SPS to be
 Main 10 (8/10-bit), 4:2:0, single-layer, progressive software decode with
 1 thread and no CRC verification, and a present PTL. Prediction/MC (`run_inter`),
-reconstruction (`run_recon`), LMCS, deblock pixel filters, SAO and ALF are
-bypassed; parameter-set parsing, CABAC consumption, QP/CU/TU traversal, intra
+reconstruction (`run_recon`), LMCS, the whole deblocking stage (boundary
+strength derivation and pixel filters), SAO and ALF are bypassed; parameter-set
+parsing, CABAC consumption, QP/CU/TU traversal, intra
 modes, merge/MVP/temporal motion tables, references, DPB and picture
 completion stay active, so published blocks/references are byte-identical to
 the full path. Any in-band VPS/SPS/PPS NAL after pruning started (including a

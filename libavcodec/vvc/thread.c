@@ -497,7 +497,9 @@ static int run_parse(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 
 static int run_deblock_bs(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 {
-    if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
+    /* Pruned frames discard the whole deblocking stage, including the
+     * boundary-strength derivation, mirroring HEVC's filter prune. */
+    if (!vp_vvc_prune(s) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
         ff_vvc_deblock_bs(lc, t->rx, t->ry, t->rs);
 
     return 0;
