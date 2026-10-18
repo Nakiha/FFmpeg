@@ -23,6 +23,7 @@
 
 #include "libavcodec/vvc/dsp.h"
 #include "libavcodec/wasm/vvc/alf.h"
+#include "libavcodec/wasm/vvc/inter.h"
 
 av_cold void ff_vvc_dsp_init_wasm(VVCDSPContext *c, const int bit_depth)
 {
@@ -35,6 +36,19 @@ av_cold void ff_vvc_dsp_init_wasm(VVCDSPContext *c, const int bit_depth)
     if (bit_depth == 8) {
         c->alf.filter[0] = ff_vvc_alf_filter_luma_8_simd128;
         c->alf.filter[1] = ff_vvc_alf_filter_chroma_8_simd128;
+
+        for (int w = 0; w < 7; w++) {
+            c->inter.put[0][w][0][0] = ff_vvc_put_pixels_8_simd128;
+            c->inter.put[1][w][0][0] = ff_vvc_put_pixels_8_simd128;
+            c->inter.put[0][w][0][1] = ff_vvc_put_luma_h_8_simd128;
+            c->inter.put[0][w][1][0] = ff_vvc_put_luma_v_8_simd128;
+            c->inter.put[0][w][1][1] = ff_vvc_put_luma_hv_8_simd128;
+            c->inter.put[1][w][0][1] = ff_vvc_put_chroma_h_8_simd128;
+            c->inter.put[1][w][1][0] = ff_vvc_put_chroma_v_8_simd128;
+            c->inter.put[1][w][1][1] = ff_vvc_put_chroma_hv_8_simd128;
+        }
+        c->inter.avg = ff_vvc_avg_8_simd128;
+        c->inter.sad = ff_vvc_sad_8_simd128;
     }
 #endif
 }
