@@ -50,6 +50,14 @@ static inline int vp_vvc_prune(const VVCContext *s)
 #endif
 }
 
+/* Per-picture prune flag for code paths that only hold a VVCLocalContext
+ * (entropy/residual parsing); set once per picture from vp_analysis_path. */
+#if defined(VP_ANALYSIS_ONLY) && VP_ANALYSIS_ONLY
+#define VP_VVC_PRUNE_FRAME(lc) ((lc)->fc->vp_analysis_prune)
+#else
+#define VP_VVC_PRUNE_FRAME(lc) 0
+#endif
+
 #if VP_ANALYSIS_ONLY
 /* Before the first pixel task is pruned, ineligible input selects the original
  * decoder. Afterwards it must discard this DPB and restart from a proven

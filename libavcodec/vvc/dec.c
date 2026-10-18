@@ -957,6 +957,9 @@ static int frame_setup(VVCFrameContext *fc, VVCContext *s)
         return ret;
     if (s->vp_analysis_path)
         s->vp_analysis_started = 1;
+    /* Residual parsing only has the local context; publish the picture path
+     * there so it can skip coefficient materialization. */
+    fc->vp_analysis_prune = s->vp_analysis_path;
 #endif
 
     ret = frame_context_setup(fc, s);

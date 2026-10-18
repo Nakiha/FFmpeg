@@ -144,6 +144,10 @@ typedef struct VVCFrameContext {
 
     uint64_t decode_order;
 
+#if defined(VP_ANALYSIS_ONLY) && VP_ANALYSIS_ONLY
+    int vp_analysis_prune;          ///< picture runs the no-pixels analysis path
+#endif
+
     struct AVRefStructPool *tab_dmvr_mvf_pool;
     struct AVRefStructPool *rpl_tab_pool;
 
