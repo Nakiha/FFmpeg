@@ -32,4 +32,8 @@ void ff_vvc_alf_filter_chroma_8_simd128(uint8_t *dst, ptrdiff_t dst_stride,
     const uint8_t *src, ptrdiff_t src_stride, int width, int height,
     const int16_t *filter, const int16_t *clip, int vb_pos);
 
+void ff_vvc_alf_classify_8_simd128(int *class_idx, int *transpose_idx,
+    const uint8_t *src, ptrdiff_t src_stride, int width, int height,
+    int vb_pos, int *gradient_tmp);
+
 #endif /* AVCODEC_WASM_VVC_ALF_H */

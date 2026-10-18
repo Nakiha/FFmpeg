@@ -36,6 +36,7 @@ av_cold void ff_vvc_dsp_init_wasm(VVCDSPContext *c, const int bit_depth)
     if (bit_depth == 8) {
         c->alf.filter[0] = ff_vvc_alf_filter_luma_8_simd128;
         c->alf.filter[1] = ff_vvc_alf_filter_chroma_8_simd128;
+        c->alf.classify = ff_vvc_alf_classify_8_simd128;
 
         for (int w = 0; w < 7; w++) {
             c->inter.put[0][w][0][0] = ff_vvc_put_pixels_8_simd128;

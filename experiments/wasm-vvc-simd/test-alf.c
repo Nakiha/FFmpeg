@@ -100,6 +100,50 @@ static int run_case(int chroma, int w, int h, int vb_pos, int draw)
     return 0;
 }
 
+
+static int test_classify(int w, int h, int vb_pos, int draw)
+{
+    const int pad = 8, stride = w + 2 * pad;
+    const size_t total = (size_t)stride * (h + 2 * pad);
+    uint8_t *src = malloc(total);
+    const int nb = (w / 4) * (h / 4);
+    const int gtotal = ((h + 4) / 2) * ((w + 4) / 2) * 4;
+    static int g0[64 * 64 * 4], g1[64 * 64 * 4];
+    int c0[4096], c1[4096], t0[4096], t1[4096];
+    const uint8_t *sp;
+    int i, rc = 0;
+
+    for (i = 0; i < (int)total; i++)
+        src[i] = (uint8_t)rnd();
+    sp = src + pad * stride + pad;
+    memset(g0, 0x3c, sizeof(g0));
+    memset(g1, 0x5a, sizeof(g1));
+
+    alf_classify_8(c0, t0, sp, stride, w, h, vb_pos, g0);
+    ff_vvc_alf_classify_8_simd128(c1, t1, sp, stride, w, h, vb_pos, g1);
+
+    for (i = 0; i < gtotal; i++) {
+        if (g0[i] != g1[i]) {
+            printf("MISMATCH classify-grad w=%d h=%d vb=%d draw=%d idx=%d ref=%d sim=%d\n",
+                   w, h, vb_pos, draw, i, g0[i], g1[i]);
+            rc = 1;
+            break;
+        }
+    }
+    for (i = 0; i < nb && !rc; i++) {
+        if (c0[i] != c1[i] || t0[i] != t1[i]) {
+            printf("MISMATCH classify w=%d h=%d vb=%d draw=%d idx=%d ref=(%d,%d) sim=(%d,%d)\n",
+                   w, h, vb_pos, draw, i, c0[i], t0[i], c1[i], t1[i]);
+            rc = 1;
+            break;
+        }
+    }
+    if (rc)
+        failures++;
+    free(src);
+    return rc;
+}
+
 int main(void)
 {
     static const int widths[]  = { 4, 8, 12, 16, 20, 24, 64 };
@@ -116,6 +160,20 @@ int main(void)
                     for (int draw = 0; draw < 3; draw++) {
                         nb++;
                         nf += run_case(chroma, w, h, vbs[vi], draw);
+                    }
+                }
+            }
+        }
+    }
+    {
+        static const int cw[] = { 4, 8, 16, 32, 64 };
+        static const int ch[] = { 4, 8, 16, 32 };
+        for (size_t wi = 0; wi < sizeof(cw) / sizeof(*cw); wi++) {
+            for (size_t hi = 0; hi < sizeof(ch) / sizeof(*ch); hi++) {
+                const int vbs[] = { -40, 0, 1, 2, 3, 4, 7, 15, 31, 1000 };
+                for (size_t vi = 0; vi < sizeof(vbs) / sizeof(*vbs); vi++) {
+                    for (int draw = 0; draw < 2; draw++) {
+                        nb++; nf += test_classify(cw[wi], ch[hi], vbs[vi], draw);
                     }
                 }
             }
