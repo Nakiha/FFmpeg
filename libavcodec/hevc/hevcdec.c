@@ -3808,9 +3808,10 @@ fail:
 
         AVLiveDecodeTrace *tr=ff_live_trace(l->cur_frame->f);
         if(tr) {
+            int64_t cpu=ff_live_cpu_us();
             int64_t now=av_gettime_relative();
             FF_LIVE_SET(tr,decode_wall_us,now-s->avctx->internal->live_decode_begin_us);
-            FF_LIVE_SET(tr,decode_cpu_us,ff_live_cpu_us()-s->avctx->internal->live_cpu_begin_us);
+            FF_LIVE_SET(tr,decode_cpu_us,cpu-s->avctx->internal->live_cpu_begin_us);
             FF_LIVE_SET(tr,reference_wait_us,s->avctx->internal->live_ref_wait_us);
             FF_LIVE_SET(tr,reconstructed_us,now);
         }
