@@ -409,6 +409,8 @@ typedef struct RcOverride{
  * Do not apply picture enhancement layers, export them instead.
  */
 #define AV_CODEC_EXPORT_DATA_ENHANCEMENTS (1 << 4)
+/* Fork-only: native HEVC frame-thread timeline, default off. */
+#define AV_CODEC_EXPORT_DATA_LIVE_TRACE (1 << 30)
 
 /**
  * The decoder will keep a reference to the frame and may reuse it later.

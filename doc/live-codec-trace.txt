@@ -1,0 +1,21 @@
+Opt-in HEVC per-picture timeline, fork API 1
+==========================================
+Set AVCodecContext.export_side_data |= AV_CODEC_EXPORT_DATA_LIVE_TRACE before
+opening native software HEVC with frame threading. Default is off. No changes
+to decoding decisions, reference readiness, worker count or async queue limits.
+AV_FRAME_DATA_LIVE_DECODE_TRACE carries AVLiveDecodeTrace (frame.h); it is
+reference-counted frame side data and follows the real decoded picture through
+DPB/reordering. It never replaces opaque_ref. Atomic field snapshots are required
+because an output candidate can be selected while another worker reconstructs it.
+An output-selection timestamp is eligibility, not pixel readiness. Decode wall
+covers packet decode_nal_units; CPU covers that calling thread only. Reference
+wait measures only actual progress waits with an unmet fast readiness check.
+Wall minus CPU includes scheduler/descheduling and waits, not only reference waits.
+Dispatch/worker start are for that picture's packet task. Worker output is when
+that displayed frame is returned, potentially by a later packet task. Async queue
+admission and frontend pop bound the remaining handoff residence. No trace I/O,
+callbacks, frame pointers or raw pixels leave codec threads. Unsupported codecs
+produce no telemetry; applications must reject a required missing mapping.
+Only opt-in diagnostics should pay these clocks and one side-data allocation per
+picture. Compare trace on/off on the same source; do not use diagnostic timings
+as zero-overhead production performance claims. API 1 is tested on Linux.

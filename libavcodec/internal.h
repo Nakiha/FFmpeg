@@ -74,6 +74,7 @@ typedef struct AVCodecInternal {
 
     /* Private to the live asynchronous frontend; never set on codec workers. */
     int async_frame_threading;
+    int64_t live_dispatch_us, live_worker_us, live_decode_begin_us, live_cpu_begin_us, live_ref_wait_us;
 
     /**
      * This packet is used to hold the packet given to decoders

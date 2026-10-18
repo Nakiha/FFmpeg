@@ -24,6 +24,7 @@
  */
 
 #include "config_components.h"
+#include "../live_trace_internal.h"
 
 #include "libavutil/attributes.h"
 #include "libavutil/avstring.h"
@@ -3367,6 +3368,17 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
     }
 
     s->cur_frame->f->pict_type = 3 - s->sh.slice_type;
+    if(s->avctx->export_side_data&AV_CODEC_EXPORT_DATA_LIVE_TRACE) {
+        AVFrameSideData *sd=av_frame_new_side_data(s->cur_frame->f,AV_FRAME_DATA_LIVE_DECODE_TRACE,sizeof(AVLiveDecodeTrace));
+        if(!sd){ret=AVERROR(ENOMEM);goto fail;}
+        AVLiveDecodeTrace *tr=(AVLiveDecodeTrace*)sd->data;
+        memset(tr,0,sizeof(*tr));tr->version=AV_LIVE_DECODE_TRACE_VERSION;
+        tr->dispatch_us=s->avctx->internal->live_dispatch_us;
+        tr->worker_start_us=s->avctx->internal->live_worker_us;
+        tr->decode_begin_us=s->avctx->internal->live_decode_begin_us;
+        tr->picture_start_us=av_gettime_relative();tr->poc=s->poc;
+        tr->source_pts=s->cur_frame->f->pts;
+    }
 
     ret = ff_hevc_output_frames(s, s->layers_active_decode, s->layers_active_output,
                                 sps->temporal_layer[sps->max_sub_layers - 1].num_reorder_pics,
@@ -3794,6 +3806,14 @@ fail:
         if (ret >= 0)
             ret = hevc_frame_end(s, l);
 
+        AVLiveDecodeTrace *tr=ff_live_trace(l->cur_frame->f);
+        if(tr) {
+            int64_t now=av_gettime_relative();
+            FF_LIVE_SET(tr,decode_wall_us,now-s->avctx->internal->live_decode_begin_us);
+            FF_LIVE_SET(tr,decode_cpu_us,ff_live_cpu_us()-s->avctx->internal->live_cpu_begin_us);
+            FF_LIVE_SET(tr,reference_wait_us,s->avctx->internal->live_ref_wait_us);
+            FF_LIVE_SET(tr,reconstructed_us,now);
+        }
         if (s->avctx->active_thread_type == FF_THREAD_FRAME)
             ff_progress_frame_report(&l->cur_frame->tf, INT_MAX);
     }
@@ -3878,7 +3898,13 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
                    old, s->dovi_ctx.cfg.dv_profile);
     }
 
+    if(avctx->export_side_data&AV_CODEC_EXPORT_DATA_LIVE_TRACE) {
+        avci->live_decode_begin_us=av_gettime_relative();
+        avci->live_cpu_begin_us=ff_live_cpu_us();avci->live_ref_wait_us=0;
+        ff_live_reference_wait_us=&avci->live_ref_wait_us;
+    }
     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
+    ff_live_reference_wait_us=NULL;
     if (ret < 0)
         return ret;
 

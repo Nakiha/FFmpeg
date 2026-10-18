@@ -22,6 +22,7 @@
  */
 
 #include "libavutil/container_fifo.h"
+#include "../live_trace_internal.h"
 #include "libavutil/mem.h"
 #include "libavutil/stereo3d.h"
 
@@ -310,6 +311,8 @@ int ff_hevc_output_frames(HEVCContext *s,
                 if (frame->flags & HEVC_FRAME_FLAG_CORRUPT)
                     f->flags |= AV_FRAME_FLAG_CORRUPT;
                 f->pkt_dts = s->pkt_dts;
+                AVLiveDecodeTrace *tr=ff_live_trace(f);
+                if(tr)FF_LIVE_SET(tr,output_selected_us,av_gettime_relative());
                 ret = av_container_fifo_write(s->output_fifo, f, AV_CONTAINER_FIFO_FLAG_REF);
             }
             ff_hevc_unref_frame(frame, HEVC_FRAME_FLAG_OUTPUT);

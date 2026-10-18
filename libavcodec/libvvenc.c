@@ -60,6 +60,7 @@ typedef struct VVenCContext {
     int   live_frame_intra;
     int   live_max_future;
     int   live_qp_feedback;
+    int   live_frame_trace;
     int64_t live_cts[256];
     uint64_t live_index[256], live_submitted;
     uint8_t live_used[256];
@@ -309,6 +310,7 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     if (s->live_max_future && (!s->live_pts_gop || avctx->bit_rate ||
         params.m_LookAhead > 0 || params.m_maxParallelFrames || params.m_vvencMCTF.MCTFFutureReference))
         return AVERROR(EINVAL);
+    if (s->live_frame_trace && !s->live_max_future) return AVERROR(EINVAL);
     if (s->live_qp_feedback && !s->live_max_future) return AVERROR(EINVAL);
     if (s->live_max_future) {
 #ifdef VVENC_LIVE_CQF_POLL_VERSION
@@ -440,6 +442,7 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
             s->pts_count++;
         }
         vvenc_YUVBuffer_default(&yuvbuf);
+        yuvbuf.liveTrace=s->live_frame_trace;
         yuvbuf.planes[0].ptr = (int16_t *) frame->data[0];
         yuvbuf.planes[1].ptr = (int16_t *) frame->data[1];
         yuvbuf.planes[2].ptr = (int16_t *) frame->data[2];
@@ -517,6 +520,14 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 #ifdef VVENC_LIVE_QP_OFFSET_VERSION
             if (s->live_qp_feedback) av_dict_set_int(&info, "live_slice_qp", s->au->liveSliceQp, 0);
 #endif
+            if(s->live_frame_trace) {
+                av_dict_set_int(&info,"vvenc_trace_version",VVENC_LIVE_FRAME_TRACE_VERSION,0);
+                av_dict_set_int(&info,"vvenc_trace_cts",s->au->cts,0);
+                av_dict_set_int(&info,"vvenc_trace_poc",s->au->poc,0);
+#define PUT_TRACE(n) av_dict_set_int(&info,"vvenc_"#n,s->au->liveTrace.n,0);
+                VVENC_LIVE_FRAME_TRACE_FIELDS(PUT_TRACE)
+#undef PUT_TRACE
+            }
             data = av_packet_pack_dictionary(info, &size);
             av_dict_free(&info);
             if (!data) return AVERROR(ENOMEM);
@@ -602,6 +613,7 @@ static const AVOption options[] = {
     { "stats",        "Filename for 2 pass stats", OFFSET(stats), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "period",       "set (intra) refresh period in seconds", OFFSET(intra_refresh_sec), AV_OPT_TYPE_INT,  {.i64 = 1},  1, INT_MAX, VE },
     { "live-pts-gop", "fork: PTS-grid CRA and timestamp FIFO for the live GOP4 profile", OFFSET(live_pts_gop), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
+    { "live-frame-trace", "fork: opt-in per-picture internal telemetry", OFFSET(live_frame_trace), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "live-qp-feedback", "fork: require per-picture naki_qp_offset metadata in live CQF", OFFSET(live_qp_feedback), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "live-max-future", "fork: fail if CQF AU release has more than N submitted future pictures (0 disables)", OFFSET(live_max_future), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 4, VE },
     { "live-frame-intra", "fork: explicit ordinary I pictures, disable automatic CRA grid", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },

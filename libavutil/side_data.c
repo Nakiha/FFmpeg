@@ -25,6 +25,7 @@
 #include "side_data.h"
 
 static const AVSideDataDescriptor sd_props[] = {
+    [AV_FRAME_DATA_LIVE_DECODE_TRACE] = { "Live native HEVC timeline", 0 },
     [AV_FRAME_DATA_PANSCAN]                     = { "AVPanScan",                                    AV_SIDE_DATA_PROP_SIZE_DEPENDENT },
     [AV_FRAME_DATA_A53_CC]                      = { "ATSC A53 Part 4 Closed Captions" },
     [AV_FRAME_DATA_MATRIXENCODING]              = { "AVMatrixEncoding",                             AV_SIDE_DATA_PROP_CHANNEL_DEPENDENT },

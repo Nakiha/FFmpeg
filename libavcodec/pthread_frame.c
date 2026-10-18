@@ -23,6 +23,7 @@
  */
 
 #include <stdatomic.h>
+#include "live_trace_internal.h"
 
 #include "avcodec.h"
 #include "avcodec_internal.h"
@@ -303,6 +304,8 @@ static attribute_align_arg void *frame_worker_thread(void *arg)
         if (p->parent->async_wake)
             update_peak(&p->parent->async_peak_active,
                         atomic_fetch_add(&p->parent->async_active, 1) + 1);
+        if(avctx->export_side_data&AV_CODEC_EXPORT_DATA_LIVE_TRACE)
+            avctx->internal->live_worker_us=av_gettime_relative();
         ret = 0;
         while (ret >= 0) {
             AVFrame *frame;
@@ -316,8 +319,11 @@ static attribute_align_arg void *frame_worker_thread(void *arg)
 
             /* do the actual decoding */
             ret = ff_decode_receive_frame_internal(avctx, frame);
-            if (ret == 0)
+            if (ret == 0) {
+                AVLiveDecodeTrace *tr=ff_live_trace(frame);
+                if(tr)FF_LIVE_SET(tr,worker_output_us,av_gettime_relative());
                 p->df.nb_f++;
+            }
             else if (ret < 0 && frame->buf[0])
                 av_frame_unref(frame);
 
@@ -541,6 +547,8 @@ static int submit_packet(PerThreadContext *p, AVCodecContext *user_avctx,
 
     av_packet_unref(p->avpkt);
     av_packet_move_ref(p->avpkt, in_pkt);
+    if(user_avctx->export_side_data&AV_CODEC_EXPORT_DATA_LIVE_TRACE)
+        p->avctx->internal->live_dispatch_us=av_gettime_relative();
 
     if (AVPACKET_IS_EMPTY(p->avpkt))
         p->avctx->internal->draining = 1;

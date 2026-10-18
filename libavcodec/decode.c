@@ -19,6 +19,7 @@
  */
 
 #include <assert.h>
+#include "live_trace_internal.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -1993,9 +1994,14 @@ void ff_progress_frame_report(ProgressFrame *f, int n)
     ff_thread_progress_report(&f->progress->progress, n);
 }
 
+_Thread_local int64_t *ff_live_reference_wait_us;
 void ff_progress_frame_await(const ProgressFrame *f, int n)
 {
+    int64_t begin=0;
+    if(ff_live_reference_wait_us&&atomic_load_explicit(&f->progress->progress.progress,memory_order_acquire)<n)
+        begin=av_gettime_relative();
     ff_thread_progress_await(&f->progress->progress, n);
+    if(begin)*ff_live_reference_wait_us+=av_gettime_relative()-begin;
 }
 
 #if !HAVE_THREADS

@@ -1,5 +1,6 @@
 /* Live asynchronous software decoding extension, LGPL-2.1-or-later. */
 #include "config.h"
+#include "live_trace_internal.h"
 #include <string.h>
 #include <time.h>
 #include "async.h"
@@ -252,6 +253,8 @@ static void *async_coordinator(void *opaque)
             }
             ret = avcodec_receive_frame(s->decoder, frame);
             if (ret == 0) {
+                AVLiveDecodeTrace *tr=ff_live_trace(frame);
+                if(tr)FF_LIVE_SET(tr,async_queued_us,av_gettime_relative());
                 pthread_mutex_lock(&s->mutex);
                 av_frame_move_ref(s->output[(s->output_head + s->output_count) % s->capacity], frame);
                 s->output_count++;
@@ -401,6 +404,8 @@ int avcodec_async_receive_frame(AVCodecAsyncContext *s, AVFrame *frame)
     pthread_mutex_lock(&s->mutex);
     if (s->output_count) {
         av_frame_move_ref(frame, s->output[s->output_head]);
+        AVLiveDecodeTrace *tr=ff_live_trace(frame);
+        if(tr)FF_LIVE_SET(tr,frontend_us,av_gettime_relative());
         s->output_head = (s->output_head + 1) % s->capacity;
         s->output_count--;
         s->frames_received++;

@@ -299,7 +299,35 @@ enum AVFrameSideDataType {
      * libavutil/raw_color_params.h.
      */
     AV_FRAME_DATA_RAW_COLOR_PARAMS,
+    /** Fork-only, opt-in native HEVC timeline; AVLiveDecodeTrace. */
+    AV_FRAME_DATA_LIVE_DECODE_TRACE,
 };
+
+#define AV_LIVE_DECODE_TRACE_VERSION 1
+#define AV_LIVE_DECODE_TRACE_FIELDS(X) X(dispatch_us) \
+    X(worker_start_us) \
+    X(decode_begin_us) \
+    X(picture_start_us) \
+    X(reconstructed_us) \
+    X(output_selected_us) \
+    X(worker_output_us) \
+    X(async_queued_us) \
+    X(frontend_us) \
+    X(decode_wall_us) \
+    X(decode_cpu_us) \
+    X(reference_wait_us) \
+    X(source_pts) \
+    X(poc)
+
+/* Microsecond CLOCK_MONOTONIC timestamps; CPU is the decoding thread only.
+ * Snapshot fields atomically after async receive; no logging on codec workers. */
+typedef struct AVLiveDecodeTrace {
+    int64_t version;
+#define AV_LIVE_TRACE_DECLARE(name) int64_t name;
+    AV_LIVE_DECODE_TRACE_FIELDS(AV_LIVE_TRACE_DECLARE)
+#undef AV_LIVE_TRACE_DECLARE
+} AVLiveDecodeTrace;
+
 
 enum AVActiveFormatDescription {
     AV_AFD_SAME         = 8,
