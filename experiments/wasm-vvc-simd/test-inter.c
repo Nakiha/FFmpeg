@@ -76,11 +76,14 @@ static int test_avg(int w, int h, int draw)
 
 static int test_sad(int w, int h, int dx, int dy)
 {
-    int16_t *s0 = malloc(6 * MAX_PB * 2);
-    int16_t *s1 = malloc(6 * MAX_PB * 2);
-    int i, ref, sim;
+    /* SAD starts at rows dy and 4 - dy, then samples every other row.
+     * Reserve and initialize the complete h + 4 row search region. */
+    const size_t count = (size_t)(h + 4) * MAX_PB;
+    int16_t *s0 = malloc(count * sizeof(*s0));
+    int16_t *s1 = malloc(count * sizeof(*s1));
+    int ref, sim;
 
-    for (i = 0; i < 6 * MAX_PB; i++) {
+    for (size_t i = 0; i < count; i++) {
         s0[i] = (int16_t)(rnd() & 0xffff);
         s1[i] = (int16_t)(rnd() & 0xffff);
     }
@@ -95,6 +98,33 @@ static int test_sad(int w, int h, int dx, int dy)
     return 0;
 }
 
+
+/* Only the last sampled row differs. Check an independently known sum so
+ * matching C/SIMD overreads or missing initialization cannot pass by equality. */
+static int test_sad_boundary(int w, int h, int dx, int dy)
+{
+    const size_t count = (size_t)(h + 4) * MAX_PB;
+    int16_t *s0 = calloc(count, sizeof(*s0));
+    int16_t *s1 = calloc(count, sizeof(*s1));
+    const int row0 = dy + h - 2, row1 = 4 - dy + h - 2;
+    const int expected = w * 65535;
+    int ref, sim;
+
+    for (int x = 0; x < w; x++) {
+        s0[row0 * MAX_PB + dx + x] = INT16_MIN;
+        s1[row1 * MAX_PB + 4 - dx + x] = INT16_MAX;
+    }
+    ref = vvc_sad(s0, s1, dx, dy, w, h);
+    sim = ff_vvc_sad_8_simd128(s0, s1, dx, dy, w, h);
+    free(s0); free(s1);
+    if (ref != expected || sim != expected) {
+        printf("MISMATCH sad boundary w=%d h=%d dx=%d dy=%d expected=%d ref=%d sim=%d\n",
+               w, h, dx, dy, expected, ref, sim);
+        failures++;
+        return 1;
+    }
+    return 0;
+}
 
 static const int8_t luma_filters[][8] = {
     { 0, 0, 0, 0, 1, -3, 63, 4 },
@@ -190,6 +220,7 @@ int main(void)
             for (int dx = 0; dx <= 4; dx++) {
                 for (int dy = 0; dy <= 4; dy++) {
                     nb++; nf += test_sad(w, h, dx, dy);
+                    nb++; nf += test_sad_boundary(w, h, dx, dy);
                 }
             }
         }

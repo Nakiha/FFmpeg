@@ -19,7 +19,15 @@ classification (same sizes, 10 virtual-boundary positions, comparing the
 gradient buffer and the class/transpose outputs entry by entry).
 `test-inter.c` sweeps put_pixels, avg, sad and the luma/chroma h/v/hv
 quarter-pel filters (real filter phases, full-range 16-bit inputs for
-avg/sad).
+avg/sad). SAD inputs cover the complete `h + 4` search rows. An
+additional 800 cases set only the last sampled row to opposite int16
+extremes and check the independently known sum, including `dy=0/4` and
+scalar/vector tail widths. The inter suite totals 2580 cases.
+
+Run both harnesses with memory checking as well as the optimized build.
+Replace `-O2` with `-O1 -g -fsanitize=address -sALLOW_MEMORY_GROWTH=1`
+in the command above (substitute `test-inter.c` for the inter suite). Comparing
+two out-of-bounds reads is not a valid bit-exactness test.
 
 Decoder-level validation lives outside the tree: decode the pinned 1080p
 VVC fixture with the pinned core and with the ported build and compare a
