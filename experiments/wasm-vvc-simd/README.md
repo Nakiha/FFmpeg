@@ -14,10 +14,26 @@ entry points against the C template functions over randomized inputs.
     node test.js
 
 `test-alf.c` sweeps luma/chroma ALF (widths 4..64, heights 4..32, 15
-virtual-boundary positions, random coefficients).  `test-inter.c` sweeps
-put_pixels, avg, sad and the luma/chroma h/v/hv quarter-pel filters
-(real filter phases, full-range 16-bit inputs for avg/sad).
+virtual-boundary positions, random coefficients) and the ALF
+classification (same sizes, 10 virtual-boundary positions, comparing the
+gradient buffer and the class/transpose outputs entry by entry).
+`test-inter.c` sweeps put_pixels, avg, sad and the luma/chroma h/v/hv
+quarter-pel filters (real filter phases, full-range 16-bit inputs for
+avg/sad).
 
 Decoder-level validation lives outside the tree: decode the pinned 1080p
 VVC fixture with the pinned core and with the ported build and compare a
 per-frame hash of `vp_pixels()` output.
+
+## Measured notes
+
+- The window sum of the classification (four directions per i32x4 lane)
+  gives about 1.0% end to end on the pinned fixture (interleaved A/B).
+- Hand-vectorizing the classification *gradient* pass measured 3.1% slower
+  than the compiler's scalar code (two order-swapped interleaved rounds,
+  round-to-round spread 1.9%..4.3%, within-round spread below 0.2% in the
+  tight round), so it was reverted and the scalar gradient is kept.  An
+  instruction-count audit of the compiled objects is not sufficient on
+  its own: the classic 2x2 gradient has few cross-lane dependencies when
+  left scalar, while the vector version pays for 12 widened loads and a
+  4x4 lane transpose per eight columns.
