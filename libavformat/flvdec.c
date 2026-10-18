@@ -1866,7 +1866,7 @@ retry_duration:
         {
             URLContext *url = ffio_geturlcontext(s->pb);
             AVReadOrigin origin;
-            if (url && url->prot->url_read_origin) {
+            if (stream_type == FLV_STREAM_TYPE_VIDEO && url && url->prot->url_read_origin) {
                 int traced = url->prot->url_read_origin(url, pos, &origin);
                 if (traced < 0) return traced;
                 if (traced) {

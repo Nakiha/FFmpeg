@@ -1313,6 +1313,17 @@ static int parse_packet(AVFormatContext *s, AVPacket *pkt,
         }
 
         /* set the duration */
+        if (avformat_packet_read_origin(pkt)) {
+            /* This provenance scope requires one complete RTMP video AU.
+             * Never attach a nearby packet's origin to parser buffering. */
+            if (!(sti->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) ||
+                len != pkt->size || size || out_pkt->opaque_ref) {
+                ret = AVERROR(ENOSYS);
+                goto fail;
+            }
+            out_pkt->opaque_ref = av_buffer_ref(pkt->opaque_ref);
+            if (!out_pkt->opaque_ref) { ret = AVERROR(ENOMEM); goto fail; }
+        }
         out_pkt->duration = (sti->parser->flags & PARSER_FLAG_COMPLETE_FRAMES) ? pkt->duration : 0;
         if (st->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             if (sti->avctx->sample_rate > 0 && !out_pkt->duration && sti->parser->duration > 0) {
