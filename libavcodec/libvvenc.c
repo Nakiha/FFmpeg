@@ -102,7 +102,7 @@ static void vvenc_set_verbository(vvenc_config *params)
 static void vvenc_set_pic_format(AVCodecContext *avctx, vvenc_config *params)
 {
     params->m_internChromaFormat = VVENC_CHROMA_420;
-    params->m_inputBitDepth[0]   = 10;
+    params->m_inputBitDepth[0]   = avctx->pix_fmt == AV_PIX_FMT_YUV420P ? 8 : 10;
 }
 
 static void vvenc_set_color_format(AVCodecContext *avctx, vvenc_config *params)
@@ -344,6 +344,16 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
 #endif
     }
 
+    if (avctx->pix_fmt == AV_PIX_FMT_YUV420P) {
+#ifdef VVENC_LIVE_INPUT8_VERSION
+        if (!s->live_max_future || params.m_inputBitDepth[0] != 8 || params.m_internalBitDepth[0] != 8) {
+            av_log(avctx, AV_LOG_ERROR, "byte input requires guarded live CQF with InternalBitDepth=8\n");
+            return AVERROR(EINVAL);
+        }
+#else
+        return AVERROR(ENOSYS);
+#endif
+    }
     s->encoder = vvenc_encoder_create();
     if (!s->encoder) {
         av_log(avctx, AV_LOG_ERROR, "cannot create libvvenc encoder\n");
@@ -443,21 +453,29 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
         }
         vvenc_YUVBuffer_default(&yuvbuf);
         yuvbuf.liveTrace=s->live_frame_trace;
-        yuvbuf.planes[0].ptr = (int16_t *) frame->data[0];
-        yuvbuf.planes[1].ptr = (int16_t *) frame->data[1];
-        yuvbuf.planes[2].ptr = (int16_t *) frame->data[2];
+        if (avctx->pix_fmt == AV_PIX_FMT_YUV420P) {
+#ifdef VVENC_LIVE_INPUT8_VERSION
+            for (int i = 0; i < 3; ++i) yuvbuf.planes8[i] = frame->data[i];
+#else
+            return AVERROR(ENOSYS);
+#endif
+        } else {
+            yuvbuf.planes[0].ptr = (int16_t *) frame->data[0];
+            yuvbuf.planes[1].ptr = (int16_t *) frame->data[1];
+            yuvbuf.planes[2].ptr = (int16_t *) frame->data[2];
+        }
 
         yuvbuf.planes[0].width  = frame->width;
         yuvbuf.planes[0].height = frame->height;
-        yuvbuf.planes[0].stride = frame->linesize[0] >> 1; /* stride is used in 16bit samples in vvenc */
+        yuvbuf.planes[0].stride = frame->linesize[0] >> (avctx->pix_fmt != AV_PIX_FMT_YUV420P); /* stride is used in 16bit samples in vvenc */
 
         yuvbuf.planes[1].width  = frame->width >> 1;
         yuvbuf.planes[1].height = frame->height >> 1;
-        yuvbuf.planes[1].stride = frame->linesize[1] >> 1;
+        yuvbuf.planes[1].stride = frame->linesize[1] >> (avctx->pix_fmt != AV_PIX_FMT_YUV420P);
 
         yuvbuf.planes[2].width  = frame->width >> 1;
         yuvbuf.planes[2].height = frame->height >> 1;
-        yuvbuf.planes[2].stride = frame->linesize[2] >> 1;
+        yuvbuf.planes[2].stride = frame->linesize[2] >> (avctx->pix_fmt != AV_PIX_FMT_YUV420P);
 
         yuvbuf.cts = frame->pts;
         yuvbuf.ctsValid = true;
@@ -576,6 +594,9 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 
 static const enum AVPixelFormat pix_fmts_vvenc[] = {
     AV_PIX_FMT_YUV420P10,
+#ifdef VVENC_LIVE_INPUT8_VERSION
+    AV_PIX_FMT_YUV420P,
+#endif
     AV_PIX_FMT_NONE
 };
 
