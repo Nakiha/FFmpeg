@@ -14,6 +14,7 @@
 #include "libavcodec/async.h"
 #include "libavformat/avformat.h"
 #include "libavutil/imgutils.h"
+#include "libavutil/intreadwrite.h"
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/sha.h"
@@ -189,6 +190,11 @@ int main(int argc, char **argv)
     if (codec->id == AV_CODEC_ID_HEVC && getenv("FFMPEG_LIVE_IDR_EARLY") &&
         (ret = av_opt_set_int(ctx->priv_data, "live_idr_early_output", 1, 0)) < 0)
         goto end;
+    if (codec->id == AV_CODEC_ID_HEVC && getenv("FFMPEG_LIVE_POC_EARLY") &&
+        (ret = av_opt_set_int(ctx->priv_data, "live_poc_early_output", 1, 0)) < 0)
+        goto end;
+    if (!strcmp(argv[4], "checksum"))
+        ctx->err_recognition |= AV_EF_CRCCHECK | AV_EF_EXPLODE;
     if ((ret = avcodec_open2(ctx, codec, NULL)) < 0)
         goto end;
     if (!strcmp(argv[4], "api")) {
@@ -267,9 +273,35 @@ int main(int argc, char **argv)
     for (cycle = 0; cycle < cycles; cycle++) {
         int next = 0, closed = 0, frames = 0, finished = 0;
         int64_t began = av_gettime_relative();
-        if (!strcmp(argv[4], "error")) {
-            if ((ret = av_new_packet(read_packet, 128)) < 0) goto end;
-            memset(read_packet->data, 255, read_packet->size);
+        if (!strcmp(argv[4], "error") || !strcmp(argv[4], "checksum")) {
+            if (!strcmp(argv[4], "checksum")) {
+                int changed = 0;
+                const AVCodecParameters *params = format->streams[stream]->codecpar;
+                if (codec->id != AV_CODEC_ID_HEVC || params->extradata_size < 23 ||
+                    params->extradata[0] != 1 || (params->extradata[21] & 3) != 3) {
+                    ret = AVERROR(EINVAL); goto end;
+                }
+                if ((ret = av_packet_ref(read_packet, packets[0])) < 0 ||
+                    (ret = av_packet_make_writable(read_packet)) < 0) goto end;
+                size_t packet_size = read_packet->size;
+                for (size_t pos = 0; pos + 4 < packet_size;) {
+                    unsigned size = AV_RB32(read_packet->data + pos); pos += 4;
+                    if (size < 2 || size > packet_size - pos) break;
+                    if (((read_packet->data[pos] >> 1) & 63) == 40 && size > 6 &&
+                        read_packet->data[pos+2] == 132 && read_packet->data[pos+3] == 49) {
+                        for (size_t j = pos + 5; j + 1 < pos + size; j++) {
+                            if (read_packet->data[j] >= 16) {
+                                read_packet->data[j] ^= 1; changed = 1; break;
+                            }
+                        }
+                    }
+                    pos += size;
+                }
+                if (!changed) { ret = AVERROR(EINVAL); goto end; }
+            } else {
+                if ((ret = av_new_packet(read_packet, 128)) < 0) goto end;
+                memset(read_packet->data, 255, read_packet->size);
+            }
             if ((ret = avcodec_async_send_packet(async, read_packet)) < 0) goto end;
             av_packet_unref(read_packet);
             do {
@@ -278,7 +310,7 @@ int main(int argc, char **argv)
                 if (av_gettime_relative() - began > 3000000) { ret = AVERROR(ETIMEDOUT); goto end; }
             } while (ret == AVERROR(EAGAIN));
             if (ret >= 0 || ret == AVERROR_EOF) { ret = AVERROR_INVALIDDATA; goto end; }
-            avcodec_async_flush(async);
+            if ((ret = avcodec_async_flush(async)) < 0) goto end;
             began = av_gettime_relative();
         }
         while (!finished) {

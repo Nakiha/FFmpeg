@@ -7,7 +7,7 @@ CRA、IDR_W_RADL、多层、硬件和缺失 PTS 保留原路径，不推断未�
 
 新序列先沿用原逻辑排空/丢弃旧输出，再以 DPB 的原选择函数选中 IDR。
 必须在 finish_setup 前清除 OUTPUT 标记，避免复制到后续 worker 后重复输出。
-此时仅记下当前 DPB 帧指针，不放入公开输出 FIFO；原 receive_frame 回调仍先完成所有 NAL、像素重建、film
+此时仅保留私有 FIFO 中的画面引用，不放入公开输出 FIFO；原 receive_frame 回调仍先完成所有 NAL、像素重建、film
 grain 和 checksum 检查，才返回并经过通用属性/时间戳/裁剪流程。协调线程
 仍按提交顺序退休，不能绕过前一 worker、直接向前台发布尚未重建的帧。
 

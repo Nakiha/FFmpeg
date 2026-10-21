@@ -3310,6 +3310,7 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
         s->local_ctx[0].end_of_tiles_x = pps->column_width[0] << sps->log2_ctb_size;
 
     if (new_sequence) {
+        s->live_poc_active = 0;
         ret = ff_hevc_output_frames(s, prev_layers_active_decode, prev_layers_active_output,
                                     0, 0, s->sh.no_output_of_prior_pics_flag);
         if (ret < 0)
@@ -3391,6 +3392,20 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
                           s->nal_unit_type == HEVC_NAL_IDR_N_LP &&
                           sps->vps->vps_max_layers == 1 &&
                           s->layers_active_decode == 1 && !s->avctx->hwaccel;
+    if (s->live_poc_early_output) {
+        int eligible = sps->vps->vps_max_layers == 1 &&
+                       s->layers_active_decode == 1 && !s->avctx->hwaccel &&
+                       !sps->vui.field_seq_flag &&
+                       s->avctx->skip_frame == AVDISCARD_DEFAULT &&
+                       s->cur_frame->f->pts != AV_NOPTS_VALUE;
+        if (IS_IRAP(s) || !eligible || s->poc <= s->live_last_output_poc)
+            s->live_poc_active = 0;
+        if (eligible && s->nal_unit_type == HEVC_NAL_IDR_N_LP && s->poc == 0) {
+            s->live_last_output_poc = -1;
+            s->live_poc_active = 1;
+        }
+    }
+    s->live_defer_output = s->live_idr_eligible || s->live_poc_active;
     ret = ff_hevc_output_frames(s, s->layers_active_decode, s->layers_active_output,
                                 s->live_idr_eligible ? 0 :
                                 sps->temporal_layer[sps->max_sub_layers - 1].num_reorder_pics,
@@ -3920,17 +3935,23 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         ff_live_reference_wait_us=&avci->live_ref_wait_us;
     }
     s->live_idr_eligible = 0;
-    s->live_idr_pending = NULL;
     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
     ff_live_reference_wait_us=NULL;
-    if (ret >= 0 && s->live_idr_pending) {
-        HEVCFrame *pending = s->live_idr_pending;
-        AVFrame *out = pending->needs_fg ? pending->frame_grain : pending->f;
-        if (pending->flags & HEVC_FRAME_FLAG_CORRUPT)
-            out->flags |= AV_FRAME_FLAG_CORRUPT;
-        ret = av_container_fifo_write(s->output_fifo, out, AV_CONTAINER_FIFO_FLAG_REF);
+    while (ret >= 0 && av_container_fifo_can_read(s->live_output_pending)) {
+        ret = av_container_fifo_read(s->live_output_pending, frame, 0);
+        if (ret < 0)
+            break;
+        if (s->cur_frame && (s->cur_frame->flags & HEVC_FRAME_FLAG_CORRUPT)) {
+            AVFrame *cur = s->cur_frame->needs_fg ? s->cur_frame->frame_grain : s->cur_frame->f;
+            if (cur->buf[0] && frame->buf[0] && cur->buf[0]->data == frame->buf[0]->data)
+                frame->flags |= AV_FRAME_FLAG_CORRUPT;
+        }
+        ret = av_container_fifo_write(s->output_fifo, frame, AV_CONTAINER_FIFO_FLAG_REF);
+        av_frame_unref(frame);
     }
-    s->live_idr_pending = NULL;
+    av_container_fifo_drain(s->live_output_pending,
+                            av_container_fifo_can_read(s->live_output_pending));
+    s->live_defer_output = 0;
     s->live_idr_eligible = 0;
     if (ret < 0)
         return ret;
@@ -3997,6 +4018,7 @@ static av_cold int hevc_decode_free(AVCodecContext *avctx)
     av_freep(&s->md5_ctx);
 
     av_container_fifo_free(&s->output_fifo);
+    av_container_fifo_free(&s->live_output_pending);
 
     for (int layer = 0; layer < FF_ARRAY_ELEMS(s->layers); layer++) {
         HEVCLayerContext *l = &s->layers[layer];
@@ -4043,6 +4065,9 @@ static av_cold int hevc_init_context(AVCodecContext *avctx)
     s->output_fifo = av_container_fifo_alloc_avframe(0);
     if (!s->output_fifo)
         return AVERROR(ENOMEM);
+    s->live_output_pending = av_container_fifo_alloc_avframe(0);
+    if (!s->live_output_pending)
+        return AVERROR(ENOMEM);
 
     for (int layer = 0; layer < FF_ARRAY_ELEMS(s->layers); layer++) {
         HEVCLayerContext *l = &s->layers[layer];
@@ -4074,6 +4099,8 @@ static int hevc_update_thread_context(AVCodecContext *dst,
     HEVCContext *s  = dst->priv_data;
     HEVCContext *s0 = src->priv_data;
     int ret;
+    s->live_poc_active = s0->live_poc_active;
+    s->live_last_output_poc = s0->live_last_output_poc;
 
     for (int layer = 0; layer < FF_ARRAY_ELEMS(s->layers); layer++) {
         HEVCLayerContext        *l = &s->layers[layer];
@@ -4251,7 +4278,9 @@ static av_cold void hevc_decode_flush(AVCodecContext *avctx)
 {
     HEVCContext *s = avctx->priv_data;
     av_container_fifo_drain(s->output_fifo, av_container_fifo_can_read(s->output_fifo));
-    s->live_idr_pending = NULL;
+    av_container_fifo_drain(s->live_output_pending,
+                            av_container_fifo_can_read(s->live_output_pending));
+    s->live_poc_active = s->live_defer_output = 0;
     s->live_idr_eligible = 0;
     ff_hevc_flush_dpb(s);
     ff_hevc_reset_sei(&s->sei);
@@ -4268,6 +4297,8 @@ static av_cold void hevc_decode_flush(AVCodecContext *avctx)
 #define PAR (AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
 
 static const AVOption options[] = {
+    { "live_poc_early_output", "Extend an IDR_N_LP-anchored contiguous presentation POC prefix",
+        OFFSET(live_poc_early_output), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, PAR },
     { "live_idr_early_output", "Select single-layer software IDR_N_LP without DPB delay (requires picture PTS)",
         OFFSET(live_idr_early_output), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, PAR },
     { "apply_defdispwin", "Apply default display window from VUI", OFFSET(apply_defdispwin),

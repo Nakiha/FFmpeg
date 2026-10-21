@@ -300,7 +300,14 @@ int ff_hevc_output_frames(HEVCContext *s,
             }
         }
 
-        if (nb_output > max_output ||
+        /* Only an IDR_N_LP-anchored progressive single-layer sequence may
+         * extend the already selected presentation prefix. There is no integer
+         * POC between its watermark and watermark+1. Gaps retain the original
+         * SPS reorder/buffering rule; no prediction about future packets. */
+        if ((nb_output && s->live_poc_active && min_layer == 0 &&
+             s->live_last_output_poc < INT_MAX &&
+             min_poc == s->live_last_output_poc + 1) ||
+            nb_output > max_output ||
             (nb_output &&
              (nb_dpb[0] > max_dpb || nb_dpb[1] > max_dpb))) {
             HEVCFrame *frame = &s->layers[min_layer].DPB[min_idx];
@@ -313,14 +320,15 @@ int ff_hevc_output_frames(HEVCContext *s,
                 f->pkt_dts = s->pkt_dts;
                 AVLiveDecodeTrace *tr=ff_live_trace(f);
                 if(tr)FF_LIVE_SET(tr,output_selected_us,av_gettime_relative());
-                /* Clear OUTPUT before frame-thread setup, but do not publish
-                 * an early IDR from a packet that may still fail validation.
-                 * SHORT_REF retains its DPB storage through this callback. */
-                if (s->live_idr_eligible && frame == s->cur_frame)
-                    s->live_idr_pending = frame;
-                else
-                    ret = av_container_fifo_write(s->output_fifo, f, AV_CONTAINER_FIFO_FLAG_REF);
+                /* References, rather than DPB pointers, also keep non-reference
+                 * B pictures alive when clearing their last OUTPUT flag. Keep
+                 * the selected prefix private until this AU validates. */
+                ret = av_container_fifo_write(s->live_defer_output ?
+                                              s->live_output_pending : s->output_fifo,
+                                              f, AV_CONTAINER_FIFO_FLAG_REF);
             }
+            if (s->live_poc_active)
+                s->live_last_output_poc = min_poc;
             ff_hevc_unref_frame(frame, HEVC_FRAME_FLAG_OUTPUT);
             if (ret < 0)
                 return ret;

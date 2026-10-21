@@ -1,0 +1,34 @@
+HEVC 连续 POC 前缀提前选择（显式开启）
+====================================
+
+live_poc_early_output=1 默认关闭，服务对原生软件 HEVC 显式开启。
+仅从带有效 PTS 的单层、非 field_seq、默认 skip_frame 的 IDR_N_LP/POC0
+建立新前缀，水位初始为 -1。其他 IRAP、SPS 新序列、不满足条件或 POC
+回退都会关闭前缀扩展，直到下一次符合条件的 IDR_N_LP。
+
+原 DPB 最小 POC 选择仍保留。在已选中水位之后，min_poc == watermark+1
+表示没有未见的整数 POC 可以插入两者之间，因而可选中该连续前缀。遇到
+缺口继续使用原 SPS reorder/buffering 规则，不猜测下一包的 POC；原规则
+选择后也更新水位。所有水位/OUTPUT 修改在 finish_setup 前完成，并随帧
+线程上下文传播，防止下一 worker 重复输出。
+
+选中画面按顺序进入私有有界 DPB 前缀 FIFO，持有 AVFrame 引用。非参考
+B 在清掉最后的 OUTPUT 标记后可释放 DPB 存储，不能只保存 HEVCFrame 指针。
+整包的 NAL、重建、film grain/checksum 成功后才发布至普通 output_fifo。
+当前包失败丢弃私有前缀；flush 清空两个 FIFO 和水位。前台仍走通用属性、
+时间戳/裁剪与按任务顺序退休的 async 路径，不能越过未完成的前置任务。
+
+P 在较早显示的 B 重建时被选中，仍须等待该 B 完成；这是顺序依赖。
+本功能减少等待无关后续包的保守驻留，不承诺全部 callback 时间归零。
+没有改变像素计算。完整无取消输入的回归比较像素 SHA256、显示顺序、PTS、
+best_effort_timestamp、时长、尺寸、格式、SAR 和色彩。pkt_dts 是输出触发
+包 DTS，提前选择会改变它，不能当作画面显示时间或用于重定时。
+应用取消/flush 及 no_output_of_prior_pics 只丢弃仍待交付的画面，不能撤回
+已经交付的前缀；此类中断不能要求不同驻留策略交付同样长度的前缀。
+
+测试：test-idr-early.py --poc 覆盖 B0/B3、2/12线程、capacity=1、三轮
+drain/flush、10-bit、multi-slice、CRA/RASL、IDR_W_RADL/RADL、缺失 PTS。
+另外测试移除非参考 NAL 的 POC 缺口、有 PTS 的尺寸切换与完整1080p输入。
+async_probe checksum 模式需要有 x265 hash=1 的 MP4，故意破坏首 IDR
+的后缀 decoded-picture MD5，在严格 checksum 错误后验证未输出坏帧，并
+flush/replay 同一份未损坏输入。仅用于测试，不改变正常 probe 的行为。

@@ -566,7 +566,9 @@ typedef struct HEVCContext {
     int apply_defdispwin;
     int live_idr_early_output;
     int live_idr_eligible;
-    HEVCFrame *live_idr_pending;
+    int live_poc_early_output;
+    int live_poc_active, live_last_output_poc, live_defer_output;
+    struct AVContainerFifo *live_output_pending;
 
     // multi-layer AVOptions
     int         *view_ids;

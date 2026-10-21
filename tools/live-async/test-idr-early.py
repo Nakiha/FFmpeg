@@ -12,12 +12,15 @@ import pathlib
 import subprocess
 
 
-def check(probe, inputs, output):
+def check(probe, inputs, output, poc=False):
     output.mkdir(parents=True, exist_ok=False)
     base = dict(os.environ)
     base.pop('FFMPEG_LIVE_IDR_EARLY', None)
     base.pop('FFMPEG_LIVE_AUTO_MIN', None)
+    base.pop('FFMPEG_LIVE_POC_EARLY', None)
     enabled = dict(base, FFMPEG_LIVE_IDR_EARLY='1', FFMPEG_LIVE_AUTO_MIN='2')
+    if poc:
+        enabled['FFMPEG_LIVE_POC_EARLY']='1'
     results = []
     def run(source, threads, mode, stem, env, cycles=1, capacity=1):
         prefix = output/stem
@@ -43,7 +46,7 @@ def check(probe, inputs, output):
                 results.append(dict(input=str(source), threads=threads, cycles=cycles,
                                     frames=len(got), exact_pixels_pts_metadata=True,
                                     trigger_pkt_dts_changes=changed))
-    (output/'summary.json').write_text(json.dumps(dict(status='passed', comparisons=results), indent=2)+'\n')
+    (output/'summary.json').write_text(json.dumps(dict(status='passed', poc_early=poc, comparisons=results), indent=2)+'\n')
     print('PASS IDR early output:', output)
 
 
@@ -51,6 +54,7 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--probe', type=pathlib.Path, required=True)
     p.add_argument('--output', type=pathlib.Path, required=True)
+    p.add_argument('--poc', action='store_true', help='Also enable contiguous POC output')
     p.add_argument('inputs', type=pathlib.Path, nargs='+')
     args = p.parse_args()
-    check(args.probe.resolve(), [path.resolve() for path in args.inputs], args.output.resolve())
+    check(args.probe.resolve(), [path.resolve() for path in args.inputs], args.output.resolve(), args.poc)
