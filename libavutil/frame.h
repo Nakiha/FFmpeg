@@ -303,7 +303,7 @@ enum AVFrameSideDataType {
     AV_FRAME_DATA_LIVE_DECODE_TRACE,
 };
 
-#define AV_LIVE_DECODE_TRACE_VERSION 1
+#define AV_LIVE_DECODE_TRACE_VERSION 2
 #define AV_LIVE_DECODE_TRACE_FIELDS(X) X(dispatch_us) \
     X(worker_start_us) \
     X(decode_begin_us) \
@@ -317,9 +317,12 @@ enum AVFrameSideDataType {
     X(decode_cpu_us) \
     X(reference_wait_us) \
     X(source_pts) \
-    X(poc)
+    X(poc) \
+    X(decode_cpu_wall_us)
 
 /* Microsecond CLOCK_MONOTONIC timestamps; CPU is the decoding thread only.
+ * v2 appends decode_cpu_wall_us: enclosing CLOCK_MONOTONIC_RAW elapsed time
+ * for CPU auditing, not an additive stage or a replacement timeline clock.
  * Snapshot fields atomically after async receive; no logging on codec workers. */
 typedef struct AVLiveDecodeTrace {
     int64_t version;

@@ -313,7 +313,13 @@ int ff_hevc_output_frames(HEVCContext *s,
                 f->pkt_dts = s->pkt_dts;
                 AVLiveDecodeTrace *tr=ff_live_trace(f);
                 if(tr)FF_LIVE_SET(tr,output_selected_us,av_gettime_relative());
-                ret = av_container_fifo_write(s->output_fifo, f, AV_CONTAINER_FIFO_FLAG_REF);
+                /* Clear OUTPUT before frame-thread setup, but do not publish
+                 * an early IDR from a packet that may still fail validation.
+                 * SHORT_REF retains its DPB storage through this callback. */
+                if (s->live_idr_eligible && frame == s->cur_frame)
+                    s->live_idr_pending = frame;
+                else
+                    ret = av_container_fifo_write(s->output_fifo, f, AV_CONTAINER_FIFO_FLAG_REF);
             }
             ff_hevc_unref_frame(frame, HEVC_FRAME_FLAG_OUTPUT);
             if (ret < 0)

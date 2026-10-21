@@ -1,0 +1,32 @@
+HEVC IDR_N_LP 提前输出（显式开启）
+================================
+
+解码器私有选项 live_idr_early_output=1，默认关闭。服务对原生 HEVC 开启。
+仅适用：单层、软件解码、有效 picture PTS、NAL type 20 IDR_N_LP。
+CRA、IDR_W_RADL、多层、硬件和缺失 PTS 保留原路径，不推断未来帧顺序。
+
+新序列先沿用原逻辑排空/丢弃旧输出，再以 DPB 的原选择函数选中 IDR。
+必须在 finish_setup 前清除 OUTPUT 标记，避免复制到后续 worker 后重复输出。
+此时仅记下当前 DPB 帧指针，不放入公开输出 FIFO；原 receive_frame 回调仍先完成所有 NAL、像素重建、film
+grain 和 checksum 检查，才返回并经过通用属性/时间戳/裁剪流程。协调线程
+仍按提交顺序退休，不能绕过前一 worker、直接向前台发布尚未重建的帧。
+
+像素、显示顺序、PTS、best_effort_timestamp、时长及色彩/裁剪信息不变。
+pkt_dts 是触发输出的压缩包 DTS，提前返回的 IDR 会改为其当前包 DTS，不能
+声称该字段与延迟到后续包输出时相同。它不是显示 PTS；缺失 picture PTS
+的情况不优化，避免 DTS 回退影响时间戳。服务沿用显式源 PTS 映射。
+
+追踪结构 v2 追加 decode_cpu_wall_us：CPU 采样外围嵌套的 Linux
+CLOCK_MONOTONIC_RAW 时长。阶段链仍统一 CLOCK_MONOTONIC，二者不混加。
+Linux 的 MONOTONIC 可经时间校准改变速率，线程 CPU 不必以同样速率变化，
+因此 CPU 与 MONOTONIC 的正差本身不是区间越界证明。审计 v2 时仍保留
+CPU 原值和原有 5us 余量，但对 RAW 外围区间检查；历史 v1 仍用原严格规则，
+不得将旧失败证据重新标记通过。不支持 RAW 的平台不能提供 v2 CPU 审计。
+Linux 独立复现工具：cc -O2 tools/live-async/clock_probe.c -o /tmp/clock_probe
+再执行 /tmp/clock_probe > 新建结果目录/clock-probe.csv；仅修改该进程自身
+affinity，读取 adjtimex 状态，不改变系统校时配置。记录三种 affinity，
+分别对 MONOTONIC / RAW / THREAD_CPUTIME_ID 进行嵌套采样。
+
+回归：普通 test-async.sh 保持选项关闭的兼容性矩阵；另用 async_probe 的
+FFMPEG_LIVE_IDR_EARLY=1 对相同输入比较全部逐帧像素/元数据（仅明确排除
+上述输出触发 pkt_dts 字段），并测试首包后暂停、capacity=1、drain/flush。

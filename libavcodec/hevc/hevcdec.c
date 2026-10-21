@@ -3380,7 +3380,19 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
         tr->source_pts=s->cur_frame->f->pts;
     }
 
+    /* IDR_N_LP cannot be followed by leading pictures. For a single software
+     * layer, the new-sequence path above has already drained/discarded every
+     * prior picture, so this picture is next in presentation order. Select it
+     * before finish_setup copies DPB flags into the next frame worker, avoiding
+     * a second output there. refs.c keeps this picture private until the whole
+     * packet passes reconstruction, film grain and checksum validation. */
+    s->live_idr_eligible = s->live_idr_early_output &&
+                          s->cur_frame->f->pts != AV_NOPTS_VALUE &&
+                          s->nal_unit_type == HEVC_NAL_IDR_N_LP &&
+                          sps->vps->vps_max_layers == 1 &&
+                          s->layers_active_decode == 1 && !s->avctx->hwaccel;
     ret = ff_hevc_output_frames(s, s->layers_active_decode, s->layers_active_output,
+                                s->live_idr_eligible ? 0 :
                                 sps->temporal_layer[sps->max_sub_layers - 1].num_reorder_pics,
                                 sps->temporal_layer[sps->max_sub_layers - 1].max_dec_pic_buffering, 0);
     if (ret < 0)
@@ -3809,9 +3821,11 @@ fail:
         AVLiveDecodeTrace *tr=ff_live_trace(l->cur_frame->f);
         if(tr) {
             int64_t cpu=ff_live_cpu_us();
+            int64_t raw=ff_live_raw_us();
             int64_t now=av_gettime_relative();
             FF_LIVE_SET(tr,decode_wall_us,now-s->avctx->internal->live_decode_begin_us);
             FF_LIVE_SET(tr,decode_cpu_us,cpu-s->avctx->internal->live_cpu_begin_us);
+            FF_LIVE_SET(tr,decode_cpu_wall_us,raw-s->avctx->internal->live_raw_begin_us);
             FF_LIVE_SET(tr,reference_wait_us,s->avctx->internal->live_ref_wait_us);
             FF_LIVE_SET(tr,reconstructed_us,now);
         }
@@ -3901,11 +3915,23 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 
     if(avctx->export_side_data&AV_CODEC_EXPORT_DATA_LIVE_TRACE) {
         avci->live_decode_begin_us=av_gettime_relative();
+        avci->live_raw_begin_us=ff_live_raw_us();
         avci->live_cpu_begin_us=ff_live_cpu_us();avci->live_ref_wait_us=0;
         ff_live_reference_wait_us=&avci->live_ref_wait_us;
     }
+    s->live_idr_eligible = 0;
+    s->live_idr_pending = NULL;
     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
     ff_live_reference_wait_us=NULL;
+    if (ret >= 0 && s->live_idr_pending) {
+        HEVCFrame *pending = s->live_idr_pending;
+        AVFrame *out = pending->needs_fg ? pending->frame_grain : pending->f;
+        if (pending->flags & HEVC_FRAME_FLAG_CORRUPT)
+            out->flags |= AV_FRAME_FLAG_CORRUPT;
+        ret = av_container_fifo_write(s->output_fifo, out, AV_CONTAINER_FIFO_FLAG_REF);
+    }
+    s->live_idr_pending = NULL;
+    s->live_idr_eligible = 0;
     if (ret < 0)
         return ret;
 
@@ -4224,6 +4250,9 @@ static av_cold int hevc_decode_init(AVCodecContext *avctx)
 static av_cold void hevc_decode_flush(AVCodecContext *avctx)
 {
     HEVCContext *s = avctx->priv_data;
+    av_container_fifo_drain(s->output_fifo, av_container_fifo_can_read(s->output_fifo));
+    s->live_idr_pending = NULL;
+    s->live_idr_eligible = 0;
     ff_hevc_flush_dpb(s);
     ff_hevc_reset_sei(&s->sei);
     ff_dovi_ctx_flush(&s->dovi_ctx);
@@ -4239,6 +4268,8 @@ static av_cold void hevc_decode_flush(AVCodecContext *avctx)
 #define PAR (AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
 
 static const AVOption options[] = {
+    { "live_idr_early_output", "Select single-layer software IDR_N_LP without DPB delay (requires picture PTS)",
+        OFFSET(live_idr_early_output), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, PAR },
     { "apply_defdispwin", "Apply default display window from VUI", OFFSET(apply_defdispwin),
         AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, PAR },
     { "strict-displaywin", "strictly apply default display window size", OFFSET(apply_defdispwin),

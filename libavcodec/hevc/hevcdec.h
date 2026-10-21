@@ -564,6 +564,9 @@ typedef struct HEVCContext {
     int is_nalff;           ///< this flag is != 0 if bitstream is encapsulated
                             ///< as a format defined in 14496-15
     int apply_defdispwin;
+    int live_idr_early_output;
+    int live_idr_eligible;
+    HEVCFrame *live_idr_pending;
 
     // multi-layer AVOptions
     int         *view_ids;

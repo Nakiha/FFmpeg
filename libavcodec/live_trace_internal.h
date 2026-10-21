@@ -4,6 +4,15 @@
 #include <time.h>
 #include "libavutil/frame.h"
 #include "libavutil/time.h"
+/* CPU accounting uses an unslewed scheduler clock on Linux. Keep a nested
+ * RAW elapsed interval for its audit; MONOTONIC remains the timeline clock. */
+static inline int64_t ff_live_raw_us(void) {
+#ifdef CLOCK_MONOTONIC_RAW
+    struct timespec t;
+    if(!clock_gettime(CLOCK_MONOTONIC_RAW,&t))return (int64_t)t.tv_sec*1000000+t.tv_nsec/1000;
+#endif
+    return -1;
+}
 static inline int64_t ff_live_cpu_us(void) {
 #ifdef CLOCK_THREAD_CPUTIME_ID
     struct timespec t;

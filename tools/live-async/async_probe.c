@@ -15,6 +15,7 @@
 #include "libavformat/avformat.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/mem.h"
+#include "libavutil/opt.h"
 #include "libavutil/sha.h"
 #include "libavutil/time.h"
 
@@ -185,6 +186,9 @@ int main(int argc, char **argv)
     ctx->opaque = &delay;
     ctx->get_buffer2 = slow_buffer;
     ctx->draw_horiz_band = slow_band;
+    if (codec->id == AV_CODEC_ID_HEVC && getenv("FFMPEG_LIVE_IDR_EARLY") &&
+        (ret = av_opt_set_int(ctx->priv_data, "live_idr_early_output", 1, 0)) < 0)
+        goto end;
     if ((ret = avcodec_open2(ctx, codec, NULL)) < 0)
         goto end;
     if (!strcmp(argv[4], "api")) {
