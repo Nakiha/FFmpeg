@@ -132,9 +132,7 @@ typedef struct H264Picture {
     int field_poc[2];       ///< top/bottom POC
     int poc;                ///< frame POC
     int frame_num;          ///< frame_num (raw frame_num from slice header)
-    int live_tick_valid;
-    int64_t live_tick;
-    uint64_t live_timing_serial;
+    uint64_t live_uid; /* Presentation identity, independent of DPB slot reuse. */
     int mmco_reset;         /**< MMCO_RESET set this 1. Reordering code must
                                  not mix pictures before and after MMCO_RESET. */
     int pic_id;             /**< pic_num (short -> no wrap version of pic_num,
@@ -583,15 +581,12 @@ typedef struct H264Context {
     /* Initialization-only policy. A verified contract is supplied by the caller,
      * never inferred from encoder names, recent POCs or the presence of PTS. */
     int live_poc_early_output, live_poc_verified_even;
-    int live_poc_active, live_last_poc, live_mode;
-    int live_hrd_ready, live_cpb_last;
-    int64_t live_cpb_base, live_cpb_msb, live_last_tick;
-    uint64_t live_timing_serial;
-    const SPS *live_sps;
-    const PPS *live_pps;
+    struct H264LiveOutput *live_state; /* shared RefStruct, ordered completion only */
+    uint64_t live_ticket, live_ordinary_uid;
+    int live_has_picture, live_picture_count, live_reason, live_candidate_qualified;
     AVPacket *live_pkt;
     struct AVContainerFifo *live_output;
-    int live_hold_setup, live_au_invalid;
+    int live_au_invalid;
     int live_timing_count, live_timing_bits, live_bp_count, live_bp_bits, live_bp_sps_id;
     int64_t live_pkt_dts;
 } H264Context;
@@ -720,8 +715,12 @@ void ff_h264_free_tables(H264Context *h);
 
 void ff_h264_set_erpic(ERPicture *dst, const H264Picture *src);
 
-/* Internal whole-AU early-output commit, before frame setup publication. */
-int ff_h264_live_output_plan(H264Context *h, H264Picture **plan, int *nb_plan);
-void ff_h264_live_output_apply(H264Context *h, H264Picture **plan, int nb_plan);
+/* Independent presentation owner: begin before setup, retire after decode. */
+int ff_h264_live_init(H264Context *h);
+int ff_h264_live_begin(H264Context *h);
+int ff_h264_live_candidate(H264Context *h);
+int ff_h264_live_retire(H264Context *h, AVFrame *ordinary, int *got,
+                        AVFrame *candidate, int decode_result);
+void ff_h264_live_flush(H264Context *h);
 
 #endif /* AVCODEC_H264DEC_H */

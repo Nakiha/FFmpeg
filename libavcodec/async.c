@@ -429,6 +429,11 @@ int avcodec_async_flush(AVCodecAsyncContext *s)
     return 0;
 }
 
+int avcodec_async_get_early_output_stats(AVCodecAsyncContext *s, AVCodecEarlyOutputStats *stats)
+{
+    return s ? avcodec_get_early_output_stats(s->decoder, stats) : AVERROR(EINVAL);
+}
+
 int avcodec_async_get_stats(AVCodecAsyncContext *s, AVCodecAsyncStats *stats)
 {
     if (!s || !stats)
@@ -526,6 +531,11 @@ int avcodec_async_receive_frame(AVCodecAsyncContext *s, AVFrame *frame)
 { return AVERROR(ENOSYS); }
 int avcodec_async_flush(AVCodecAsyncContext *s)
 { return AVERROR(ENOSYS); }
+int avcodec_async_get_early_output_stats(AVCodecAsyncContext *s, AVCodecEarlyOutputStats *stats)
+{
+    return AVERROR(ENOSYS);
+}
+
 int avcodec_async_get_stats(AVCodecAsyncContext *s, AVCodecAsyncStats *stats)
 { return AVERROR(ENOSYS); }
 void avcodec_async_free(AVCodecAsyncContext **s) {}

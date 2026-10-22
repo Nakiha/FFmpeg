@@ -4,8 +4,10 @@
 
 This is the active replacement for the frozen phase3 representative runner in
 `tools/early-output-20261022/`. Historical scripts, reports and results remain
-unchanged. This change does not alter the codec algorithm or restore H264 frame
-parallelism; the phase3 setup deferral is still present.
+unchanged. The current H264 implementation separates completed-picture
+presentation from reference decoding, restoring ordinary frame setup release.
+See `doc/early-output-stability-20261022.md` for the current implementation and
+evidence; the phase3 setup deferral describes the historical implementation.
 
 The checker uses declared cycles and independent fixture frame counts. Every
 normal cycle must have its expected frame events, ordered digests, source IDs,
@@ -50,3 +52,33 @@ lifetime only. A timeout or any failed selected case gives process exit status 1
 This correctness probe adds cycle/runtime identity diagnostics and is not a
 latency or throughput benchmark. No codec-only result establishes full-service
 latency, sustained capacity, race freedom or general malformed-stream safety.
+
+Continuous replay and bounded preparation-failure checks (Linux):
+
+```sh
+python3 tools/early-output/run_boundaries.py --workspace /lab \
+  --identity /lab/probes/identity.json --results /lab/out/UNIQUE-boundaries
+python3 tools/early-output/build_probes.py --probe load.c \
+  --baseline-prefix /lab/baseline --candidate-prefix /lab/candidate \
+  --output /lab/out/UNIQUE-load-probes
+python3 tools/early-output/run_load.py --workspace /lab \
+  --identity /lab/out/UNIQUE-load-probes/identity.json \
+  --results /lab/out/UNIQUE-load
+```
+
+`--sanitize address,undefined` links correctness probes for a matching instrumented
+SDK. The Linux `fail_presentation.c` interposer is test-only. Build it as a shared
+object with the matching SDK headers; pass its path with `--interposer` and the
+matching unstripped libavcodec with `--unstripped-library`. It fails only writes
+whose caller is within the presentation owner's symbol range. Every injection
+must be observed exactly once, and all declared frames must still match. An
+uninjected test cannot pass. Do not preload this library into a real service.
+
+`run_load.py` validates 3 continuous replays with ordered pixels/metadata/source
+identity, then times a separate no-hash workload. It alternates old/new build
+order over at least 3 repetitions and records wall time and process CPU time.
+The old build is a frozen SDK, not a hidden runtime switch. CPU parallelism and
+sustained fps must be assessed together; peak workers includes waits and cannot
+establish concurrent decoding. The small synthetic fixtures cannot establish
+production capacity. Inputs, probes and selected shared libraries remain bound
+to hashes. All output directories must be new.

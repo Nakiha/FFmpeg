@@ -1,0 +1,40 @@
+{
+  "status": "bounded_local_codec_functional_checks_passed",
+  "production_acceptance": false,
+  "baseline_sdk_source_commit": "487ae0cc1fd307037c7f81812592f3db785d747f",
+  "environment": "Colima Ubuntu 24.04 Linux amd64 under Rosetta on macOS ARM; 8 vCPU/12 GiB",
+  "checks": {
+    "normal_representatives": {
+      "passed": 83,
+      "cases": 83,
+      "summary_sha256": "40add2886a7a69b3e4e5f33753cac9d3723be51c849a0218af41940fdb0c445b"
+    },
+    "normal_boundaries_and_faults": {
+      "passed": 80,
+      "cases": 80,
+      "summary_sha256": "fb0d36b46783c91495747d5ba5e0457caba9d1f6d9ec69057cc26cd7651ebfb4"
+    },
+    "asan_ubsan_representatives": {
+      "passed": 83,
+      "cases": 83,
+      "summary_sha256": "1b94acdc79e498579d521d39471957e08e6b06927082ca5ce4c1eb077a3b5b26"
+    },
+    "asan_ubsan_boundaries": {
+      "passed": 68,
+      "cases": 68,
+      "summary_sha256": "90835e5eaea703f3766796ef6847bbec86d62c5b71e8f5ad65fba27b0515fcc4"
+    }
+  },
+  "notes": [
+    "Normal fault suite requires 12 observed private-presentation FIFO ENOMEM injections; all declared 192 output frames remain exact.",
+    "ASan/UBSan SDK has assembly disabled; not used for performance comparison.",
+    "Codec selections are not mux writes; counters can survive a flush that discards output.",
+    "Continuous replay CPU/throughput and matching complete SDK/service evidence are recorded by the parent stability report.",
+    "Frozen phase2/phase3 performance is historical and does not measure the new presentation owner."
+  ],
+  "remaining": [
+    "Native target-hardware multi-stream capacity/long soak and P95/P99 SLO qualification",
+    "Independent final review; sanitizer success does not prove race freedom",
+    "Broader damaged/adversarial input qualification"
+  ]
+}

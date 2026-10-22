@@ -41,6 +41,7 @@
 
 #include "codec_internal.h"
 #include "decode.h"
+#include "early_output_internal.h"
 #include "internal.h"
 #include "error_resilience.h"
 #include "avcodec.h"
@@ -366,8 +367,7 @@ static av_cold int h264_decode_end(AVCodecContext *avctx)
     h->cur_pic_ptr = NULL;
     av_container_fifo_free(&h->live_output);
     av_packet_free(&h->live_pkt);
-    av_refstruct_unref(&h->live_sps);
-    av_refstruct_unref(&h->live_pps);
+    av_refstruct_unref(&h->live_state);
 
     av_refstruct_pool_uninit(&h->decode_error_flags_pool);
 
@@ -399,6 +399,10 @@ static av_cold int h264_decode_init(AVCodecContext *avctx)
     h->live_output = av_container_fifo_alloc_avframe(0);
     if (!h->live_pkt || !h->live_output)
         return AVERROR(ENOMEM);
+
+    ret = ff_h264_live_init(h);
+    if (ret < 0)
+        return ret;
 
     ret = ff_thread_once(&h264_vlc_init, ff_h264_decode_init_vlc);
     if (ret != 0) {
@@ -462,12 +466,8 @@ void ff_h264_flush_change(H264Context *h)
 {
     int i, j;
 
-    h->live_poc_active = h->live_mode = h->live_hrd_ready = 0;
-    h->live_timing_serial = 0;
     if (h->live_output)
         av_container_fifo_drain(h->live_output, av_container_fifo_can_read(h->live_output));
-    av_refstruct_unref(&h->live_sps);
-    av_refstruct_unref(&h->live_pps);
     h->next_outputed_poc = INT_MIN;
     h->prev_interlaced_frame = 1;
     idr(h);
@@ -497,6 +497,7 @@ static av_cold void h264_decode_flush(AVCodecContext *avctx)
     memset(h->delayed_pic, 0, sizeof(h->delayed_pic));
 
     ff_h264_flush_change(h);
+    ff_h264_live_flush(h);
     /* Internal parameter reinitialization also calls flush_change while it is
      * still parsing live_pkt. Only an external codec flush releases that AU. */
     av_packet_unref(h->live_pkt);
@@ -761,8 +762,7 @@ static int decode_nal_units(H264Context *h, AVBufferRef *buf_ref,
             if (h->current_slice == 1) {
                 if (avctx->active_thread_type & FF_THREAD_FRAME &&
                     i >= nals_needed && !h->setup_finished && h->cur_pic_ptr) {
-                    if (!h->live_hold_setup)
-                        ff_thread_finish_setup(avctx);
+                    ff_thread_finish_setup(avctx);
                     h->setup_finished = 1;
                 }
 
@@ -1090,48 +1090,6 @@ static int finalize_frame(H264Context *h, AVFrame *dst, H264Picture *out, int *g
     return 0;
 }
 
-/* Stage complete AVFrame references in a private FIFO before touching any
- * additional delayed_pic entry. With real setup held, the DPB owns each plan
- * pointer until this function returns; no speculative H264Picture ref queue is
- * needed. Failure discards only private outputs and leaves extra DPB entries. */
-static int live_prepare_outputs(H264Context *h, AVFrame *pict, int *got_frame,
-                                H264Picture **plan, int nb_plan)
-{
-    AVContainerFifo *staged = av_container_fifo_alloc_avframe(0);
-    AVFrame *tmp = av_frame_alloc();
-    int ret = AVERROR(ENOMEM), recovered = h->frame_recovered;
-    if (!staged || !tmp)
-        goto end;
-    for (int n = 0; n < nb_plan; n++) {
-        H264Picture view = *plan[n];
-        int got = 0;
-        recovered |= view.recovered;
-        view.recovered |= recovered & FRAME_RECOVERED_SEI;
-        ret = finalize_frame(h, tmp, &view, &got);
-        if (ret < 0)
-            goto end;
-        if (got) {
-            tmp->pkt_dts = h->live_pkt_dts;
-            ret = av_container_fifo_write(staged, tmp, 0);
-            if (ret < 0)
-                goto end;
-        }
-        av_frame_unref(tmp);
-    }
-    if (av_container_fifo_can_read(staged)) {
-        ret = av_container_fifo_read(staged, pict, 0); /* move, cannot allocate */
-        av_assert0(ret >= 0);
-        *got_frame = 1;
-    }
-    av_assert0(!av_container_fifo_can_read(h->live_output));
-    FFSWAP(AVContainerFifo *, h->live_output, staged);
-    ret = 0;
-end:
-    av_frame_free(&tmp);
-    av_container_fifo_free(&staged);
-    return ret;
-}
-
 static int send_next_delayed_frame(H264Context *h, AVFrame *dst_frame,
                                    int *got_frame, int buf_index)
 {
@@ -1165,8 +1123,10 @@ static int send_next_delayed_frame(H264Context *h, AVFrame *dst_frame,
             ret = finalize_frame(h, dst_frame, out, got_frame);
             if (ret < 0)
                 return ret;
-            if (*got_frame)
+            if (*got_frame) {
+                h->live_ordinary_uid = out->live_uid;
                 break;
+            }
         }
     }
 
@@ -1184,7 +1144,9 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
 
     h->flags = avctx->flags;
     h->setup_finished = 0;
-    h->live_hold_setup = h->live_au_invalid = 0;
+    h->live_au_invalid = h->live_has_picture = h->live_picture_count = h->live_candidate_qualified = 0;
+    h->live_reason = h->live_state ? AV_EARLY_UNSUPPORTED : AV_EARLY_DISABLED;
+    h->live_ordinary_uid = 0;
     h->live_timing_count = h->live_timing_bits = h->live_bp_count = h->live_bp_bits = 0;
     h->live_bp_sps_id = -1;
     h->nb_slice_ctx_queued = 0;
@@ -1231,40 +1193,13 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
         if ((ret = ff_h264_field_end(h, &h->slice_ctx[0], 0)) < 0)
             return ret;
 
-        H264Picture *plan[H264_MAX_DPB_FRAMES + 1];
-        int nb_plan = 0;
-        ret = ff_h264_live_output_plan(h, plan, &nb_plan);
-        if (ret < 0)
-            return ret;
-        /* A plan containing only the ordinary selector's picture makes no
-         * extra DPB change. Use its original destination directly instead of
-         * allocating a temporary frame and staging FIFO for a no-op apply.
-         * Real prefix extensions still prepare all references atomically. */
-        if (nb_plan == 1 && plan[0] == h->next_output_pic)
-            nb_plan = 0;
-        if (nb_plan) {
-            ret = live_prepare_outputs(h, pict, got_frame, plan, nb_plan);
-            if (ret >= 0)
-                ff_h264_live_output_apply(h, plan, nb_plan);
-            else {
-                /* Preparation failure cannot remove an extra DPB picture.
-                 * Fall back to the ordinary selected output, not a partial
-                 * prefix. Its own allocation errors keep baseline semantics. */
-                h->live_poc_active = h->live_hrd_ready = 0;
-                h->cur_pic_ptr->live_tick_valid = 0;
-                nb_plan = 0;
-            }
-        }
-        if (!nb_plan && h->next_output_pic) {
+        h->live_has_picture = h->has_slice && h->cur_pic_ptr != NULL;
+        if (h->next_output_pic) {
             ret = finalize_frame(h, pict, h->next_output_pic, got_frame);
             if (ret < 0)
                 return ret;
-        }
-        if (h->live_hold_setup && (avctx->active_thread_type & FF_THREAD_FRAME)) {
-            /* No output allocation can fail after the DPB commit and before
-             * the next worker receives its state. */
-            ff_thread_finish_setup(avctx);
-            h->setup_finished = 1;
+            if (*got_frame)
+                h->live_ordinary_uid = h->next_output_pic->live_uid;
         }
     }
 
@@ -1275,34 +1210,47 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
     return buf_size;
 }
 
-/* Preserve the legacy packet decoder and its off-path selection, but permit a
- * validated AU to return several already-selected pictures. Frame workers and
- * async retirement already support multiple receive-frame results in n9. */
+/* Reference decoding/DPB setup stays ordinary. Completed pictures retire
+ * through a separate, input-ordered presentation owner; only complete AVFrame
+ * references cross that boundary, never mutable worker-local DPB pointers. */
 static int h264_receive_frame(AVCodecContext *avctx, AVFrame *frame)
 {
     H264Context *h = avctx->priv_data;
+    AVFrame *candidate = NULL;
     int ret, got = 0, draining;
     if (av_container_fifo_can_read(h->live_output))
         return av_container_fifo_read(h->live_output, frame, 0);
+again:
     av_packet_unref(h->live_pkt);
     ret = ff_decode_get_packet(avctx, h->live_pkt);
     draining = ret == AVERROR_EOF;
-    if (ret < 0 && !draining) {
-        if (ret != AVERROR(EAGAIN))
-            h->live_poc_active = h->live_hrd_ready = 0;
+    if (ret < 0 && !draining)
         return ret;
-    }
+    ret = ff_h264_live_begin(h);
+    if (ret < 0)
+        return ret;
     h->live_pkt_dts = h->live_pkt->dts;
     ret = h264_decode_frame(avctx, frame, &got, h->live_pkt);
-    if (ret < 0) {
-        h->live_poc_active = h->live_hrd_ready = 0;
-        av_container_fifo_drain(h->live_output, av_container_fifo_can_read(h->live_output));
-        return ret;
+    if (h->live_state && ret >= 0 && ff_h264_live_candidate(h)) {
+        int candidate_got = 0;
+        h->live_candidate_qualified = 1;
+        candidate = av_frame_alloc();
+        if (!candidate || finalize_frame(h, candidate, h->cur_pic_ptr, &candidate_got) < 0 || !candidate_got) {
+            av_frame_free(&candidate);
+            h->live_au_invalid = 1;
+            h->live_reason = AV_EARLY_OUTPUT_ALLOCATION;
+        }
     }
+    ret = ff_h264_live_retire(h, frame, &got, candidate, ret);
+    av_frame_free(&candidate);
+    if (ret < 0)
+        return ret;
     if (got) {
         frame->pkt_dts = h->live_pkt_dts;
         return 0;
     }
+    if (draining && h->delayed_pic[0])
+        goto again; /* A suppressed duplicate is not the end of the DPB. */
     return draining ? AVERROR_EOF : AVERROR(EAGAIN);
 }
 

@@ -569,6 +569,7 @@ typedef struct HEVCContext {
     int live_poc_early_output;
     int live_poc_active, live_last_output_poc, live_defer_output;
     struct AVContainerFifo *live_output_pending;
+    uint64_t live_pending_modes[5]; /* Fixed early_output.h API v1 mode layout. */
 
     // multi-layer AVOptions
     int         *view_ids;

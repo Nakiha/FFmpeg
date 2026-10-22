@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include "avcodec.h"
+#include "early_output.h"
 
 #define AVCODEC_ASYNC_API_VERSION 2
 
@@ -89,6 +90,7 @@ int avcodec_async_receive_frame(AVCodecAsyncContext *ctx, AVFrame *frame);
 /** Discard queued/inflight work and reset the decoder; this lifecycle call waits. */
 int avcodec_async_flush(AVCodecAsyncContext *ctx);
 /** Lifetime counters; flush does not reset them or the peak measurements. */
+int avcodec_async_get_early_output_stats(AVCodecAsyncContext *ctx, AVCodecEarlyOutputStats *stats);
 int avcodec_async_get_stats(AVCodecAsyncContext *ctx, AVCodecAsyncStats *stats);
 /** Join coordinator and decoder workers, destroy decoder, and clear *ctx; waits. */
 void avcodec_async_free(AVCodecAsyncContext **ctx);

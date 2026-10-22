@@ -23,6 +23,7 @@
 
 #include "libavutil/container_fifo.h"
 #include "../live_trace_internal.h"
+#include "../early_output_internal.h"
 #include "libavutil/mem.h"
 #include "libavutil/stereo3d.h"
 
@@ -304,12 +305,12 @@ int ff_hevc_output_frames(HEVCContext *s,
          * extend the already selected presentation prefix. There is no integer
          * POC between its watermark and watermark+1. Gaps retain the original
          * SPS reorder/buffering rule; no prediction about future packets. */
-        if ((nb_output && s->live_poc_active && min_layer == 0 &&
-             s->live_last_output_poc < INT_MAX &&
-             min_poc == s->live_last_output_poc + 1) ||
-            nb_output > max_output ||
-            (nb_output &&
-             (nb_dpb[0] > max_dpb || nb_dpb[1] > max_dpb))) {
+        int prefix = nb_output && s->live_poc_active && min_layer == 0 &&
+                     s->live_last_output_poc < INT_MAX &&
+                     min_poc == s->live_last_output_poc + 1;
+        int ordinary_due = nb_output > max_output ||
+                           (nb_output && (nb_dpb[0] > max_dpb || nb_dpb[1] > max_dpb));
+        if (prefix || ordinary_due) {
             HEVCFrame *frame = &s->layers[min_layer].DPB[min_idx];
             AVFrame *f = frame->needs_fg ? frame->frame_grain : frame->f;
             int output = !discard && (layers_active_output & (1 << min_layer));
@@ -326,6 +327,20 @@ int ff_hevc_output_frames(HEVCContext *s,
                 ret = av_container_fifo_write(s->live_defer_output ?
                                               s->live_output_pending : s->output_fifo,
                                               f, AV_CONTAINER_FIFO_FLAG_REF);
+                if (ret >= 0) {
+                    int mode = AV_EARLY_ORDINARY;
+                    const HEVCSPS *sps = s->layers[min_layer].sps;
+                    int original_due = nb_output > sps->temporal_layer[sps->max_sub_layers - 1].num_reorder_pics ||
+                        nb_dpb[min_layer] > sps->temporal_layer[sps->max_sub_layers - 1].max_dec_pic_buffering;
+                    if (s->live_idr_eligible && frame == s->cur_frame && !original_due)
+                        mode = AV_EARLY_HEVC_IDR;
+                    else if (prefix && !ordinary_due)
+                        mode = AV_EARLY_HEVC_PREFIX;
+                    if (s->live_defer_output)
+                        s->live_pending_modes[mode]++;
+                    else
+                        ff_early_output_frames(s->avctx, mode, 1);
+                }
             }
             if (s->live_poc_active)
                 s->live_last_output_poc = min_poc;

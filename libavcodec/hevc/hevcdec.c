@@ -25,6 +25,7 @@
 
 #include "config_components.h"
 #include "../live_trace_internal.h"
+#include "../early_output_internal.h"
 
 #include "libavutil/attributes.h"
 #include "libavutil/avstring.h"
@@ -3935,6 +3936,7 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         ff_live_reference_wait_us=&avci->live_ref_wait_us;
     }
     s->live_idr_eligible = 0;
+    memset(s->live_pending_modes, 0, sizeof(s->live_pending_modes));
     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
     ff_live_reference_wait_us=NULL;
     while (ret >= 0 && av_container_fifo_can_read(s->live_output_pending)) {
@@ -3949,6 +3951,22 @@ static int hevc_receive_frame(AVCodecContext *avctx, AVFrame *frame)
         ret = av_container_fifo_write(s->output_fifo, frame, AV_CONTAINER_FIFO_FLAG_REF);
         av_frame_unref(frame);
     }
+    if (ret >= 0)
+        for (int mode = 0; mode < AV_EARLY_MODE_COUNT; mode++)
+            ff_early_output_frames(avctx, mode, s->live_pending_modes[mode]);
+    int picture_au = 0;
+    for (int i = 0; i < s->pkt.nb_nals; i++)
+        picture_au |= s->pkt.nals[i].type <= 31;
+    if (picture_au) {
+        int candidate = s->live_poc_active || s->live_idr_eligible;
+        int hit = s->live_pending_modes[AV_EARLY_HEVC_IDR] || s->live_pending_modes[AV_EARLY_HEVC_PREFIX];
+        int reason = !s->live_poc_early_output && !s->live_idr_early_output ? AV_EARLY_DISABLED :
+            ret < 0 ? AV_EARLY_INVALID_AU : hit ? AV_EARLY_ELIGIBLE :
+            s->live_poc_active ? AV_EARLY_PRESENTATION_GAP :
+            s->cur_frame && !avctx->hwaccel && s->layers_active_decode == 1 ? AV_EARLY_AWAIT_ANCHOR : AV_EARLY_UNSUPPORTED;
+        ff_early_output_picture(avctx, reason, ret >= 0 && candidate);
+    }
+    memset(s->live_pending_modes, 0, sizeof(s->live_pending_modes));
     av_container_fifo_drain(s->live_output_pending,
                             av_container_fifo_can_read(s->live_output_pending));
     s->live_defer_output = 0;

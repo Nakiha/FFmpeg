@@ -49,6 +49,7 @@
 #include "codec_desc.h"
 #include "codec_internal.h"
 #include "decode.h"
+#include "early_output_internal.h"
 #include "exif.h"
 #include "exif_internal.h"
 #include "hwaccel_internal.h"
@@ -2050,6 +2051,10 @@ av_cold int ff_decode_preinit(AVCodecContext *avctx)
     DecodeContext     *dc = decode_ctx(avci);
     int ret = 0;
 
+    ret = ff_early_output_init(avctx);
+    if (ret < 0)
+        return ret;
+
     dc->initial_pict_type = AV_PICTURE_TYPE_NONE;
     if (avctx->codec_descriptor->props & AV_CODEC_PROP_INTRA_ONLY) {
         dc->intra_only_flag = AV_FRAME_FLAG_KEY;
@@ -2410,6 +2415,7 @@ av_cold void ff_decode_internal_sync(AVCodecContext *dst, const AVCodecContext *
     const DecodeContext *src_dc = decode_ctx(src->internal);
     DecodeContext *dst_dc = decode_ctx(dst->internal);
 
+    av_refstruct_replace(&dst->internal->early_output, src->internal->early_output);
     dst_dc->initial_pict_type = src_dc->initial_pict_type;
     dst_dc->intra_only_flag   = src_dc->intra_only_flag;
     dst_dc->side_data_pref_mask = src_dc->side_data_pref_mask;
@@ -2423,6 +2429,7 @@ av_cold void ff_decode_internal_sync(AVCodecContext *dst, const AVCodecContext *
 
 av_cold void ff_decode_internal_uninit(AVCodecContext *avctx)
 {
+    av_refstruct_unref(&avctx->internal->early_output);
 #if CONFIG_LIBLCEVC_DEC
     AVCodecInternal *avci = avctx->internal;
     DecodeContext *dc = decode_ctx(avci);

@@ -15,8 +15,10 @@ def main():
     ap.add_argument('--baseline-prefix', type=Path, required=True)
     ap.add_argument('--candidate-prefix', type=Path, required=True)
     ap.add_argument('--output', type=Path, required=True, help='New directory; never reused')
+    ap.add_argument('--sanitize', default='', choices=['', 'address,undefined'], help='Instrument/link the probes for a matching sanitizer SDK')
+    ap.add_argument('--probe', choices=['probe.c', 'load.c'], default='probe.c')
     args = ap.parse_args()
-    source = Path(__file__).with_name('probe.c').resolve()
+    source = Path(__file__).with_name(args.probe).resolve()
     args.output.mkdir(parents=True, exist_ok=False)
     identities = {}
     for name, prefix in [('baseline', args.baseline_prefix), ('candidate', args.candidate_prefix)]:
@@ -27,6 +29,10 @@ def main():
         binary = (args.output / name).resolve()
         command = [os.environ.get('CC', 'cc'), '-D_GNU_SOURCE', '-std=c11', '-O2', '-Wall', '-Wextra', str(source), *flags,
                    '-Wl,-rpath,' + str(prefix / 'lib'), '-pthread', '-o', str(binary)]
+        if args.probe == 'load.c':
+            command.append('-DLIVE_ASYNC')
+        if args.sanitize:
+            command += ['-fsanitize=' + args.sanitize, '-fno-omit-frame-pointer']
         if platform.system() == 'Linux':
             command.append('-ldl')
         subprocess.run(command, check=True, env=env)
