@@ -1,0 +1,59 @@
+{
+  "recorded_utc": "2026-10-22T04:55:47.167918+00:00",
+  "workspace": "<WORKSPACE>",
+  "platform": "macOS-27.2-arm64-arm-64bit",
+  "ffmpeg_head": "94bd940f1c4682dfce13e8ae43891df01621e16e",
+  "app_head": "67f5e07798575e20e1f3fe1dcc6e37b40f3d64fa",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "patches": {
+    "research/phase3/ffmpeg-final.patch": "8da6856d143c24252103f4d3babd7119cccbb872150b9e1405d875b8020f2034",
+    "research/phase3/application-switch.patch": "38c1333654d8e93b698fb20099be62f6ab61e967e89a8e927cff49eb8d1f637e"
+  },
+  "source": {
+    "<WORKSPACE>/FFmpeg/libavcodec/h264_picture.c": "86a4edea67eadb30ad71933510777880103aa02d10f52c4e64c357cc4558621a",
+    "<WORKSPACE>/FFmpeg/libavcodec/h264_ps.h": "346a07d91cfb5b68cd6c21f19cf98744ce310666f6ef22042b5f5e1362dc51c7",
+    "<WORKSPACE>/FFmpeg/libavcodec/h264dec.c": "8cd76b2b60cd3d64124901b27e4850e13b3532d5d5fe839f323bae4ed9cfdd7a",
+    "<WORKSPACE>/FFmpeg/libavcodec/h264_slice.c": "6b7593bb14c604bd4f0321b5a8b80a055bc343ee7fd8b68e4149d311f9cd21d5",
+    "<WORKSPACE>/FFmpeg/libavcodec/h264_ps.c": "a624fa7f95ccd2a34d0a36eb152c749a75588ccd2b08e2818ff1df1e8268ebc3",
+    "<WORKSPACE>/FFmpeg/libavcodec/h264dec.h": "d98d4f6bfa829a7ef3a4eeafa24803b208b0b2d87a23e73b5a6f50e3d73c40c8"
+  },
+  "builds": {
+    "phase3": {
+      "version": "ffmpeg version 94bd940 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with Apple clang version 21.0.0 (clang-2100.3.34.2)\nconfiguration: --prefix=<WORKSPACE>/out/install/phase3 --enable-shared --disable-static --disable-autodetect --disable-everything --disable-network --disable-hwaccels --disable-doc --disable-ffplay --disable-avdevice --disable-swresample --disable-swscale --enable-decoder='h264,hevc' --enable-parser='h264,hevc' --enable-demuxer='h264,hevc,mov' --enable-protocol=file --enable-muxer='framehash,null' --enable-encoder='rawvideo,wrapped_avframe' --enable-filter=null --enable-debug=3 --assert-level=2\nlibavutil      61.  1.104 / 61.  1.104\nlibavcodec     63.  4.108 / 63.  4.108\nlibavformat    63.  3.105 / 63.  3.105\nlibavfilter    12.  1.102 / 12.  1.102\n\nExiting with exit code 0\n",
+      "files": {
+        "out/install/phase3/lib/libavformat.63.3.105.dylib": "47becab7e568a4cad340ea6e30a36f6d047fc6a4db41d6a818d2c925211904b6",
+        "out/install/phase3/lib/libavfilter.12.1.102.dylib": "50ae7562e4b7ed61161de6292bac161aaa60332206943e322f32f52ef55c1e06",
+        "out/install/phase3/lib/libavcodec.63.4.108.dylib": "cb2d65e540871e9d9fcaf84d9bc5227b3ca1f975a4e17a7d520f0557c9dc5f59",
+        "out/install/phase3/lib/libavutil.61.1.104.dylib": "4ee040f02e83a748832106c3a94d7b3a5f76872f94393b61f80a2ce9e5a7283b",
+        "out/install/phase3/bin/perf_probe": "ab19aa3c52b527c2d78032056238084dea6958f0a6c1fc07067727612f9c2daa",
+        "out/install/phase3/bin/ffmpeg": "92bca881f9a5554b253ab0cdfb5c2abc6e2397452d90a454d4e6646319dc5c28",
+        "out/install/phase3/bin/ffprobe": "41a338458452ab77c3948cc8bb96bcbfd47eae5dc659966e364e47d1a521f295",
+        "out/install/phase3/bin/probe": "80acad7cfa810ef2d66acb04814b6263139facd57f1a3e1dc53344124ffe0be5"
+      },
+      "dynamic_dependencies": "<WORKSPACE>/out/install/phase3/bin/probe:\n\t<WORKSPACE>/out/install/phase3/lib/libavformat.63.dylib (compatibility version 63.0.0, current version 63.3.105)\n\t<WORKSPACE>/out/install/phase3/lib/libavcodec.63.dylib (compatibility version 63.0.0, current version 63.4.108)\n\t<WORKSPACE>/out/install/phase3/lib/libavutil.61.dylib (compatibility version 61.0.0, current version 61.1.104)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+    },
+    "phase3-asan": {
+      "version": "ffmpeg version 94bd940 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with Apple clang version 21.0.0 (clang-2100.3.34.2)\nconfiguration: --prefix=<WORKSPACE>/out/install/phase3-asan --enable-shared --disable-static --disable-autodetect --disable-everything --disable-network --disable-hwaccels --disable-doc --disable-ffplay --disable-avdevice --disable-swresample --disable-swscale --enable-decoder='h264,hevc' --enable-parser='h264,hevc' --enable-demuxer='h264,hevc,mov' --enable-protocol=file --enable-muxer='framehash,null' --enable-encoder='rawvideo,wrapped_avframe' --enable-filter=null --enable-debug=3 --assert-level=2 --disable-asm --extra-cflags='-fsanitize=address -fno-omit-frame-pointer' --extra-ldflags='-fsanitize=address'\nlibavutil      61.  1.104 / 61.  1.104\nlibavcodec     63.  4.108 / 63.  4.108\nlibavformat    63.  3.105 / 63.  3.105\nlibavfilter    12.  1.102 / 12.  1.102\n\nExiting with exit code 0\n",
+      "files": {
+        "out/install/phase3-asan/lib/libavformat.63.3.105.dylib": "554a5f6f0bfab0b090f19a865296996b2a084b78c9ddf48f5069be4c8099d239",
+        "out/install/phase3-asan/lib/libavfilter.12.1.102.dylib": "594088153116f2727a9ae693bb5af645a2f59d0e156546dd83ab0984f5a069a1",
+        "out/install/phase3-asan/lib/libavcodec.63.4.108.dylib": "eb6b6049393824dd71a55748ab8e2eb7c770ac9814e017123527a3034ae02ffe",
+        "out/install/phase3-asan/lib/libavutil.61.1.104.dylib": "2e3145908f997cef19f771af68a3826c4e3fccab6f9d41b29efdda3b54f77cab",
+        "out/install/phase3-asan/bin/ffmpeg": "5239b412a73c8ea105109d488ed7e5d5d4a3ece693d2a679740b1a7c8b50cc5d",
+        "out/install/phase3-asan/bin/ffprobe": "3ecb24129956daafc5ff3afede217002bba616560d76c05441767da8c76fec09",
+        "out/install/phase3-asan/bin/probe": "2ae6c173ee125b11e6d7d94cfaf67d696c68db71ad2978fc75c9cd10b729fded"
+      },
+      "dynamic_dependencies": "<WORKSPACE>/out/install/phase3-asan/bin/probe:\n\t<WORKSPACE>/out/install/phase3-asan/lib/libavformat.63.dylib (compatibility version 63.0.0, current version 63.3.105)\n\t<WORKSPACE>/out/install/phase3-asan/lib/libavcodec.63.dylib (compatibility version 63.0.0, current version 63.4.108)\n\t<WORKSPACE>/out/install/phase3-asan/lib/libavutil.61.dylib (compatibility version 61.0.0, current version 61.1.104)\n\t@rpath/libclang_rt.asan_osx_dynamic.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+    }
+  },
+  "test_binaries": {
+    "out/phase3/mutation_probe-phase3-asan": "fb05f34677479fe6bf5982e8cf3bbd2fd356fbf0b74aeea41c2def819d7d30a8",
+    "out/phase3/fifo_failure_interpose.dylib": "409fff9d9fe0f406c0d6b5a27ed859376217be024a3a5d31c0ce245f86e7834b",
+    "out/phase3/mutation_probe-phase3": "78365b45ffe76bc5217d57c71704c625c29d24f963cf4aad6bd4b665e254d47c",
+    "out/phase3/mutation_probe-phase2": "cd87174efedcf60790733cd497fd5c8158cfb42bb94f1e77bbb1a18622946966"
+  },
+  "pre_fix_identity": "out/phase3/pre-fix-build-identity.json",
+  "production_defaults_changed": false,
+  "pushed": false,
+  "pin_changed": false
+}

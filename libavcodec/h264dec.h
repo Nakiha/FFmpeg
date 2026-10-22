@@ -132,6 +132,9 @@ typedef struct H264Picture {
     int field_poc[2];       ///< top/bottom POC
     int poc;                ///< frame POC
     int frame_num;          ///< frame_num (raw frame_num from slice header)
+    int live_tick_valid;
+    int64_t live_tick;
+    uint64_t live_timing_serial;
     int mmco_reset;         /**< MMCO_RESET set this 1. Reordering code must
                                  not mix pictures before and after MMCO_RESET. */
     int pic_id;             /**< pic_num (short -> no wrap version of pic_num,
@@ -577,6 +580,20 @@ typedef struct H264Context {
     int non_gray;                       ///< Did we encounter a intra frame after a gray gap frame
     int noref_gray;
     int skip_gray;
+    /* Initialization-only policy. A verified contract is supplied by the caller,
+     * never inferred from encoder names, recent POCs or the presence of PTS. */
+    int live_poc_early_output, live_poc_verified_even;
+    int live_poc_active, live_last_poc, live_mode;
+    int live_hrd_ready, live_cpb_last;
+    int64_t live_cpb_base, live_cpb_msb, live_last_tick;
+    uint64_t live_timing_serial;
+    const SPS *live_sps;
+    const PPS *live_pps;
+    AVPacket *live_pkt;
+    struct AVContainerFifo *live_output;
+    int live_hold_setup, live_au_invalid;
+    int live_timing_count, live_timing_bits, live_bp_count, live_bp_bits, live_bp_sps_id;
+    int64_t live_pkt_dts;
 } H264Context;
 
 extern const uint16_t ff_h264_mb_sizes[4];
@@ -702,5 +719,9 @@ void ff_h264_flush_change(H264Context *h);
 void ff_h264_free_tables(H264Context *h);
 
 void ff_h264_set_erpic(ERPicture *dst, const H264Picture *src);
+
+/* Internal whole-AU early-output commit, before frame setup publication. */
+int ff_h264_live_output_plan(H264Context *h, H264Picture **plan, int *nb_plan);
+void ff_h264_live_output_apply(H264Context *h, H264Picture **plan, int nb_plan);
 
 #endif /* AVCODEC_H264DEC_H */

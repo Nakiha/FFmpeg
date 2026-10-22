@@ -166,7 +166,7 @@ static inline int decode_vui_parameters(GetBitContext *gb, void *logctx,
             return AVERROR_INVALIDDATA;
     if (sps->nal_hrd_parameters_present_flag ||
         sps->vcl_hrd_parameters_present_flag)
-        get_bits1(gb);     /* low_delay_hrd_flag */
+        sps->low_delay_hrd_flag = get_bits1(gb);
     sps->pic_struct_present_flag = get_bits1(gb);
     if (!get_bits_left(gb))
         return 0;

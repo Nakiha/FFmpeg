@@ -1,0 +1,6482 @@
+[
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 51.558,
+    "submit_latency_mean_ms": 49.5835625,
+    "submit_latency_p95_ms": 102.758,
+    "planned_latency_mean_ms": 54.065192708333335,
+    "planned_latency_p95_ms": 106.814,
+    "throughput_fps": 60.18380510227015,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.65896875,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 51.515,
+    "submit_latency_mean_ms": 33.129656250000004,
+    "submit_latency_p95_ms": 69.307,
+    "planned_latency_mean_ms": 37.40734375,
+    "planned_latency_p95_ms": 72.711,
+    "throughput_fps": 60.23616340816213,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.62965625,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.777,
+    "submit_latency_mean_ms": 33.5875,
+    "submit_latency_p95_ms": 84.396,
+    "planned_latency_mean_ms": 35.53852083333334,
+    "planned_latency_p95_ms": 86.317,
+    "throughput_fps": 60.26352107826505,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6250572916666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.431,
+    "submit_latency_mean_ms": 17.1768125,
+    "submit_latency_p95_ms": 51.11,
+    "planned_latency_mean_ms": 19.041213541666668,
+    "planned_latency_p95_ms": 52.963,
+    "throughput_fps": 60.27914897143993,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7192916666666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.448,
+    "submit_latency_mean_ms": 17.349046875,
+    "submit_latency_p95_ms": 51.178,
+    "planned_latency_mean_ms": 19.034208333333332,
+    "planned_latency_p95_ms": 52.815,
+    "throughput_fps": 60.256977177356056,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.71246875,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 34.464,
+    "submit_latency_mean_ms": 33.67695833333333,
+    "submit_latency_p95_ms": 84.409,
+    "planned_latency_mean_ms": 35.69340104166667,
+    "planned_latency_p95_ms": 86.46,
+    "throughput_fps": 60.26057047301095,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7085520833333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 50.997,
+    "submit_latency_mean_ms": 33.115401041666665,
+    "submit_latency_p95_ms": 68.714,
+    "planned_latency_mean_ms": 37.736671875,
+    "planned_latency_p95_ms": 73.212,
+    "throughput_fps": 60.15429576864658,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.618390625,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.205,
+    "submit_latency_mean_ms": 49.46538541666666,
+    "submit_latency_p95_ms": 102.047,
+    "planned_latency_mean_ms": 53.99248958333333,
+    "planned_latency_p95_ms": 106.416,
+    "throughput_fps": 60.29211529862182,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6204166666666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 52.184,
+    "submit_latency_mean_ms": 49.47479166666667,
+    "submit_latency_p95_ms": 103.089,
+    "planned_latency_mean_ms": 54.138666666666666,
+    "planned_latency_p95_ms": 106.331,
+    "throughput_fps": 60.271447531821444,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6224010416666667,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 52.235,
+    "submit_latency_mean_ms": 33.35128125,
+    "submit_latency_p95_ms": 69.884,
+    "planned_latency_mean_ms": 38.151796875,
+    "planned_latency_p95_ms": 73.374,
+    "throughput_fps": 60.27706730719422,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6240989583333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.323,
+    "submit_latency_mean_ms": 33.67878125,
+    "submit_latency_p95_ms": 84.315,
+    "planned_latency_mean_ms": 35.544697916666664,
+    "planned_latency_p95_ms": 86.492,
+    "throughput_fps": 60.24347778066793,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7128229166666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.745,
+    "submit_latency_mean_ms": 17.363828125,
+    "submit_latency_p95_ms": 51.754,
+    "planned_latency_mean_ms": 19.16859375,
+    "planned_latency_p95_ms": 53.185,
+    "throughput_fps": 60.28745813632627,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7059322916666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 56.13,
+    "submit_latency_mean_ms": 49.543515625,
+    "submit_latency_p95_ms": 166.845,
+    "planned_latency_mean_ms": 53.70474479166667,
+    "planned_latency_p95_ms": 172.27,
+    "throughput_fps": 60.21634604075957,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6251197916666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 57.521,
+    "submit_latency_mean_ms": 37.289265625,
+    "submit_latency_p95_ms": 133.614,
+    "planned_latency_mean_ms": 41.90646354166667,
+    "planned_latency_p95_ms": 137.548,
+    "throughput_fps": 60.26225379573732,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.62275,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.354,
+    "submit_latency_mean_ms": 33.675270833333336,
+    "submit_latency_p95_ms": 150.321,
+    "planned_latency_mean_ms": 35.439177083333334,
+    "planned_latency_p95_ms": 152.191,
+    "throughput_fps": 60.27027451226594,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7175104166666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.843,
+    "submit_latency_mean_ms": 21.488364583333333,
+    "submit_latency_p95_ms": 117.622,
+    "planned_latency_mean_ms": 23.373151041666667,
+    "planned_latency_p95_ms": 119.514,
+    "throughput_fps": 60.262234881476424,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.71578125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.438,
+    "submit_latency_mean_ms": 21.41778645833333,
+    "submit_latency_p95_ms": 117.988,
+    "planned_latency_mean_ms": 23.271088541666668,
+    "planned_latency_p95_ms": 119.569,
+    "throughput_fps": 60.29588320436191,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7237447916666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.647,
+    "submit_latency_mean_ms": 33.674989583333335,
+    "submit_latency_p95_ms": 151.105,
+    "planned_latency_mean_ms": 35.55682291666667,
+    "planned_latency_p95_ms": 152.774,
+    "throughput_fps": 60.266358471205706,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7088489583333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 51.688,
+    "submit_latency_mean_ms": 37.32924479166667,
+    "submit_latency_p95_ms": 133.349,
+    "planned_latency_mean_ms": 41.893026041666666,
+    "planned_latency_p95_ms": 138.389,
+    "throughput_fps": 60.180126641554004,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6215677083333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 52.571,
+    "submit_latency_mean_ms": 49.59558333333333,
+    "submit_latency_p95_ms": 166.503,
+    "planned_latency_mean_ms": 54.04527604166667,
+    "planned_latency_p95_ms": 170.583,
+    "throughput_fps": 60.16292873137064,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6524635416666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.664,
+    "submit_latency_mean_ms": 49.510921875,
+    "submit_latency_p95_ms": 166.205,
+    "planned_latency_mean_ms": 54.097953125,
+    "planned_latency_p95_ms": 171.282,
+    "throughput_fps": 60.28376699444918,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6243229166666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 52.201,
+    "submit_latency_mean_ms": 37.44823958333333,
+    "submit_latency_p95_ms": 133.381,
+    "planned_latency_mean_ms": 41.916786458333334,
+    "planned_latency_p95_ms": 139.102,
+    "throughput_fps": 60.27515608753962,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.629765625,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 34.093,
+    "submit_latency_mean_ms": 33.645119791666666,
+    "submit_latency_p95_ms": 150.927,
+    "planned_latency_mean_ms": 35.48531770833333,
+    "planned_latency_p95_ms": 152.801,
+    "throughput_fps": 60.252211993642135,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6623125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.391,
+    "submit_latency_mean_ms": 21.468677083333333,
+    "submit_latency_p95_ms": 117.935,
+    "planned_latency_mean_ms": 23.321296875,
+    "planned_latency_p95_ms": 119.425,
+    "throughput_fps": 60.26418311272039,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7195885416666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.092,
+    "submit_latency_mean_ms": 49.54045833333333,
+    "submit_latency_p95_ms": 248.17,
+    "planned_latency_mean_ms": 54.01784375,
+    "planned_latency_p95_ms": 251.424,
+    "throughput_fps": 60.22155887896314,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.63703125,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.089,
+    "submit_latency_mean_ms": 39.2119375,
+    "submit_latency_p95_ms": 214.444,
+    "planned_latency_mean_ms": 43.80230208333333,
+    "planned_latency_p95_ms": 221.17,
+    "throughput_fps": 60.19010669009901,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6524010416666667,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 34.548,
+    "submit_latency_mean_ms": 33.702083333333334,
+    "submit_latency_p95_ms": 233.105,
+    "planned_latency_mean_ms": 35.706463541666665,
+    "planned_latency_p95_ms": 235.193,
+    "throughput_fps": 60.27193945683682,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7417552083333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.193,
+    "submit_latency_mean_ms": 23.087911458333334,
+    "submit_latency_p95_ms": 198.654,
+    "planned_latency_mean_ms": 24.766203125,
+    "planned_latency_p95_ms": 201.532,
+    "throughput_fps": 60.283255948889845,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7264322916666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.14,
+    "submit_latency_mean_ms": 23.107848958333335,
+    "submit_latency_p95_ms": 200.861,
+    "planned_latency_mean_ms": 24.913177083333334,
+    "planned_latency_p95_ms": 202.495,
+    "throughput_fps": 60.2518338367395,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.732890625,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.928,
+    "submit_latency_mean_ms": 33.695427083333335,
+    "submit_latency_p95_ms": 234.519,
+    "planned_latency_mean_ms": 35.5728125,
+    "planned_latency_p95_ms": 235.718,
+    "throughput_fps": 60.25610728599902,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.73371875,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.452,
+    "submit_latency_mean_ms": 38.981770833333336,
+    "submit_latency_p95_ms": 215.044,
+    "planned_latency_mean_ms": 43.656984375,
+    "planned_latency_p95_ms": 221.443,
+    "throughput_fps": 60.27746470471891,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6486458333333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 52.615,
+    "submit_latency_mean_ms": 49.5123125,
+    "submit_latency_p95_ms": 247.515,
+    "planned_latency_mean_ms": 53.921921875,
+    "planned_latency_p95_ms": 251.737,
+    "throughput_fps": 60.24914905921895,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.643265625,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.714,
+    "submit_latency_mean_ms": 49.479385416666666,
+    "submit_latency_p95_ms": 247.586,
+    "planned_latency_mean_ms": 53.89234375,
+    "planned_latency_p95_ms": 254.827,
+    "throughput_fps": 60.26787185669305,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6421302083333333,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.211,
+    "submit_latency_mean_ms": 39.07364583333333,
+    "submit_latency_p95_ms": 210.296,
+    "planned_latency_mean_ms": 43.29456770833333,
+    "planned_latency_p95_ms": 217.643,
+    "throughput_fps": 60.16654852714169,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6342239583333333,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.165,
+    "submit_latency_mean_ms": 33.70152604166667,
+    "submit_latency_p95_ms": 233.444,
+    "planned_latency_mean_ms": 35.611546875,
+    "planned_latency_p95_ms": 234.339,
+    "throughput_fps": 60.25035907017378,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7257916666666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.269,
+    "submit_latency_mean_ms": 23.074197916666666,
+    "submit_latency_p95_ms": 201.526,
+    "planned_latency_mean_ms": 24.833255208333334,
+    "planned_latency_p95_ms": 202.716,
+    "throughput_fps": 60.293213433579176,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7335416666666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 54.222,
+    "submit_latency_mean_ms": 49.54809375,
+    "submit_latency_p95_ms": 152.86,
+    "planned_latency_mean_ms": 54.01906770833333,
+    "planned_latency_p95_ms": 155.231,
+    "throughput_fps": 60.185729399318205,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6592291666666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 51.92,
+    "submit_latency_mean_ms": 34.117192708333334,
+    "submit_latency_p95_ms": 115.678,
+    "planned_latency_mean_ms": 38.678151041666666,
+    "planned_latency_p95_ms": 121.052,
+    "throughput_fps": 60.232743083822335,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6442447916666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.326,
+    "submit_latency_mean_ms": 33.72385416666667,
+    "submit_latency_p95_ms": 134.2,
+    "planned_latency_mean_ms": 35.64066666666667,
+    "planned_latency_p95_ms": 136.333,
+    "throughput_fps": 60.249943123426085,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7629427083333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 34.822,
+    "submit_latency_mean_ms": 18.198442708333335,
+    "submit_latency_p95_ms": 100.478,
+    "planned_latency_mean_ms": 20.138552083333334,
+    "planned_latency_p95_ms": 102.519,
+    "throughput_fps": 60.25765797941636,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6695989583333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.296,
+    "submit_latency_mean_ms": 17.993359375,
+    "submit_latency_p95_ms": 100.166,
+    "planned_latency_mean_ms": 19.997317708333334,
+    "planned_latency_p95_ms": 102.664,
+    "throughput_fps": 60.246653565111416,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.5588802083333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.929,
+    "submit_latency_mean_ms": 33.723734375,
+    "submit_latency_p95_ms": 133.85,
+    "planned_latency_mean_ms": 35.63392708333333,
+    "planned_latency_p95_ms": 136.147,
+    "throughput_fps": 60.25160694487637,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.748484375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 57.607,
+    "submit_latency_mean_ms": 34.15182291666667,
+    "submit_latency_p95_ms": 115.726,
+    "planned_latency_mean_ms": 38.34178125,
+    "planned_latency_p95_ms": 121.202,
+    "throughput_fps": 60.25361121545656,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.661984375,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 54.629,
+    "submit_latency_mean_ms": 49.53738020833333,
+    "submit_latency_p95_ms": 149.921,
+    "planned_latency_mean_ms": 54.33463020833334,
+    "planned_latency_p95_ms": 155.86,
+    "throughput_fps": 60.20059968576541,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6516197916666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 56.74,
+    "submit_latency_mean_ms": 49.520552083333335,
+    "submit_latency_p95_ms": 152.598,
+    "planned_latency_mean_ms": 53.756390625,
+    "planned_latency_p95_ms": 154.929,
+    "throughput_fps": 60.2178758018857,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6625208333333333,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.376,
+    "submit_latency_mean_ms": 34.11538541666667,
+    "submit_latency_p95_ms": 116.28,
+    "planned_latency_mean_ms": 38.65233333333333,
+    "planned_latency_p95_ms": 122.884,
+    "throughput_fps": 60.24266498489227,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.657984375,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.711,
+    "submit_latency_mean_ms": 33.72213020833333,
+    "submit_latency_p95_ms": 133.772,
+    "planned_latency_mean_ms": 35.596828125,
+    "planned_latency_p95_ms": 135.963,
+    "throughput_fps": 60.245859587610816,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7481197916666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.402,
+    "submit_latency_mean_ms": 18.215755208333334,
+    "submit_latency_p95_ms": 101.057,
+    "planned_latency_mean_ms": 20.2610625,
+    "planned_latency_p95_ms": 103.165,
+    "throughput_fps": 60.26862857793974,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7590416666666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.326,
+    "submit_latency_mean_ms": 49.313734375,
+    "submit_latency_p95_ms": 103.504,
+    "planned_latency_mean_ms": 53.877140625,
+    "planned_latency_p95_ms": 106.264,
+    "throughput_fps": 60.225166842532516,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7490989583333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 24.8,
+    "submit_latency_mean_ms": 32.858958333333334,
+    "submit_latency_p95_ms": 69.58,
+    "planned_latency_mean_ms": 37.45190625,
+    "planned_latency_p95_ms": 73.937,
+    "throughput_fps": 60.18076798182541,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7390989583333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.702,
+    "submit_latency_mean_ms": 33.63214583333333,
+    "submit_latency_p95_ms": 84.965,
+    "planned_latency_mean_ms": 35.5930625,
+    "planned_latency_p95_ms": 86.51,
+    "throughput_fps": 60.262197052990246,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8299270833333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.625,
+    "submit_latency_mean_ms": 16.990307291666667,
+    "submit_latency_p95_ms": 51.466,
+    "planned_latency_mean_ms": 18.884911458333335,
+    "planned_latency_p95_ms": 53.135,
+    "throughput_fps": 60.28246100635289,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8219375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.603,
+    "submit_latency_mean_ms": 17.08078125,
+    "submit_latency_p95_ms": 51.474,
+    "planned_latency_mean_ms": 18.71184375,
+    "planned_latency_p95_ms": 52.879,
+    "throughput_fps": 60.28431590488642,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.841484375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.931,
+    "submit_latency_mean_ms": 33.644901041666664,
+    "submit_latency_p95_ms": 84.589,
+    "planned_latency_mean_ms": 35.58779166666667,
+    "planned_latency_p95_ms": 86.391,
+    "throughput_fps": 60.26645305557195,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8415260416666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 25.592,
+    "submit_latency_mean_ms": 32.58853125,
+    "submit_latency_p95_ms": 69.256,
+    "planned_latency_mean_ms": 37.28115625,
+    "planned_latency_p95_ms": 73.842,
+    "throughput_fps": 60.17262020421083,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7391354166666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 56.518,
+    "submit_latency_mean_ms": 49.38128125,
+    "submit_latency_p95_ms": 103.347,
+    "planned_latency_mean_ms": 54.246322916666664,
+    "planned_latency_p95_ms": 106.725,
+    "throughput_fps": 60.188616075626996,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7460989583333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 51.87,
+    "submit_latency_mean_ms": 49.34490104166667,
+    "submit_latency_p95_ms": 102.793,
+    "planned_latency_mean_ms": 53.49300520833334,
+    "planned_latency_p95_ms": 106.236,
+    "throughput_fps": 60.16630342305529,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6784322916666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 23.663,
+    "submit_latency_mean_ms": 32.814880208333335,
+    "submit_latency_p95_ms": 69.637,
+    "planned_latency_mean_ms": 37.60788541666667,
+    "planned_latency_p95_ms": 72.922,
+    "throughput_fps": 60.17601484341699,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.733375,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.335,
+    "submit_latency_mean_ms": 33.624432291666665,
+    "submit_latency_p95_ms": 85.085,
+    "planned_latency_mean_ms": 35.45805729166667,
+    "planned_latency_p95_ms": 86.575,
+    "throughput_fps": 60.28734455598999,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8275052083333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.717,
+    "submit_latency_mean_ms": 17.126630208333335,
+    "submit_latency_p95_ms": 51.701,
+    "planned_latency_mean_ms": 18.98409375,
+    "planned_latency_p95_ms": 53.12,
+    "throughput_fps": 60.26942315570072,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.833078125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.812,
+    "submit_latency_mean_ms": 49.50840625,
+    "submit_latency_p95_ms": 166.623,
+    "planned_latency_mean_ms": 54.213234375,
+    "planned_latency_p95_ms": 172.203,
+    "throughput_fps": 60.228605199610776,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7150989583333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 20.965,
+    "submit_latency_mean_ms": 45.69535416666667,
+    "submit_latency_p95_ms": 164.57,
+    "planned_latency_mean_ms": 50.342125,
+    "planned_latency_p95_ms": 168.844,
+    "throughput_fps": 60.26200791127172,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7141979166666667,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.229,
+    "submit_latency_mean_ms": 33.782239583333336,
+    "submit_latency_p95_ms": 151.258,
+    "planned_latency_mean_ms": 35.666385416666664,
+    "planned_latency_p95_ms": 152.802,
+    "throughput_fps": 60.26244293899934,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8171770833333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.649,
+    "submit_latency_mean_ms": 29.911083333333334,
+    "submit_latency_p95_ms": 150.107,
+    "planned_latency_mean_ms": 31.800109375,
+    "planned_latency_p95_ms": 152.2,
+    "throughput_fps": 60.268874516436455,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8204010416666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.631,
+    "submit_latency_mean_ms": 29.8935,
+    "submit_latency_p95_ms": 150.752,
+    "planned_latency_mean_ms": 31.598520833333332,
+    "planned_latency_p95_ms": 152.301,
+    "throughput_fps": 60.27479656471331,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8055885416666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.106,
+    "submit_latency_mean_ms": 33.76880729166667,
+    "submit_latency_p95_ms": 150.722,
+    "planned_latency_mean_ms": 35.65468229166667,
+    "planned_latency_p95_ms": 152.741,
+    "throughput_fps": 60.2674367505807,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8098177083333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 25.585,
+    "submit_latency_mean_ms": 45.782614583333334,
+    "submit_latency_p95_ms": 166.264,
+    "planned_latency_mean_ms": 50.571921875,
+    "planned_latency_p95_ms": 171.636,
+    "throughput_fps": 60.18171115411596,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.71746875,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.483,
+    "submit_latency_mean_ms": 49.557682291666666,
+    "submit_latency_p95_ms": 166.673,
+    "planned_latency_mean_ms": 54.28143229166667,
+    "planned_latency_p95_ms": 171.262,
+    "throughput_fps": 60.19450348940013,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7225104166666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 54.672,
+    "submit_latency_mean_ms": 49.492645833333334,
+    "submit_latency_p95_ms": 166.708,
+    "planned_latency_mean_ms": 53.941973958333335,
+    "planned_latency_p95_ms": 171.597,
+    "throughput_fps": 60.258887244323425,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.716546875,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 24.388,
+    "submit_latency_mean_ms": 45.72961458333333,
+    "submit_latency_p95_ms": 165.398,
+    "planned_latency_mean_ms": 50.50705729166667,
+    "planned_latency_p95_ms": 170.56,
+    "throughput_fps": 60.17509070924807,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.705078125,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.763,
+    "submit_latency_mean_ms": 33.749270833333334,
+    "submit_latency_p95_ms": 151.043,
+    "planned_latency_mean_ms": 35.68553125,
+    "planned_latency_p95_ms": 153.004,
+    "throughput_fps": 60.247031656991055,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7734895833333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.884,
+    "submit_latency_mean_ms": 29.82710416666667,
+    "submit_latency_p95_ms": 150.229,
+    "planned_latency_mean_ms": 31.817432291666666,
+    "planned_latency_p95_ms": 152.246,
+    "throughput_fps": 60.25894398083766,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7206510416666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 57.12,
+    "submit_latency_mean_ms": 49.55161458333333,
+    "submit_latency_p95_ms": 251.973,
+    "planned_latency_mean_ms": 54.240328125,
+    "planned_latency_p95_ms": 255.408,
+    "throughput_fps": 60.17412888546231,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6830416666666667,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 22.449,
+    "submit_latency_mean_ms": 46.78378125,
+    "submit_latency_p95_ms": 246.208,
+    "planned_latency_mean_ms": 51.50981770833333,
+    "planned_latency_p95_ms": 250.743,
+    "throughput_fps": 60.20343115659257,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.713921875,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.279,
+    "submit_latency_mean_ms": 33.787307291666664,
+    "submit_latency_p95_ms": 232.64,
+    "planned_latency_mean_ms": 35.70878125,
+    "planned_latency_p95_ms": 234.847,
+    "throughput_fps": 60.245727260061976,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8130364583333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 1.025,
+    "submit_latency_mean_ms": 30.972703125,
+    "submit_latency_p95_ms": 233.081,
+    "planned_latency_mean_ms": 32.86819270833333,
+    "planned_latency_p95_ms": 234.552,
+    "throughput_fps": 60.25629639067923,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8150520833333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.637,
+    "submit_latency_mean_ms": 30.984348958333335,
+    "submit_latency_p95_ms": 233.725,
+    "planned_latency_mean_ms": 32.738921875,
+    "planned_latency_p95_ms": 235.494,
+    "throughput_fps": 60.25474576733948,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8110208333333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.687,
+    "submit_latency_mean_ms": 33.7541875,
+    "submit_latency_p95_ms": 233.877,
+    "planned_latency_mean_ms": 35.54331770833333,
+    "planned_latency_p95_ms": 235.32,
+    "throughput_fps": 60.26043808083059,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7929427083333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 21.422,
+    "submit_latency_mean_ms": 46.81049479166666,
+    "submit_latency_p95_ms": 250.417,
+    "planned_latency_mean_ms": 51.328380208333336,
+    "planned_latency_p95_ms": 253.734,
+    "throughput_fps": 60.16162797365297,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7115885416666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 52.701,
+    "submit_latency_mean_ms": 49.527541666666664,
+    "submit_latency_p95_ms": 252.493,
+    "planned_latency_mean_ms": 54.43122916666667,
+    "planned_latency_p95_ms": 255.686,
+    "throughput_fps": 60.215722827027825,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.709546875,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 57.032,
+    "submit_latency_mean_ms": 49.529546875,
+    "submit_latency_p95_ms": 253.527,
+    "planned_latency_mean_ms": 53.742614583333335,
+    "planned_latency_p95_ms": 254.628,
+    "throughput_fps": 60.24302412450727,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.709703125,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 24.844,
+    "submit_latency_mean_ms": 46.80973958333333,
+    "submit_latency_p95_ms": 249.654,
+    "planned_latency_mean_ms": 50.95888541666667,
+    "planned_latency_p95_ms": 250.93,
+    "throughput_fps": 60.19308814055086,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7179427083333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.231,
+    "submit_latency_mean_ms": 33.77809375,
+    "submit_latency_p95_ms": 231.397,
+    "planned_latency_mean_ms": 35.68788541666667,
+    "planned_latency_p95_ms": 234.429,
+    "throughput_fps": 60.25202291459747,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.811609375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.787,
+    "submit_latency_mean_ms": 30.96140625,
+    "submit_latency_p95_ms": 233.956,
+    "planned_latency_mean_ms": 32.828234375,
+    "planned_latency_p95_ms": 236.068,
+    "throughput_fps": 60.27591299171959,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8069635416666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.251,
+    "submit_latency_mean_ms": 49.54694270833333,
+    "submit_latency_p95_ms": 149.412,
+    "planned_latency_mean_ms": 54.16334375,
+    "planned_latency_p95_ms": 155.727,
+    "throughput_fps": 60.179919152039865,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7714895833333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 21.258,
+    "submit_latency_mean_ms": 45.159171875,
+    "submit_latency_p95_ms": 135.925,
+    "planned_latency_mean_ms": 50.051390625,
+    "planned_latency_p95_ms": 141.648,
+    "throughput_fps": 60.232043949314736,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.758109375,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.287,
+    "submit_latency_mean_ms": 33.81761458333333,
+    "submit_latency_p95_ms": 135.103,
+    "planned_latency_mean_ms": 35.693135416666664,
+    "planned_latency_p95_ms": 135.95,
+    "throughput_fps": 60.24948936988762,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.837171875,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.663,
+    "submit_latency_mean_ms": 29.376348958333335,
+    "submit_latency_p95_ms": 118.14,
+    "planned_latency_mean_ms": 31.193401041666668,
+    "planned_latency_p95_ms": 119.603,
+    "throughput_fps": 60.26253751107559,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8636875,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.701,
+    "submit_latency_mean_ms": 29.373151041666667,
+    "submit_latency_p95_ms": 118.056,
+    "planned_latency_mean_ms": 31.239927083333335,
+    "planned_latency_p95_ms": 120.446,
+    "throughput_fps": 60.272677359416335,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.860421875,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.541,
+    "submit_latency_mean_ms": 33.809614583333335,
+    "submit_latency_p95_ms": 134.181,
+    "planned_latency_mean_ms": 35.792796875,
+    "planned_latency_p95_ms": 136.177,
+    "throughput_fps": 60.262405110251954,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8533385416666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 25.613,
+    "submit_latency_mean_ms": 45.115942708333336,
+    "submit_latency_p95_ms": 137.292,
+    "planned_latency_mean_ms": 49.45092708333333,
+    "planned_latency_p95_ms": 140.185,
+    "throughput_fps": 60.21995337971943,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7739114583333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 57.9,
+    "submit_latency_mean_ms": 49.515140625,
+    "submit_latency_p95_ms": 147.727,
+    "planned_latency_mean_ms": 53.97439583333333,
+    "planned_latency_p95_ms": 151.124,
+    "throughput_fps": 60.23232738026707,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7554479166666667,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.77,
+    "submit_latency_mean_ms": 49.53060416666667,
+    "submit_latency_p95_ms": 145.294,
+    "planned_latency_mean_ms": 53.824526041666665,
+    "planned_latency_p95_ms": 151.806,
+    "throughput_fps": 60.20365768576513,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7559479166666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 25.191,
+    "submit_latency_mean_ms": 45.232848958333335,
+    "submit_latency_p95_ms": 137.093,
+    "planned_latency_mean_ms": 49.6879375,
+    "planned_latency_p95_ms": 140.482,
+    "throughput_fps": 60.15880043351935,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7902239583333334,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.853,
+    "submit_latency_mean_ms": 33.79821875,
+    "submit_latency_p95_ms": 132.934,
+    "planned_latency_mean_ms": 35.621734375,
+    "planned_latency_p95_ms": 135.536,
+    "throughput_fps": 60.27201513832114,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8493854166666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 0.782,
+    "submit_latency_mean_ms": 29.341703125,
+    "submit_latency_p95_ms": 118.716,
+    "planned_latency_mean_ms": 31.247411458333332,
+    "planned_latency_p95_ms": 119.827,
+    "throughput_fps": 60.24941374496235,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.8574322916666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.902,
+    "submit_latency_mean_ms": 49.56711979166667,
+    "submit_latency_p95_ms": 167.085,
+    "planned_latency_mean_ms": 54.230505208333334,
+    "planned_latency_p95_ms": 172.836,
+    "throughput_fps": 60.17150760025686,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.5971145833333333,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.962,
+    "submit_latency_mean_ms": 49.529421875,
+    "submit_latency_p95_ms": 167.679,
+    "planned_latency_mean_ms": 53.82433854166667,
+    "planned_latency_p95_ms": 172.115,
+    "throughput_fps": 60.22244666235909,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.5563541666666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.912,
+    "submit_latency_mean_ms": 33.68446875,
+    "submit_latency_p95_ms": 150.42,
+    "planned_latency_mean_ms": 35.361385416666664,
+    "planned_latency_p95_ms": 152.808,
+    "throughput_fps": 60.25591818250576,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7000625,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early0-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early0-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 0,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 34.595,
+    "submit_latency_mean_ms": 33.68385416666667,
+    "submit_latency_p95_ms": 150.617,
+    "planned_latency_mean_ms": 35.53328125,
+    "planned_latency_p95_ms": 152.667,
+    "throughput_fps": 60.252911596425996,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7181354166666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early1-r0-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early1-r0-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 35.475,
+    "submit_latency_mean_ms": 33.601625,
+    "submit_latency_p95_ms": 150.399,
+    "planned_latency_mean_ms": 35.433203125,
+    "planned_latency_p95_ms": 152.604,
+    "throughput_fps": 60.282934183908786,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.649234375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.228,
+    "submit_latency_mean_ms": 33.65840625,
+    "submit_latency_p95_ms": 150.766,
+    "planned_latency_mean_ms": 35.652625,
+    "planned_latency_p95_ms": 152.978,
+    "throughput_fps": 60.28352093439457,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7089010416666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 57.967,
+    "submit_latency_mean_ms": 49.486411458333336,
+    "submit_latency_p95_ms": 168.191,
+    "planned_latency_mean_ms": 53.97375520833334,
+    "planned_latency_p95_ms": 172.308,
+    "throughput_fps": 60.26720974119,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6301354166666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 1,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 55.612,
+    "submit_latency_mean_ms": 49.506536458333336,
+    "submit_latency_p95_ms": 165.969,
+    "planned_latency_mean_ms": 54.267260416666666,
+    "planned_latency_p95_ms": 172.409,
+    "throughput_fps": 60.24750427851417,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6209322916666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r1-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r1-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 56.919,
+    "submit_latency_mean_ms": 49.529552083333336,
+    "submit_latency_p95_ms": 167.719,
+    "planned_latency_mean_ms": 54.007677083333334,
+    "planned_latency_p95_ms": 171.721,
+    "throughput_fps": 60.20996343185502,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6255572916666666,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 53.438,
+    "submit_latency_mean_ms": 49.502015625,
+    "submit_latency_p95_ms": 166.698,
+    "planned_latency_mean_ms": 54.325635416666664,
+    "planned_latency_p95_ms": 171.867,
+    "throughput_fps": 60.244536338280604,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6233072916666667,
+    "max_outstanding_at_output": 3,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 0,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 36.092,
+    "submit_latency_mean_ms": 33.66495833333333,
+    "submit_latency_p95_ms": 150.342,
+    "planned_latency_mean_ms": 35.59241145833333,
+    "planned_latency_p95_ms": 152.842,
+    "throughput_fps": 60.26567747253282,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.7110052083333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early0-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early0-r2-fps60"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "async",
+    "threads": 2,
+    "early": 1,
+    "repeat": 2,
+    "fps": 60,
+    "cycles": 1,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 192,
+    "first_frame_ms": 34.827,
+    "submit_latency_mean_ms": 33.683822916666664,
+    "submit_latency_p95_ms": 150.7,
+    "planned_latency_mean_ms": 35.64984895833334,
+    "planned_latency_p95_ms": 152.948,
+    "throughput_fps": 60.248128150278916,
+    "codec_api_cpu_ms_per_frame": null,
+    "process_cpu_ms_per_frame": 0.6995989583333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "2",
+      "60",
+      "async",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early1-r2-fps60",
+      "1",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-async-t2-early1-r2-fps60"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.911,
+    "submit_latency_mean_ms": 0.26981458333333336,
+    "submit_latency_p95_ms": 0.686,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 10919.886706175423,
+    "codec_api_cpu_ms_per_frame": 0.09036567083333334,
+    "process_cpu_ms_per_frame": 0.10269895833333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.489,
+    "submit_latency_mean_ms": 0.1346875,
+    "submit_latency_p95_ms": 0.308,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13810.167735995627,
+    "codec_api_cpu_ms_per_frame": 0.07143187083333333,
+    "process_cpu_ms_per_frame": 0.07786458333333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.498,
+    "submit_latency_mean_ms": 0.13723541666666667,
+    "submit_latency_p95_ms": 0.318,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13569.096382987746,
+    "codec_api_cpu_ms_per_frame": 0.07266570625,
+    "process_cpu_ms_per_frame": 0.07910729166666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.395,
+    "submit_latency_mean_ms": 0.204121875,
+    "submit_latency_p95_ms": 0.437,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14460.662479099823,
+    "codec_api_cpu_ms_per_frame": 0.06825648125,
+    "process_cpu_ms_per_frame": 0.073209375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.396,
+    "submit_latency_mean_ms": 0.20467916666666666,
+    "submit_latency_p95_ms": 0.442,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14420.043860966744,
+    "codec_api_cpu_ms_per_frame": 0.06846005937499999,
+    "process_cpu_ms_per_frame": 0.07341249999999999,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x264-fixed3-pyr1-open0.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.396,
+    "submit_latency_mean_ms": 0.12956458333333334,
+    "submit_latency_p95_ms": 0.283,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14369.536582445216,
+    "codec_api_cpu_ms_per_frame": 0.06863959895833333,
+    "process_cpu_ms_per_frame": 0.073628125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed3-pyr1-open0-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.426,
+    "submit_latency_mean_ms": 0.20893333333333333,
+    "submit_latency_p95_ms": 0.745,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14115.571239523599,
+    "codec_api_cpu_ms_per_frame": 0.06992204791666666,
+    "process_cpu_ms_per_frame": 0.07493229166666668,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.427,
+    "submit_latency_mean_ms": 0.14803541666666667,
+    "submit_latency_p95_ms": 0.553,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14163.887987252501,
+    "codec_api_cpu_ms_per_frame": 0.06966529166666667,
+    "process_cpu_ms_per_frame": 0.07465104166666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.438,
+    "submit_latency_mean_ms": 0.14870416666666667,
+    "submit_latency_p95_ms": 0.556,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14109.554814150708,
+    "codec_api_cpu_ms_per_frame": 0.06994937291666666,
+    "process_cpu_ms_per_frame": 0.07521875,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.434,
+    "submit_latency_mean_ms": 0.20814270833333334,
+    "submit_latency_p95_ms": 0.743,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14170.787511993505,
+    "codec_api_cpu_ms_per_frame": 0.06967286979166668,
+    "process_cpu_ms_per_frame": 0.07455729166666668,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.41,
+    "submit_latency_mean_ms": 0.20683020833333332,
+    "submit_latency_p95_ms": 0.736,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14256.225961181484,
+    "codec_api_cpu_ms_per_frame": 0.06926522395833333,
+    "process_cpu_ms_per_frame": 0.07413541666666668,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.437,
+    "submit_latency_mean_ms": 0.148778125,
+    "submit_latency_p95_ms": 0.558,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14093.605026719126,
+    "codec_api_cpu_ms_per_frame": 0.07000931041666666,
+    "process_cpu_ms_per_frame": 0.07491666666666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.481,
+    "submit_latency_mean_ms": 0.21592291666666666,
+    "submit_latency_p95_ms": 1.284,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13651.682996544418,
+    "codec_api_cpu_ms_per_frame": 0.07236923125,
+    "process_cpu_ms_per_frame": 0.0773625,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.484,
+    "submit_latency_mean_ms": 0.16303333333333334,
+    "submit_latency_p95_ms": 1.072,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13627.652778763575,
+    "codec_api_cpu_ms_per_frame": 0.07247085520833334,
+    "process_cpu_ms_per_frame": 0.07736041666666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.484,
+    "submit_latency_mean_ms": 0.16324166666666667,
+    "submit_latency_p95_ms": 1.07,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13605.249358710902,
+    "codec_api_cpu_ms_per_frame": 0.07258478020833334,
+    "process_cpu_ms_per_frame": 0.07747812500000001,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.468,
+    "submit_latency_mean_ms": 0.21589375,
+    "submit_latency_p95_ms": 1.282,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13661.396593189225,
+    "codec_api_cpu_ms_per_frame": 0.07232713229166667,
+    "process_cpu_ms_per_frame": 0.077234375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.474,
+    "submit_latency_mean_ms": 0.21585520833333333,
+    "submit_latency_p95_ms": 1.29,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13658.092419758706,
+    "codec_api_cpu_ms_per_frame": 0.07232603125,
+    "process_cpu_ms_per_frame": 0.07717083333333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x264-bdominant16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.467,
+    "submit_latency_mean_ms": 0.16283125,
+    "submit_latency_p95_ms": 1.087,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13642.952562317028,
+    "codec_api_cpu_ms_per_frame": 0.07237456354166666,
+    "process_cpu_ms_per_frame": 0.07721041666666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-bdominant16-pyr1-open1-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.378,
+    "submit_latency_mean_ms": 0.23246979166666668,
+    "submit_latency_p95_ms": 0.768,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12730.238294148068,
+    "codec_api_cpu_ms_per_frame": 0.07769506458333333,
+    "process_cpu_ms_per_frame": 0.08252395833333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.38,
+    "submit_latency_mean_ms": 0.14690208333333332,
+    "submit_latency_p95_ms": 0.589,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12748.49607585355,
+    "codec_api_cpu_ms_per_frame": 0.07751326666666666,
+    "process_cpu_ms_per_frame": 0.08272604166666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.361,
+    "submit_latency_mean_ms": 0.146884375,
+    "submit_latency_p95_ms": 0.59,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12745.618693574084,
+    "codec_api_cpu_ms_per_frame": 0.07752439166666666,
+    "process_cpu_ms_per_frame": 0.082478125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.366,
+    "submit_latency_mean_ms": 0.23118333333333332,
+    "submit_latency_p95_ms": 0.76,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12798.464184297884,
+    "codec_api_cpu_ms_per_frame": 0.07725213958333334,
+    "process_cpu_ms_per_frame": 0.08208020833333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.377,
+    "submit_latency_mean_ms": 0.23265416666666666,
+    "submit_latency_p95_ms": 0.759,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12718.937968679615,
+    "codec_api_cpu_ms_per_frame": 0.07775585520833334,
+    "process_cpu_ms_per_frame": 0.08252395833333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x264-adaptive16-pyr1-open1.mp4",
+    "source_folder": "hrd-targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.483,
+    "submit_latency_mean_ms": 0.15560729166666668,
+    "submit_latency_p95_ms": 0.605,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12021.940040574047,
+    "codec_api_cpu_ms_per_frame": 0.082180990625,
+    "process_cpu_ms_per_frame": 0.088328125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/hrd-targets/x264-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/hrd-targets-x264-adaptive16-pyr1-open1-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.687,
+    "submit_latency_mean_ms": 0.252521875,
+    "submit_latency_p95_ms": 0.565,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11616.228839708143,
+    "codec_api_cpu_ms_per_frame": 0.084876765625,
+    "process_cpu_ms_per_frame": 0.09057083333333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.375,
+    "submit_latency_mean_ms": 0.155865625,
+    "submit_latency_p95_ms": 0.368,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11305.02366989331,
+    "codec_api_cpu_ms_per_frame": 0.08732188437499999,
+    "process_cpu_ms_per_frame": 0.09312604166666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.384,
+    "submit_latency_mean_ms": 0.155784375,
+    "submit_latency_p95_ms": 0.365,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11318.619128466327,
+    "codec_api_cpu_ms_per_frame": 0.087234053125,
+    "process_cpu_ms_per_frame": 0.093053125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.678,
+    "submit_latency_mean_ms": 0.25470312500000003,
+    "submit_latency_p95_ms": 0.574,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11520.5990711517,
+    "codec_api_cpu_ms_per_frame": 0.085575453125,
+    "process_cpu_ms_per_frame": 0.09114166666666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.687,
+    "submit_latency_mean_ms": 0.253871875,
+    "submit_latency_p95_ms": 0.577,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11552.624611904017,
+    "codec_api_cpu_ms_per_frame": 0.08547388541666667,
+    "process_cpu_ms_per_frame": 0.09101041666666668,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x265-fixed3-pyr1-open0.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.287,
+    "submit_latency_mean_ms": 0.14668333333333333,
+    "submit_latency_p95_ms": 0.336,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12025.253031365868,
+    "codec_api_cpu_ms_per_frame": 0.08223225625000001,
+    "process_cpu_ms_per_frame": 0.08673125000000001,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed3-pyr1-open0.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed3-pyr1-open0-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.757,
+    "submit_latency_mean_ms": 0.248846875,
+    "submit_latency_p95_ms": 0.922,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11836.946067914478,
+    "codec_api_cpu_ms_per_frame": 0.083390759375,
+    "process_cpu_ms_per_frame": 0.08896666666666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.296,
+    "submit_latency_mean_ms": 0.211575,
+    "submit_latency_p95_ms": 0.849,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12501.62781612189,
+    "codec_api_cpu_ms_per_frame": 0.078869315625,
+    "process_cpu_ms_per_frame": 0.08345416666666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.293,
+    "submit_latency_mean_ms": 0.21147916666666666,
+    "submit_latency_p95_ms": 0.845,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12511.566682740555,
+    "codec_api_cpu_ms_per_frame": 0.07879762291666666,
+    "process_cpu_ms_per_frame": 0.08367395833333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.587,
+    "submit_latency_mean_ms": 0.23612708333333332,
+    "submit_latency_p95_ms": 0.877,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12480.823734366468,
+    "codec_api_cpu_ms_per_frame": 0.07893469791666667,
+    "process_cpu_ms_per_frame": 0.083725,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.587,
+    "submit_latency_mean_ms": 0.234684375,
+    "submit_latency_p95_ms": 0.872,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12558.212547747371,
+    "codec_api_cpu_ms_per_frame": 0.078503628125,
+    "process_cpu_ms_per_frame": 0.08333750000000001,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x265-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.294,
+    "submit_latency_mean_ms": 0.2121875,
+    "submit_latency_p95_ms": 0.851,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12478.228091610992,
+    "codec_api_cpu_ms_per_frame": 0.07901742083333334,
+    "process_cpu_ms_per_frame": 0.08364375,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-fixed7-pyr1-open1-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.62,
+    "submit_latency_mean_ms": 0.23577395833333334,
+    "submit_latency_p95_ms": 1.392,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12495.444369240382,
+    "codec_api_cpu_ms_per_frame": 0.07888566979166665,
+    "process_cpu_ms_per_frame": 0.08362708333333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.297,
+    "submit_latency_mean_ms": 0.21768020833333335,
+    "submit_latency_p95_ms": 1.25,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12586.697434149284,
+    "codec_api_cpu_ms_per_frame": 0.078403890625,
+    "process_cpu_ms_per_frame": 0.083115625,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.295,
+    "submit_latency_mean_ms": 0.21734375,
+    "submit_latency_p95_ms": 1.271,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12603.056241138476,
+    "codec_api_cpu_ms_per_frame": 0.078234440625,
+    "process_cpu_ms_per_frame": 0.08296041666666666,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.612,
+    "submit_latency_mean_ms": 0.233109375,
+    "submit_latency_p95_ms": 1.369,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12637.56516244537,
+    "codec_api_cpu_ms_per_frame": 0.07801740208333334,
+    "process_cpu_ms_per_frame": 0.08279583333333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.589,
+    "submit_latency_mean_ms": 0.23334270833333334,
+    "submit_latency_p95_ms": 1.368,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12622.776221845292,
+    "codec_api_cpu_ms_per_frame": 0.078115140625,
+    "process_cpu_ms_per_frame": 0.08273125,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x265-bdominant16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.294,
+    "submit_latency_mean_ms": 0.21698125,
+    "submit_latency_p95_ms": 1.263,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 12623.108177407266,
+    "codec_api_cpu_ms_per_frame": 0.07810187916666667,
+    "process_cpu_ms_per_frame": 0.08272708333333334,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-bdominant16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-bdominant16-pyr1-open1-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.524,
+    "submit_latency_mean_ms": 0.26162395833333335,
+    "submit_latency_p95_ms": 0.882,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11290.531243016923,
+    "codec_api_cpu_ms_per_frame": 0.08740921354166667,
+    "process_cpu_ms_per_frame": 0.09208333333333332,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.376,
+    "submit_latency_mean_ms": 0.24178125,
+    "submit_latency_p95_ms": 0.838,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 10743.783154643328,
+    "codec_api_cpu_ms_per_frame": 0.091878121875,
+    "process_cpu_ms_per_frame": 0.09790312500000001,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.371,
+    "submit_latency_mean_ms": 0.240453125,
+    "submit_latency_p95_ms": 0.84,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 10801.56622710293,
+    "codec_api_cpu_ms_per_frame": 0.09141864999999999,
+    "process_cpu_ms_per_frame": 0.09718854166666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.606,
+    "submit_latency_mean_ms": 0.268428125,
+    "submit_latency_p95_ms": 0.903,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 11005.261890841559,
+    "codec_api_cpu_ms_per_frame": 0.08960043333333334,
+    "process_cpu_ms_per_frame": 0.09525833333333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.688,
+    "submit_latency_mean_ms": 0.27565,
+    "submit_latency_p95_ms": 0.934,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 10713.568287837868,
+    "codec_api_cpu_ms_per_frame": 0.092145796875,
+    "process_cpu_ms_per_frame": 0.09798958333333332,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x265-adaptive16-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.371,
+    "submit_latency_mean_ms": 0.239909375,
+    "submit_latency_p95_ms": 0.838,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 10831.91352522369,
+    "codec_api_cpu_ms_per_frame": 0.091122321875,
+    "process_cpu_ms_per_frame": 0.09690833333333333,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x265-adaptive16-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x265-adaptive16-pyr1-open1-legacy-t1-early1-r2-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.485,
+    "submit_latency_mean_ms": 0.21600520833333334,
+    "submit_latency_p95_ms": 0.765,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13650.712396553196,
+    "codec_api_cpu_ms_per_frame": 0.07237233020833334,
+    "process_cpu_ms_per_frame": 0.07808124999999999,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r0-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 0,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.534,
+    "submit_latency_mean_ms": 0.221609375,
+    "submit_latency_p95_ms": 0.786,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 13308.195630475768,
+    "codec_api_cpu_ms_per_frame": 0.074242171875,
+    "process_cpu_ms_per_frame": 0.08026875,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r0-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r0-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.426,
+    "submit_latency_mean_ms": 0.20848958333333334,
+    "submit_latency_p95_ms": 0.743,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14146.35583979252,
+    "codec_api_cpu_ms_per_frame": 0.06979070416666666,
+    "process_cpu_ms_per_frame": 0.07474375000000001,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r1-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 1,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.408,
+    "submit_latency_mean_ms": 0.20895833333333333,
+    "submit_latency_p95_ms": 0.741,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14118.269923673104,
+    "codec_api_cpu_ms_per_frame": 0.06995133749999999,
+    "process_cpu_ms_per_frame": 0.07483854166666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r1-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r1-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 0,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.428,
+    "submit_latency_mean_ms": 0.21065208333333332,
+    "submit_latency_p95_ms": 0.752,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14004.784968197468,
+    "codec_api_cpu_ms_per_frame": 0.070495409375,
+    "process_cpu_ms_per_frame": 0.07535,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "0",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early0-r2-fps0"
+  },
+  {
+    "file": "x264-fixed7-pyr1-open1.mp4",
+    "source_folder": "targets",
+    "mode": "legacy",
+    "threads": 1,
+    "early": 1,
+    "repeat": 2,
+    "fps": 0,
+    "cycles": 5,
+    "returncode": 0,
+    "terminal": [
+      "0"
+    ],
+    "frames": 960,
+    "first_frame_ms": 0.413,
+    "submit_latency_mean_ms": 0.207371875,
+    "submit_latency_p95_ms": 0.74,
+    "planned_latency_mean_ms": null,
+    "planned_latency_p95_ms": null,
+    "throughput_fps": 14223.48653213619,
+    "codec_api_cpu_ms_per_frame": 0.069436371875,
+    "process_cpu_ms_per_frame": 0.07416979166666667,
+    "max_outstanding_at_output": 2,
+    "command": [
+      "<WORKSPACE>/out/install/phase2/bin/perf_probe",
+      "<WORKSPACE>/out/phase2/targets/x264-fixed7-pyr1-open1.mp4",
+      "1",
+      "0",
+      "legacy",
+      "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r2-fps0",
+      "5",
+      "0",
+      "1"
+    ],
+    "environment": {
+      "EARLY_OUTPUT": "1",
+      "NO_HASH": "1"
+    },
+    "prefix": "<WORKSPACE>/out/phase2/performance/targets-x264-fixed7-pyr1-open1-legacy-t1-early1-r2-fps0"
+  }
+]

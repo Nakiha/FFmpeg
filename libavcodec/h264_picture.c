@@ -89,6 +89,9 @@ static void h264_copy_picture_params(H264Picture *dst, const H264Picture *src)
     memcpy(dst->ref_count, src->ref_count, sizeof(src->ref_count));
 
     dst->poc           = src->poc;
+    dst->live_tick_valid = src->live_tick_valid;
+    dst->live_tick = src->live_tick;
+    dst->live_timing_serial = src->live_timing_serial;
     dst->frame_num     = src->frame_num;
     dst->mmco_reset    = src->mmco_reset;
     dst->long_ref      = src->long_ref;

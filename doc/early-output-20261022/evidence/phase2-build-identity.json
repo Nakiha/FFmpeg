@@ -1,0 +1,59 @@
+{
+  "recorded_utc": "2026-10-22T04:20:51.783281+00:00",
+  "workspace": "<WORKSPACE>",
+  "platform": "macOS-27.2-arm64-arm-64bit",
+  "ffmpeg_head": "94bd940f1c4682dfce13e8ae43891df01621e16e",
+  "app_head": "67f5e07798575e20e1f3fe1dcc6e37b40f3d64fa",
+  "patches": {
+    "research/phase2/ffmpeg-early-output.patch": "b138d0e9bb5dd21e9e9f6211d261f3ef84ebf3e3c3e87444c094cdc2e094654d",
+    "research/phase2/application-switch.patch": "38c1333654d8e93b698fb20099be62f6ab61e967e89a8e927cff49eb8d1f637e"
+  },
+  "compiler": "Apple clang version 21.0.0 (clang-2100.3.34.2)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin\n",
+  "builds": {
+    "baseline": {
+      "version": "ffmpeg version 94bd940 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with Apple clang version 21.0.0 (clang-2100.3.34.2)\nconfiguration: --prefix=<WORKSPACE>/out/install/baseline --enable-shared --disable-static --disable-autodetect --disable-everything --disable-network --disable-hwaccels --disable-doc --disable-ffplay --disable-avdevice --disable-swresample --disable-swscale --enable-decoder='h264,hevc' --enable-parser='h264,hevc' --enable-demuxer='h264,hevc,mov' --enable-protocol=file --enable-muxer='framehash,null' --enable-encoder='rawvideo,wrapped_avframe' --enable-filter=null --enable-debug=3 --assert-level=2\nlibavutil      61.  1.104 / 61.  1.104\nlibavcodec     63.  4.108 / 63.  4.108\nlibavformat    63.  3.105 / 63.  3.105\nlibavfilter    12.  1.102 / 12.  1.102\n\nExiting with exit code 0\n",
+      "files": {
+        "out/install/baseline/lib/libavcodec.63.4.108.dylib": "da020c4f111484c3a8746da7ad57d0a250acdca387d6c19ec32e00f8c8bb3ca7",
+        "out/install/baseline/lib/libavfilter.12.1.102.dylib": "a75ee2d65719ca256c126a455bdae63efee1254cdd1c71c7cac2e9da304fb317",
+        "out/install/baseline/lib/libavformat.63.3.105.dylib": "ef1bdb03a1c79afd5cdd04ec307890daa18a3ae910c234d42f7a346c1fa828df",
+        "out/install/baseline/lib/libavutil.61.1.104.dylib": "a5276ed9d47199633904e593d968f250ab8b06e18c0f628e9a29038228eb1345",
+        "out/install/baseline/bin/ffmpeg": "ad1b5096f7d9a3c5d2875ff511add153b44d5a64c3c9e35717fe33b1e7e486db",
+        "out/install/baseline/bin/ffprobe": "aff164fd8b7e596271aec849901ebff5df0bed0501e1c918cf026fd10bfa3e7e",
+        "out/install/baseline/bin/phase2_probe": "32ac3d570d66ffc82c8f0f4b4328f156887baab9848d4ca0d8a725c310d35ed8",
+        "out/install/baseline/bin/portable_probe": "63604bfb6a286dc8be71bc4d0208c1a9026f9dec5e429a1550c792f697ed3d00"
+      },
+      "dynamic_dependencies": "<WORKSPACE>/out/install/baseline/bin/portable_probe:\n\t<WORKSPACE>/out/install/baseline/lib/libavformat.63.dylib (compatibility version 63.0.0, current version 63.3.105)\n\t<WORKSPACE>/out/install/baseline/lib/libavcodec.63.dylib (compatibility version 63.0.0, current version 63.4.108)\n\t<WORKSPACE>/out/install/baseline/lib/libavutil.61.dylib (compatibility version 61.0.0, current version 61.1.104)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+    },
+    "phase2": {
+      "version": "ffmpeg version 94bd940 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with Apple clang version 21.0.0 (clang-2100.3.34.2)\nconfiguration: --prefix=<WORKSPACE>/out/install/phase2 --enable-shared --disable-static --disable-autodetect --disable-everything --disable-network --disable-hwaccels --disable-doc --disable-ffplay --disable-avdevice --disable-swresample --disable-swscale --enable-decoder='h264,hevc' --enable-parser='h264,hevc' --enable-demuxer='h264,hevc,mov' --enable-protocol=file --enable-muxer='framehash,null' --enable-encoder='rawvideo,wrapped_avframe' --enable-filter=null --enable-debug=3 --assert-level=2\nlibavutil      61.  1.104 / 61.  1.104\nlibavcodec     63.  4.108 / 63.  4.108\nlibavformat    63.  3.105 / 63.  3.105\nlibavfilter    12.  1.102 / 12.  1.102\n\nExiting with exit code 0\n",
+      "files": {
+        "out/install/phase2/lib/libavcodec.63.4.108.dylib": "793145b81c37d910f14fd762905a645440c9bf940e949f759f805b3081400f67",
+        "out/install/phase2/lib/libavfilter.12.1.102.dylib": "6c475db7c613b5e499eba83fa28708f4bf612169202cba7d3a4428b374830e23",
+        "out/install/phase2/lib/libavformat.63.3.105.dylib": "7b02bad80179a06e04bedb665d8a0c6c77c15a5462c96e6fe14f5b977b7a4cae",
+        "out/install/phase2/lib/libavutil.61.1.104.dylib": "ee3ee342602bde0b3a4bb83154c6d99a8a5e25021f1a33722cb5601115606657",
+        "out/install/phase2/bin/ffmpeg": "a42656d01c287f3bbed4d71e59c5b1ef537da40d0b9727e18312e160c609925a",
+        "out/install/phase2/bin/ffprobe": "8e0241c9378fc1b72b106c4f6adb3a600484215351976e5ce10865dc59b792e2",
+        "out/install/phase2/bin/perf_probe": "abc5ebe48324b035fe18962866273a3edbc350253c18baeeea55fae1c615ab8e",
+        "out/install/phase2/bin/probe": "7f30e140f19eab50ebb8eec8e9e8fc82ed61ac7d3aeb4b80dafaa13674f650c9"
+      },
+      "dynamic_dependencies": "<WORKSPACE>/out/install/phase2/bin/probe:\n\t<WORKSPACE>/out/install/phase2/lib/libavformat.63.dylib (compatibility version 63.0.0, current version 63.3.105)\n\t<WORKSPACE>/out/install/phase2/lib/libavcodec.63.dylib (compatibility version 63.0.0, current version 63.4.108)\n\t<WORKSPACE>/out/install/phase2/lib/libavutil.61.dylib (compatibility version 61.0.0, current version 61.1.104)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+    },
+    "phase2-asan": {
+      "version": "ffmpeg version 94bd940 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with Apple clang version 21.0.0 (clang-2100.3.34.2)\nconfiguration: --prefix=<WORKSPACE>/out/install/phase2-asan --enable-shared --disable-static --disable-autodetect --disable-everything --disable-network --disable-hwaccels --disable-doc --disable-ffplay --disable-avdevice --disable-swresample --disable-swscale --enable-decoder='h264,hevc' --enable-parser='h264,hevc' --enable-demuxer='h264,hevc,mov' --enable-protocol=file --enable-muxer='framehash,null' --enable-encoder='rawvideo,wrapped_avframe' --enable-filter=null --enable-debug=3 --assert-level=2 --disable-asm --extra-cflags='-fsanitize=address -fno-omit-frame-pointer' --extra-ldflags='-fsanitize=address'\nlibavutil      61.  1.104 / 61.  1.104\nlibavcodec     63.  4.108 / 63.  4.108\nlibavformat    63.  3.105 / 63.  3.105\nlibavfilter    12.  1.102 / 12.  1.102\n\nExiting with exit code 0\n",
+      "files": {
+        "out/install/phase2-asan/lib/libavcodec.63.4.108.dylib": "7bb8359777745a29881a07a2436fdafc0d83fcf59f333cad0ae3ea01af7dafe5",
+        "out/install/phase2-asan/lib/libavfilter.12.1.102.dylib": "d8d86de5191e9ab905ac062dda9a36858ed86c2d07df433e29074b126720aeee",
+        "out/install/phase2-asan/lib/libavformat.63.3.105.dylib": "97451976369580c29bd4d978ec941233b7189dbfb6bc81af83e07799a3409f9b",
+        "out/install/phase2-asan/lib/libavutil.61.1.104.dylib": "a12ad5e5f31335bc2ad5f62f97399457ff8a5bd2d1f0f5a4d5d3e8e0de00d276",
+        "out/install/phase2-asan/bin/ffmpeg": "4fbd46923484ea520c172ea93596c651b599c3f7c2f742d3e72e54737973d546",
+        "out/install/phase2-asan/bin/ffprobe": "812830c77ec686f019b159d52a8f1de6d7cf6dba722216f7f8ccc13348e50d33",
+        "out/install/phase2-asan/bin/probe": "ef94a6069693c36ef1e60e991d3d927d9480daa54bb1251fa6ae9cc7a334cb7b"
+      },
+      "dynamic_dependencies": "<WORKSPACE>/out/install/phase2-asan/bin/probe:\n\t<WORKSPACE>/out/install/phase2-asan/lib/libavformat.63.dylib (compatibility version 63.0.0, current version 63.3.105)\n\t<WORKSPACE>/out/install/phase2-asan/lib/libavcodec.63.dylib (compatibility version 63.0.0, current version 63.4.108)\n\t<WORKSPACE>/out/install/phase2-asan/lib/libavutil.61.dylib (compatibility version 61.0.0, current version 61.1.104)\n\t@rpath/libclang_rt.asan_osx_dynamic.dylib (compatibility version 0.0.0, current version 0.0.0)\n\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1359.0.0)\n"
+    }
+  },
+  "encoder_oracle": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers\nbuilt with Apple clang version 21.0.0 (clang-2100.0.123.102)\nconfiguration: --prefix=/opt/homebrew/Cellar/ffmpeg/8.1.2_1 --enable-shared --enable-pthreads --enable-version3 --cc=clang --host-cflags= --host-ldflags= --enable-ffplay --enable-gpl --enable-libsvtav1 --enable-libopus --enable-libx264 --enable-libmp3lame --enable-libdav1d --enable-libvmaf --enable-libvpx --enable-libx265 --enable-openssl --enable-videotoolbox --enable-audiotoolbox --enable-neon\nlibavutil      60. 26.102 / 60. 26.102\nlibavcodec     62. 28.102 / 62. 28.102\nlibavformat    62. 12.102 / 62. 12.102\nlibavdevice    62.  3.102 / 62.  3.102\nlibavfilter    11. 14.102 / 11. 14.102\nlibswscale      9.  5.102 /  9.  5.102\nlibswresample   6.  3.102 /  6.  3.102\n\nExiting with exit code 0\n",
+  "pin_changed": false,
+  "pushed": false,
+  "production_defaults_changed": false
+}

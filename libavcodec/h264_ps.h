@@ -87,6 +87,7 @@ typedef struct SPS {
     int nal_hrd_parameters_present_flag;
     int vcl_hrd_parameters_present_flag;
     int pic_struct_present_flag;
+    int low_delay_hrd_flag;
     int time_offset_length;
     int cpb_cnt;                          ///< See H.264 E.1.2
     int bit_rate_scale;

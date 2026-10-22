@@ -429,6 +429,17 @@ int ff_h264_update_thread_context(AVCodecContext *dst,
 
     h->next_output_pic   = h1->next_output_pic;
     h->next_outputed_poc = h1->next_outputed_poc;
+    h->live_poc_active = h1->live_poc_active;
+    h->live_last_poc = h1->live_last_poc;
+    h->live_mode = h1->live_mode;
+    h->live_hrd_ready = h1->live_hrd_ready;
+    h->live_cpb_last = h1->live_cpb_last;
+    h->live_cpb_msb = h1->live_cpb_msb;
+    h->live_cpb_base = h1->live_cpb_base;
+    h->live_last_tick = h1->live_last_tick;
+    h->live_timing_serial = h1->live_timing_serial;
+    av_refstruct_replace(&h->live_sps, h1->live_sps);
+    av_refstruct_replace(&h->live_pps, h1->live_pps);
     h->poc_offset        = h1->poc_offset;
 
     memcpy(h->mmco, h1->mmco, sizeof(h->mmco));
@@ -1390,6 +1401,243 @@ static int h264_select_output_frame(H264Context *h)
     return 0;
 }
 
+
+/* Called only after all current-AU NAL/slice work and field_end succeeded,
+ * before this worker's setup state is published to the next frame worker.
+ * The ordinary one-picture DPB selector has already run unchanged. */
+int ff_h264_live_output_plan(H264Context *h, H264Picture **plan, int *nb_plan)
+{
+    const SPS *sps = h->ps.sps;
+    H264Picture *cur = h->cur_pic_ptr, *out;
+    H264Picture *pending[H264_MAX_DPB_FRAMES + 2];
+    int i, pics = 0, out_idx, eligible, early, hrd;
+    int last_poc, next_poc;
+    int64_t last_tick;
+    *nb_plan = 0;
+    if (!h->live_hold_setup || !cur)
+        return 0;
+    if (cur->f->decode_error_flags ||
+        (cur->decode_error_flags && atomic_load_explicit(cur->decode_error_flags, memory_order_relaxed)))
+        h->live_au_invalid = 1;
+    if (!h->picture_idr &&
+        ((h->live_sps && (h->live_sps->data_size != sps->data_size ||
+          memcmp(h->live_sps->data, sps->data, sps->data_size))) ||
+         (h->live_pps && (h->live_pps->data_size != h->ps.pps->data_size ||
+          memcmp(h->live_pps->data, h->ps.pps->data, h->ps.pps->data_size)))))
+        h->live_au_invalid = 1;
+    if (!h->live_poc_verified_even && (h->live_timing_count != 1 ||
+        h->live_timing_bits < sps->cpb_removal_delay_length + sps->dpb_output_delay_length ||
+        (h->live_bp_count && (h->live_bp_sps_id != sps->sps_id ||
+         h->live_bp_bits < 2 * sps->cpb_cnt * sps->initial_cpb_removal_delay_length ||
+         !h->sei.buffering_period.present || !h->sei.buffering_period.initial_cpb_removal_delay[0]))))
+        h->live_au_invalid = 1;
+    while (h->delayed_pic[pics])
+        pics++;
+    /* In-band proof: H.264 C.2.2 gives output ticks as removal ticks plus
+     * dpb_output_delay. E.2.1 / Table E-6 fixes consecutive progressive output
+     * pictures two ticks apart when fixed_frame_rate=1 and pic_struct is absent.
+     * Once ordinary DPB selection establishes a first output, a picture at the
+     * next tick cannot have an unseen picture inserted before it. No POC parity
+     * assumption or future AU scan is used by this mode. */
+    hrd = h->live_poc_early_output &&
+          (sps->profile_idc == 77 || sps->profile_idc == 100) &&
+          sps->timing_info_present_flag && sps->fixed_frame_rate_flag &&
+          sps->frame_mbs_only_flag && !sps->pic_struct_present_flag &&
+          sps->nal_hrd_parameters_present_flag && !sps->vcl_hrd_parameters_present_flag &&
+          !sps->low_delay_hrd_flag && sps->cpb_cnt == 1 &&
+          sps->num_units_in_tick && sps->time_scale &&
+          sps->cpb_removal_delay_length > 0 && sps->cpb_removal_delay_length <= 30 &&
+          sps->dpb_output_delay_length > 0 && sps->dpb_output_delay_length <= 30 &&
+          h->sei.picture_timing.present &&
+          h->sei.picture_timing.cpb_removal_delay >= 0 &&
+          h->sei.picture_timing.dpb_output_delay >= 0;
+    cur->live_tick_valid = 0;
+    if (!hrd || h->live_au_invalid)
+        h->live_hrd_ready = 0;
+    if (hrd && !h->live_au_invalid && h->picture_idr && h->sei.buffering_period.present &&
+        h->live_timing_serial < UINT64_MAX) {
+        h->live_timing_serial++;
+        h->live_cpb_last = 0;
+        h->live_cpb_msb = 0;
+        h->live_cpb_base = 0;
+        h->live_hrd_ready = 1;
+        /* Bind the clock to its actual IDR parameters, even while the ordinary
+         * DPB has not yet selected the first output anchor. */
+        av_refstruct_replace(&h->live_sps, sps);
+        av_refstruct_replace(&h->live_pps, h->ps.pps);
+        cur->live_tick = h->sei.picture_timing.dpb_output_delay;
+        cur->live_tick_valid = 1;
+    } else if (hrd && !h->live_au_invalid && h->live_hrd_ready && !h->picture_idr) {
+        int cpb = h->sei.picture_timing.cpb_removal_delay;
+        if (cpb < h->live_cpb_last)
+            h->live_cpb_msb += INT64_C(1) << sps->cpb_removal_delay_length;
+        if (cpb == h->live_cpb_last || h->live_cpb_msb > INT64_MAX - INT_MAX * INT64_C(2) ||
+            h->live_cpb_base > INT64_MAX - h->live_cpb_msb - INT_MAX * INT64_C(2))
+            h->live_hrd_ready = 0;
+        else {
+            cur->live_tick = h->live_cpb_base + h->live_cpb_msb + cpb + h->sei.picture_timing.dpb_output_delay;
+            cur->live_tick_valid = 1;
+        }
+        if (h->sei.buffering_period.present && h->live_hrd_ready) {
+            /* A non-IDR buffering-period AU uses the preceding period's
+             * removal origin (C-8). Later AUs use this AU's origin (C-9). */
+            h->live_cpb_base += h->live_cpb_msb + cpb;
+            h->live_cpb_msb = 0;
+            h->live_cpb_last = 0;
+        } else
+            h->live_cpb_last = cpb;
+    }
+    cur->live_timing_serial = h->live_timing_serial;
+    eligible = !h->live_au_invalid && h->live_poc_early_output &&
+               (h->live_poc_verified_even || cur->live_tick_valid) &&
+               sps->poc_type == 0 && sps->frame_mbs_only_flag &&
+               !h->ps.pps->pic_order_present && !cur->needs_fg && !h->avctx->hwaccel &&
+               !(h->avctx->flags2 & AV_CODEC_FLAG2_CHUNKS) &&
+               h->avctx->skip_frame == AVDISCARD_DEFAULT &&
+               cur->field_poc[0] == cur->field_poc[1] &&
+               cur->f->pts != AV_NOPTS_VALUE;
+    for (i = 0; i < h->nb_mmco; i++)
+        if (h->mmco[i].opcode == MMCO_RESET)
+            eligible = 0;
+    /* Reject observable contradictions before selecting anything extra. The
+     * in-band contract itself remains the normative HRD/CFR contract, not a
+     * heuristic extrapolated from these local checks. */
+    if (eligible && !h->live_poc_verified_even) {
+        for (int a = 0; a < pics; a++) {
+            H264Picture *pa = h->delayed_pic[a];
+            if (!pa->live_tick_valid || pa->live_timing_serial != h->live_timing_serial)
+                continue;
+            for (int b = a + 1; b < pics; b++) {
+                H264Picture *pb = h->delayed_pic[b];
+                if (!pb->live_tick_valid || pb->live_timing_serial != pa->live_timing_serial)
+                    continue;
+                if ((pa->poc < pb->poc && pa->live_tick >= pb->live_tick) ||
+                    (pa->poc > pb->poc && pa->live_tick <= pb->live_tick) || pa->poc == pb->poc)
+                    eligible = 0;
+            }
+        }
+    }
+    if (!eligible || h->picture_idr ||
+        (h->live_sps != sps && (!h->live_sps || h->live_sps->data_size != sps->data_size ||
+          memcmp(h->live_sps->data, sps->data, sps->data_size))) ||
+        (h->live_pps != h->ps.pps && (!h->live_pps || h->live_pps->data_size != h->ps.pps->data_size ||
+          memcmp(h->live_pps->data, h->ps.pps->data, h->ps.pps->data_size))))
+        h->live_poc_active = 0;
+
+    if (!eligible) {
+        h->live_poc_active = h->live_hrd_ready = 0;
+        cur->live_tick_valid = 0;
+        return 0;
+    }
+    if (h->live_poc_active && !h->picture_idr &&
+        (cur->poc <= h->live_last_poc ||
+         (!h->live_poc_verified_even && cur->live_tick_valid && cur->live_tick <= h->live_last_tick))) {
+        h->live_poc_active = h->live_hrd_ready = 0;
+        cur->live_tick_valid = 0;
+        return 0;
+    }
+    if (h->live_poc_verified_even && h->picture_idr &&
+        (!h->delayed_pic[0] || (h->delayed_pic[0] == cur && !h->delayed_pic[1]))) {
+        h->live_poc_active = 1;
+        h->live_last_poc = cur->poc - 2;
+        h->live_mode = 1;
+        av_refstruct_replace(&h->live_sps, sps);
+        av_refstruct_replace(&h->live_pps, h->ps.pps);
+    }
+    out = h->next_output_pic;
+    if (out && (!out->pps || out->pps->data_size != h->ps.pps->data_size ||
+        memcmp(out->pps->data, h->ps.pps->data, h->ps.pps->data_size) ||
+        out->pps->sps->data_size != sps->data_size ||
+        memcmp(out->pps->sps->data, sps->data, sps->data_size))) {
+        h->live_poc_active = h->live_hrd_ready = 0;
+        return 0;
+    }
+    if (out && (out->f->flags & AV_FRAME_FLAG_KEY) &&
+        (h->live_poc_verified_even || (out->live_tick_valid &&
+         out->live_timing_serial == h->live_timing_serial))) {
+        h->live_poc_active = 1;
+        h->live_mode = h->live_poc_verified_even ? 1 : 2;
+        av_refstruct_replace(&h->live_sps, sps);
+        av_refstruct_replace(&h->live_pps, h->ps.pps);
+    }
+    if (out && h->live_poc_active) {
+        h->live_last_poc = out->poc;
+        h->live_last_tick = out->live_tick;
+    }
+    if (!h->live_poc_active)
+        return 0;
+    /* This is a read-only DPB plan. All output allocations must succeed before
+     * applying it. The real setup is still held, so these pointers remain live. */
+    if (out)
+        plan[(*nb_plan)++] = out;
+    memcpy(pending, h->delayed_pic, sizeof(pending));
+    last_poc = h->live_last_poc;
+    last_tick = h->live_last_tick;
+    next_poc = h->next_outputed_poc;
+    while (pending[0]) {
+        out = pending[0];
+        out_idx = 0;
+        for (i = 1; pending[i] &&
+                    !(pending[i]->f->flags & AV_FRAME_FLAG_KEY) &&
+                    !pending[i]->mmco_reset; i++)
+            if (pending[i]->poc < out->poc) {
+                out = pending[i];
+                out_idx = i;
+            }
+        early = !(out->f->flags & AV_FRAME_FLAG_KEY) && !out->mmco_reset &&
+                out->poc >= next_poc &&
+                ((h->live_mode == 1 && last_poc <= INT_MAX - 2 &&
+                  out->poc == last_poc + 2) ||
+                 (h->live_mode == 2 && out->live_tick_valid &&
+                  out->live_timing_serial == h->live_timing_serial &&
+                  last_tick <= INT64_MAX - 2 && out->live_tick == last_tick + 2));
+        /* External file contract may also release the new IDR itself. */
+        if (h->live_mode == 1 && out == cur && h->picture_idr &&
+            out->poc == last_poc + 2)
+            early = 1;
+        if (!early)
+            break;
+        av_assert0(*nb_plan < H264_MAX_DPB_FRAMES + 1);
+        plan[(*nb_plan)++] = out;
+        for (i = out_idx; pending[i]; i++)
+            pending[i] = pending[i + 1];
+        pics--;
+        next_poc = last_poc = out->poc;
+        last_tick = out->live_tick;
+        if (pending[0] && ((pending[0]->f->flags & AV_FRAME_FLAG_KEY) || pending[0]->mmco_reset))
+            break;
+    }
+    return 0;
+}
+
+/* No allocation, decoding or other failure point remains in this commit. */
+void ff_h264_live_output_apply(H264Context *h, H264Picture **plan, int nb_plan)
+{
+    for (int n = 0; n < nb_plan; n++) {
+        H264Picture *out = plan[n];
+        if (out == h->next_output_pic)
+            continue; /* ordinary selector already removed it */
+        int i = 0;
+        while (h->delayed_pic[i] != out) {
+            av_assert0(h->delayed_pic[i]);
+            i++;
+        }
+        out->reference &= ~DELAYED_PIC_REF;
+        while (h->delayed_pic[i]) {
+            h->delayed_pic[i] = h->delayed_pic[i + 1];
+            i++;
+        }
+        h->next_outputed_poc = out->poc;
+        h->live_last_poc = out->poc;
+        h->live_last_tick = out->live_tick;
+        h->frame_recovered |= out->recovered;
+        out->recovered |= h->frame_recovered & FRAME_RECOVERED_SEI;
+    }
+    if (h->delayed_pic[0] && ((h->delayed_pic[0]->f->flags & AV_FRAME_FLAG_KEY) ||
+        h->delayed_pic[0]->mmco_reset))
+        h->next_outputed_poc = INT_MIN;
+}
+
 /* This function is called right after decoding the slice header for a first
  * slice in a field (or a frame). It decides whether we are decoding a new frame
  * or a second field in a pair and does the necessary setup.
@@ -1689,6 +1937,30 @@ static int h264_field_start(H264Context *h, const H264SliceContext *sl,
         if (ret < 0)
             return ret;
 
+        /* Preserve the ordinary one-picture selection, including its timing.
+         * Only eligible whole progressive AUs hold the real setup publication;
+         * setup_finished itself keeps the baseline late-NAL parsing semantics. */
+        h->live_hold_setup = h->live_poc_early_output && !h->live_au_invalid &&
+            sps->poc_type == 0 && sps->frame_mbs_only_flag &&
+            !h->ps.pps->pic_order_present && !h->cur_pic_ptr->needs_fg &&
+            !h->avctx->hwaccel && !(h->avctx->flags2 & AV_CODEC_FLAG2_CHUNKS) &&
+            h->avctx->skip_frame == AVDISCARD_DEFAULT &&
+            h->cur_pic_ptr->field_poc[0] == h->cur_pic_ptr->field_poc[1] &&
+            h->cur_pic_ptr->f->pts != AV_NOPTS_VALUE &&
+            (h->live_poc_verified_even ||
+             ((h->live_hrd_ready || h->picture_idr) &&
+              (sps->profile_idc == 77 || sps->profile_idc == 100) &&
+              sps->timing_info_present_flag && sps->fixed_frame_rate_flag &&
+              !sps->pic_struct_present_flag && sps->nal_hrd_parameters_present_flag &&
+              !sps->vcl_hrd_parameters_present_flag && !sps->low_delay_hrd_flag &&
+              sps->cpb_cnt == 1));
+        h->cur_pic_ptr->live_tick_valid = 0;
+        if (!h->live_hold_setup)
+            h->live_poc_active = h->live_hrd_ready = 0;
+        /* An earlier prefix may have drained the preceding CVS completely.
+         * Reset its obsolete POC watermark even if this new IDR falls back. */
+        if (h->live_poc_early_output && h->picture_idr && !h->delayed_pic[0])
+            h->next_outputed_poc = INT_MIN;
         ret = h264_select_output_frame(h);
         if (ret < 0)
             return ret;
