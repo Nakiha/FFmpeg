@@ -1,0 +1,24 @@
+{
+  "status": "experimental_not_finally_accepted",
+  "codec_algorithm_changed": false,
+  "matrix": {
+    "cases": 83,
+    "passed": 83,
+    "ordered_frame_comparisons": 81,
+    "close_lifetime_only": 2,
+    "summary_sha256": "8352cdd0d13bfe99da7628f519c713aaab0e8e311d60b40080afc22a55951202"
+  },
+  "checks": [
+    "18 judge negative/positive unit cases passed",
+    "83 new representative cases passed; explicit cycles/counts/completion and runtime lib identity",
+    "3 certificate cases repeated after requiring certificate_verified=1",
+    "Deliberate bad binary identity rejected with runner exit 1",
+    "Existing result directory rejected with original plan hash unchanged"
+  ],
+  "scope": "macOS arm64 correctness only; existing media, fixed phase3 SDK; no new codec performance claim",
+  "remaining": [
+    "Whole-AU output/decode-state redesign and restored frame parallelism",
+    "Linux complete service integration and sustained real-platform latency/capacity acceptance",
+    "Broader adversarial input/OOM/race qualification"
+  ]
+}
