@@ -1236,6 +1236,12 @@ static int h264_decode_frame(AVCodecContext *avctx, AVFrame *pict,
         ret = ff_h264_live_output_plan(h, plan, &nb_plan);
         if (ret < 0)
             return ret;
+        /* A plan containing only the ordinary selector's picture makes no
+         * extra DPB change. Use its original destination directly instead of
+         * allocating a temporary frame and staging FIFO for a no-op apply.
+         * Real prefix extensions still prepare all references atomically. */
+        if (nb_plan == 1 && plan[0] == h->next_output_pic)
+            nb_plan = 0;
         if (nb_plan) {
             ret = live_prepare_outputs(h, pict, got_frame, plan, nb_plan);
             if (ret >= 0)
