@@ -417,14 +417,18 @@ static int hls_transform_unit(VVCLocalContext *lc, int x0, int y0,int tu_width, 
             ret = ff_vvc_residual_coding(lc, tb);
             if (ret < 0)
                 return ret;
-            set_tb_tab(fc->tab.tu_coded_flag[tb->c_idx], tu->coded_flag[tb->c_idx], fc, tb);
+            if (!VP_VVC_PRUNE_FRAME(lc))
+                set_tb_tab(fc->tab.tu_coded_flag[tb->c_idx], tu->coded_flag[tb->c_idx], fc, tb);
         } else if (cu->act_enabled_flag && !VP_VVC_PRUNE_FRAME(lc)) {
             memset(tb->coeffs, 0, tb->tb_width * tb->tb_height * sizeof(*tb->coeffs));
         }
-        if (tb->c_idx != CR)
-            set_tb_size(fc, tb);
-        if (tb->c_idx == CB)
-            set_tb_tab(fc->tab.tu_joint_cbcr_residual_flag, tu->joint_cbcr_residual_flag, fc, tb);
+        // Only the deblocking stage reads these transform tables.
+        if (!VP_VVC_PRUNE_FRAME(lc)) {
+            if (tb->c_idx != CR)
+                set_tb_size(fc, tb);
+            if (tb->c_idx == CB)
+                set_tb_tab(fc->tab.tu_joint_cbcr_residual_flag, tu->joint_cbcr_residual_flag, fc, tb);
+        }
     }
 
     return 0;
@@ -1189,6 +1193,9 @@ static int skipped_transform_tree_unit(VVCLocalContext *lc)
     }
     if (rsps->sps_chroma_format_idc && cu->tree_type != DUAL_TREE_LUMA)
         set_qp_c(lc);
+    if (VP_VVC_PRUNE_FRAME(lc))
+        return 0;
+
     ret = skipped_transform_tree(lc, cu->x0, cu->y0, cu->cb_width, cu->cb_height);
     if (ret < 0)
         return ret;
@@ -1295,6 +1302,9 @@ static void set_cu_tabs(const VVCLocalContext *lc, const CodingUnit *cu)
     }
     if (cu->tree_type != DUAL_TREE_LUMA)
         set_cb_tab(lc, fc->tab.pcmf[CHROMA], cu->bdpcm_flag[CHROMA]);
+
+    if (VP_VVC_PRUNE_FRAME(lc))
+        return;
 
     while (tu) {
           for (int j = 0; j < tu->nb_tbs; j++) {
@@ -1864,7 +1874,7 @@ static TransformUnit* palette_add_tu(VVCLocalContext *lc, const int start, const
         const int w = tu->width >> sps->hshift[c];
         const int h = tu->height >> sps->vshift[c];
         TransformBlock *tb = add_tb(tu, lc, tu->x0, tu->y0, w, h, c);
-        if (c != CR)
+        if (c != CR && !VP_VVC_PRUNE_FRAME(lc))
             set_tb_size(lc->fc, tb);
     }
 
