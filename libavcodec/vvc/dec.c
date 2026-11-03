@@ -30,6 +30,7 @@
 #include "libavutil/refstruct.h"
 #include "libavcodec/aom_film_grain.h"
 #include "libavcodec/thread.h"
+#include "libavcodec/vvc_tuning.h"
 #include "libavutil/cpu.h"
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
@@ -611,13 +612,6 @@ static int slice_init_entry_points(SliceContext *sc,
     return 0;
 }
 
-static VVCFrameContext* get_frame_context(const VVCContext *s, const VVCFrameContext *fc, const int delta)
-{
-    const int size = s->nb_fcs;
-    const int idx  = (fc - s->fcs + delta  + size) % size;
-    return s->fcs + idx;
-}
-
 static int ref_frame(VVCFrame *dst, const VVCFrame *src)
 {
     int ret;
@@ -714,8 +708,8 @@ static int frame_context_setup(VVCFrameContext *fc, VVCContext *s)
     int ret;
 
     // copy refs from the last frame
-    if (s->nb_frames && s->nb_fcs > 1) {
-        VVCFrameContext *prev = get_frame_context(s, fc, -1);
+    if (s->last_fc && s->last_fc != fc) {
+        VVCFrameContext *prev = s->last_fc;
         for (int i = 0; i < FF_ARRAY_ELEMS(fc->DPB); i++) {
             ff_vvc_unref_frame(fc, &fc->DPB[i], ~0);
             if (prev->DPB[i].frame->buf[0]) {
@@ -1127,7 +1121,7 @@ static int frame_end(VVCContext *s, VVCFrameContext *fc)
 
 static int wait_delayed_frame(VVCContext *s, AVFrame *output, int *got_output)
 {
-    VVCFrameContext *delayed = get_frame_context(s, s->fcs, s->nb_frames - s->nb_delayed);
+    VVCFrameContext *delayed = s->delayed_head;
     int ret                  = ff_vvc_frame_wait(s, delayed);
 
     if (!ret) {
@@ -1137,7 +1131,7 @@ static int wait_delayed_frame(VVCContext *s, AVFrame *output, int *got_output)
             *got_output = 1;
         }
     }
-    s->nb_delayed--;
+    s->delayed_head = --s->nb_delayed ? delayed->next : NULL;
 
     return ret;
 }
@@ -1160,8 +1154,10 @@ static int submit_frame(VVCContext *s, VVCFrameContext *fc, AVFrame *output, int
         }
     }
 
+    s->last_fc = fc;
+    if (!s->nb_delayed++)
+        s->delayed_head = fc;
     s->nb_frames++;
-    s->nb_delayed++;
 
     if (s->nb_delayed >= s->nb_fcs || s->avctx->hwaccel) {
         if ((ret = wait_delayed_frame(s, output, got_output)) < 0)
@@ -1181,7 +1177,7 @@ static int get_decoded_frame(VVCContext *s, AVFrame *output, int *got_output)
     }
     if (s->nb_frames) {
         //we still have frames cached in dpb.
-        VVCFrameContext *last = get_frame_context(s, s->fcs, s->nb_frames - 1);
+        VVCFrameContext *last = s->last_fc;
 
         ret = ff_vvc_output_frame(s, last, output, 0, 1);
         if (ret < 0)
@@ -1201,7 +1197,7 @@ static int vvc_decode_frame(AVCodecContext *avctx, AVFrame *output,
     if (!avpkt->size)
         return get_decoded_frame(s, output, got_output);
 
-    fc = get_frame_context(s, s->fcs, s->nb_frames);
+    fc = s->last_fc ? s->last_fc->next : s->fcs;
 
     fc->nb_slices = 0;
     fc->decode_order = s->nb_frames;
@@ -1228,8 +1224,8 @@ static av_cold void vvc_decode_flush(AVCodecContext *avctx)
     while (s->nb_delayed)
         wait_delayed_frame(s, NULL, &got_output);
 
-    if (s->fcs) {
-        VVCFrameContext *last = get_frame_context(s, s->fcs, s->nb_frames - 1);
+    if (s->last_fc) {
+        VVCFrameContext *last = s->last_fc;
         ff_vvc_sei_reset(&last->sei);
         ff_vvc_flush_dpb(last);
     }
@@ -1285,16 +1281,19 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
             return ret;
     }
 
-    s->nb_fcs = (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) ? 1 : delayed;
-    s->fcs = av_calloc(s->nb_fcs, sizeof(*s->fcs));
+    const int initial_contexts = (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) ? 1 : delayed;
+    s->frame_context_capacity = FFMAX(s->frame_context_capacity, initial_contexts);
+    s->fcs = av_calloc(s->frame_context_capacity, sizeof(*s->fcs));
     if (!s->fcs)
         return AVERROR(ENOMEM);
 
-    for (int i = 0; i < s->nb_fcs; i++) {
+    for (int i = 0; i < initial_contexts; i++) {
         VVCFrameContext *fc = s->fcs + i;
+        s->nb_fcs++;
         ret = frame_context_init(fc, avctx);
         if (ret < 0)
             return ret;
+        fc->next = s->fcs + (i + 1) % initial_contexts;
     }
 
     if (thread_count == 1)
@@ -1310,9 +1309,55 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
+int avcodec_vvc_grow_frame_contexts(AVCodecContext *avctx, int count)
+{
+    VVCContext *s;
+    int initialized;
+    int ret;
+
+    if (!avctx || avctx->codec_id != AV_CODEC_ID_VVC ||
+        !avcodec_is_open(avctx) || avctx->hwaccel)
+        return AVERROR(EINVAL);
+    s = avctx->priv_data;
+    if (!count)
+        return s->nb_fcs;
+    if (count <= s->nb_fcs || count > s->frame_context_capacity ||
+        (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) ||
+        !s->last_fc || !s->last_fc->ps.pps || !s->last_fc->ps.sps)
+        return AVERROR(EINVAL);
+
+    // Prepare all new slots before changing the submission ring.
+    for (initialized = s->nb_fcs; initialized < count; initialized++) {
+        VVCFrameContext *fc = s->fcs + initialized;
+        ret = frame_context_init(fc, avctx);
+        if (ret >= 0) {
+            av_refstruct_replace(&fc->ps.sps, s->last_fc->ps.sps);
+            av_refstruct_replace(&fc->ps.pps, s->last_fc->ps.pps);
+            ret = pic_arrays_init(s, fc);
+        }
+        if (ret < 0) {
+            for (int i = s->nb_fcs; i <= initialized; i++) {
+                frame_context_free(s->fcs + i);
+                memset(s->fcs + i, 0, sizeof(*s->fcs));
+            }
+            return ret;
+        }
+        fc->next = fc + 1;
+    }
+
+    // The delayed FIFO still follows the original links up to last_fc.
+    s->fcs[count - 1].next = s->last_fc->next;
+    s->last_fc->next = s->fcs + s->nb_fcs;
+    s->nb_fcs = count;
+    return count;
+}
+
 static const AVOption vvc_options[] = {
     { "frame_contexts", "Number of VVC frame contexts (0 selects automatically)",
       offsetof(VVCContext, frame_contexts), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX,
+      AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM },
+    { "frame_context_capacity", "Reserved VVC frame-context slots",
+      offsetof(VVCContext, frame_context_capacity), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX,
       AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM },
     { NULL },
 };

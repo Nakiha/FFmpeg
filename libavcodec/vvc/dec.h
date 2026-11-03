@@ -128,6 +128,7 @@ typedef struct SliceContext {
 } SliceContext;
 
 typedef struct VVCFrameContext {
+    struct VVCFrameContext *next;
     void *log_ctx;
 
     // +1 for the current frame
@@ -226,6 +227,7 @@ typedef struct VVCFrameContext {
 typedef struct VVCContext {
     const AVClass *class;
     int frame_contexts;
+    int frame_context_capacity;
     struct AVCodecContext *avctx;
 
     CodedBitstreamContext *cbc;
@@ -254,6 +256,8 @@ typedef struct VVCContext {
     struct FFExecutor *executor;
 
     VVCFrameContext *fcs;
+    VVCFrameContext *last_fc;
+    VVCFrameContext *delayed_head;
     int nb_fcs;
 
     uint64_t nb_frames;     ///< processed frames
