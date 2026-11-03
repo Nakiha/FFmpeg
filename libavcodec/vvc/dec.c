@@ -113,7 +113,8 @@ static void ctu_nz_tl_init(TabList *l, VVCFrameContext *fc)
     const VVCPPS *pps   = fc->ps.pps;
     const int ctu_size  = sps ? (1 << sps->ctb_log2_size_y << sps->ctb_log2_size_y) : 0;
     const int ctu_count = pps ? pps->ctb_count : 0;
-    const int changed   = fc->tab.sz.ctu_count != ctu_count || fc->tab.sz.ctu_size != ctu_size;
+    const int changed   = fc->tab.sz.ctu_count != ctu_count || fc->tab.sz.ctu_size != ctu_size ||
+                          (sps && fc->tab.sz.chroma_format_idc != sps->r->sps_chroma_format_idc);
 
     tl_init(l, 0, changed);
 
@@ -123,7 +124,7 @@ static void ctu_nz_tl_init(TabList *l, VVCFrameContext *fc)
     TL_ADD(sao,     ctu_count);
     TL_ADD(alf,     ctu_count);
     TL_ADD(slice_idx, ctu_count);
-    TL_ADD(coeffs,    ctu_count * ctu_size * VVC_MAX_SAMPLE_ARRAYS);
+    TL_ADD(coeffs, sps ? (size_t)ctu_count * ff_vvc_ctu_coeff_count(sps) : 0);
 }
 
 static void min_cb_tl_init(TabList *l, VVCFrameContext *fc)

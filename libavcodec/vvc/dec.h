@@ -44,6 +44,14 @@
 #define L0                      0
 #define L1                      1
 
+static inline int ff_vvc_ctu_coeff_count(const VVCSPS *sps)
+{
+    const int samples = sps->ctb_size_y * sps->ctb_size_y;
+    // In 4:2:0 each chroma plane has one quarter of the luma samples.
+    return sps->r->sps_chroma_format_idc == 1 ? samples + samples / 2
+                                              : samples * VVC_MAX_SAMPLE_ARRAYS;
+}
+
 typedef struct VVCRefPic {
     struct VVCFrame *ref;
     int poc;

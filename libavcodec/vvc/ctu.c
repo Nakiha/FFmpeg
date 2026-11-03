@@ -265,7 +265,21 @@ static TransformUnit* add_tu(VVCFrameContext *fc, CodingUnit *cu, const int x0, 
 static TransformBlock* add_tb(TransformUnit *tu, VVCLocalContext *lc,
     const int x0, const int y0, const int tb_width, const int tb_height, const int c_idx)
 {
+    const VVCFrameContext *fc = lc->fc;
+    const VVCSPS *sps = fc->ps.sps;
+    const int samples = tb_width * tb_height;
     TransformBlock *tb;
+
+    if (sps->r->sps_chroma_format_idc == 1) {
+        const int rx = lc->cu->x0 >> sps->ctb_log2_size_y;
+        const int ry = lc->cu->y0 >> sps->ctb_log2_size_y;
+        const int rs = ry * fc->ps.pps->ctb_width + rx;
+        const int stride = ff_vvc_ctu_coeff_count(sps);
+        const int *begin = fc->tab.coeffs + (size_t)rs * stride;
+        if (lc->coeffs < begin || lc->coeffs > begin + stride ||
+            samples > begin + stride - lc->coeffs)
+            return NULL;
+    }
 
     tb = &tu->tbs[tu->nb_tbs++];
     tb->has_coeffs = 0;
@@ -282,7 +296,7 @@ static TransformBlock* add_tb(TransformUnit *tu, VVCLocalContext *lc,
     tb->c_idx = c_idx;
     tb->ts = 0;
     tb->coeffs = lc->coeffs;
-    lc->coeffs += tb_width * tb_height;
+    lc->coeffs += samples;
     tu->avail[!!c_idx] = true;
     return tb;
 }
@@ -375,15 +389,17 @@ static int hls_transform_unit(VVCLocalContext *lc, int x0, int y0,int tu_width, 
         ret = set_qp_y(lc, x0, y0, has_qp_delta);
         if (ret < 0)
             return ret;
-        add_tb(tu, lc, x0, y0, tu_width, tu_height, LUMA);
+        if (!add_tb(tu, lc, x0, y0, tu_width, tu_height, LUMA))
+            return AVERROR_INVALIDDATA;
     }
     if (tree_type != DUAL_TREE_LUMA) {
         chroma_qp_offset_decode(lc, is_128, is_chroma_coded);
         if (chroma_available) {
             const int hs = sps->hshift[CHROMA];
             const int vs = sps->vshift[CHROMA];
-            add_tb(tu, lc, xc, yc, wc >> hs, hc >> vs, CB);
-            add_tb(tu, lc, xc, yc, wc >> hs, hc >> vs, CR);
+            if (!add_tb(tu, lc, xc, yc, wc >> hs, hc >> vs, CB) ||
+                !add_tb(tu, lc, xc, yc, wc >> hs, hc >> vs, CR))
+                return AVERROR_INVALIDDATA;
         }
     }
     if (sps->r->sps_joint_cbcr_enabled_flag && ((cu->pred_mode == MODE_INTRA &&
@@ -529,6 +545,8 @@ static int skipped_transform_tree(VVCLocalContext *lc, int x0, int y0,int tu_wid
         ff_vvc_channel_range(&start, &end, cu->tree_type, sps->r->sps_chroma_format_idc);
         for (int i = start; i < end; i++) {
             TransformBlock *tb = add_tb(tu, lc, x0, y0, tu_width >> sps->hshift[i], tu_height >> sps->vshift[i], i);
+            if (!tb)
+                return AVERROR_INVALIDDATA;
             if (i != CR)
                 set_tb_size(fc, tb);
         }
@@ -1856,6 +1874,8 @@ static TransformUnit* palette_add_tu(VVCLocalContext *lc, const int start, const
         const int w = tu->width >> sps->hshift[c];
         const int h = tu->height >> sps->vshift[c];
         TransformBlock *tb = add_tb(tu, lc, tu->x0, tu->y0, w, h, c);
+        if (!tb)
+            return NULL;
         if (c != CR)
             set_tb_size(lc->fc, tb);
     }
@@ -2830,7 +2850,6 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
     const VVCPPS *pps           = fc->ps.pps;
     const int x_ctb             = rx << sps->ctb_log2_size_y;
     const int y_ctb             = ry << sps->ctb_log2_size_y;
-    const int ctb_size          = 1 << sps->ctb_log2_size_y << sps->ctb_log2_size_y;
     EntryPoint* ep              = lc->ep;
     int ret;
 
@@ -2840,7 +2859,7 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
         ep->is_first_qg = ry == pps->ctb_to_row_bd[ry] || !ctu_idx;
     }
 
-    lc->coeffs = fc->tab.coeffs + rs * ctb_size * VVC_MAX_SAMPLE_ARRAYS;
+    lc->coeffs = fc->tab.coeffs + (size_t)rs * ff_vvc_ctu_coeff_count(sps);
     lc->cu     = NULL;
 
     ff_vvc_cabac_init(lc, ctu_idx, rx, ry);
