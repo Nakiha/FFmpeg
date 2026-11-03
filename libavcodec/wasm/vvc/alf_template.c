@@ -295,8 +295,8 @@ void ALF_EXPORT(alf_filter_chroma)(uint8_t *_dst, ptrdiff_t dst_stride,
 }
 
 /* ------------------------------------------------------------------ */
-/* ALF classification: scalar gradient pass (as C) plus a SIMD sum      */
-/* over the gradient window.                                            */
+/* ALF classification: gradient calculation followed by window sums. */
+/* The 8-bit path vectorizes the gradient pass as well.               */
 
 static av_always_inline void FUNC(alf_get_idx_8)(int *class_idx, int *transpose_idx,
     const int *sum, const int ac)
