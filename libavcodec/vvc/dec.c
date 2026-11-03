@@ -32,6 +32,7 @@
 #include "libavcodec/thread.h"
 #include "libavutil/cpu.h"
 #include "libavutil/mem.h"
+#include "libavutil/opt.h"
 #include "libavutil/thread.h"
 #include "libavutil/film_grain_params.h"
 
@@ -1268,7 +1269,7 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
     VVCContext *s                  = avctx->priv_data;
     static AVOnce init_static_once = AV_ONCE_INIT;
     const int cpu_count            = av_cpu_count();
-    const int delayed              = FFMIN(cpu_count, VVC_MAX_DELAYED_FRAMES);
+    const int delayed              = s->frame_contexts ? s->frame_contexts : FFMIN(cpu_count, VVC_MAX_DELAYED_FRAMES);
     int thread_count               = avctx->thread_count ? avctx->thread_count : delayed;
     int ret;
 
@@ -1309,11 +1310,25 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
+static const AVOption vvc_options[] = {
+    { "frame_contexts", "Number of VVC frame contexts (0 selects automatically)",
+      offsetof(VVCContext, frame_contexts), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX,
+      AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM },
+    { NULL },
+};
+static const AVClass vvc_class = {
+    .class_name = "VVC decoder",
+    .item_name  = av_default_item_name,
+    .option     = vvc_options,
+    .version    = LIBAVUTIL_VERSION_INT,
+};
+
 const FFCodec ff_vvc_decoder = {
     .p.name         = "vvc",
     .p.long_name    = NULL_IF_CONFIG_SMALL("VVC (Versatile Video Coding)"),
     .p.type         = AVMEDIA_TYPE_VIDEO,
     .p.id           = AV_CODEC_ID_VVC,
+    .p.priv_class   = &vvc_class,
     .priv_data_size = sizeof(VVCContext),
     .init           = vvc_decode_init,
     .close          = vvc_decode_free,

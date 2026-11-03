@@ -224,6 +224,8 @@ typedef struct VVCFrameContext {
 } VVCFrameContext;
 
 typedef struct VVCContext {
+    const AVClass *class;
+    int frame_contexts;
     struct AVCodecContext *avctx;
 
     CodedBitstreamContext *cbc;
