@@ -322,6 +322,46 @@ static av_always_inline void FUNC(alf_get_idx_8)(int *class_idx, int *transpose_
     *transpose_idx = dir_d * 2 + dir_hv;
 }
 
+#if BIT_DEPTH == 8
+/* Combine the even samples of the first row and odd samples of the second. */
+static av_always_inline v128_t FUNC(alf_alternate8)(const uint8_t *even, const uint8_t *odd)
+{
+    return wasm_i16x8_shuffle(wasm_u16x8_load8x8(even), wasm_u16x8_load8x8(odd),
+        0, 9, 2, 11, 4, 13, 6, 15);
+}
+
+static av_always_inline v128_t FUNC(alf_gradient8)(v128_t center, v128_t a, v128_t b)
+{
+    const v128_t gradient = wasm_i16x8_abs(wasm_i16x8_sub(center, wasm_i16x8_add(a, b)));
+    return wasm_i32x4_dot_i16x8(gradient, wasm_i16x8_splat(1));
+}
+
+static av_always_inline void FUNC(alf_gradient_groups8)(int *out,
+    const uint8_t *s0, const uint8_t *s1, const uint8_t *s2, const uint8_t *s3)
+{
+    const v128_t p = FUNC(alf_alternate8)(s1, s2);
+    const v128_t center = wasm_i16x8_add(p, p);
+    const v128_t v = FUNC(alf_gradient8)(center, FUNC(alf_alternate8)(s0, s1),
+        FUNC(alf_alternate8)(s2, s3));
+    const v128_t h = FUNC(alf_gradient8)(center, FUNC(alf_alternate8)(s1 - 1, s2 - 1),
+        FUNC(alf_alternate8)(s1 + 1, s2 + 1));
+    const v128_t d0 = FUNC(alf_gradient8)(center, FUNC(alf_alternate8)(s0 - 1, s1 - 1),
+        FUNC(alf_alternate8)(s2 + 1, s3 + 1));
+    const v128_t d1 = FUNC(alf_gradient8)(center, FUNC(alf_alternate8)(s0 + 1, s1 + 1),
+        FUNC(alf_alternate8)(s2 - 1, s3 - 1));
+
+    const v128_t vh0 = wasm_i32x4_shuffle(v, h, 0, 4, 1, 5);
+    const v128_t vh1 = wasm_i32x4_shuffle(v, h, 2, 6, 3, 7);
+    const v128_t d01 = wasm_i32x4_shuffle(d0, d1, 0, 4, 1, 5);
+    const v128_t d23 = wasm_i32x4_shuffle(d0, d1, 2, 6, 3, 7);
+
+    wasm_v128_store(out,      wasm_i32x4_shuffle(vh0, d01, 0, 1, 4, 5));
+    wasm_v128_store(out + 4,  wasm_i32x4_shuffle(vh0, d01, 2, 3, 6, 7));
+    wasm_v128_store(out + 8,  wasm_i32x4_shuffle(vh1, d23, 0, 1, 4, 5));
+    wasm_v128_store(out + 12, wasm_i32x4_shuffle(vh1, d23, 2, 3, 6, 7));
+}
+#endif
+
 void ALF_EXPORT(alf_classify)(int *class_idx, int *transpose_idx,
     const uint8_t *_src, const ptrdiff_t _src_stride, const int width, const int height,
     const int vb_pos, int *gradient_tmp)
@@ -335,7 +375,7 @@ void ALF_EXPORT(alf_classify)(int *class_idx, int *transpose_idx,
 
     src -= 3 * src_stride + 2;                          /* (BORDER + 1) * stride + BORDER */
 
-    /* Gradient pass: identical to the C reference. */
+    /* Gradient pass, with each group storing the four directions together. */
     {
         int *grad = gradient_tmp;
         for (int y = 0; y < h; y += 2) {
@@ -349,7 +389,14 @@ void ALF_EXPORT(alf_classify)(int *class_idx, int *transpose_idx,
             else if (y == vb_pos + 2)
                 s0 = s1;
 
-            for (int x = 0; x < w; x += 2) {
+            int x = 0;
+#if BIT_DEPTH == 8
+            for (; x + 8 <= w; x += 8) {
+                FUNC(alf_gradient_groups8)(grad, s0 + x, s1 + x, s2 + x, s3 + x);
+                grad += 16;
+            }
+#endif
+            for (; x < w; x += 2) {
                 const FUNC(pixel) *a0 = s0 + x;
                 const FUNC(pixel) *p0 = s1 + x;
                 const FUNC(pixel) *b0 = s2 + x;
