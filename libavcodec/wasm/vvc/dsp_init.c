@@ -61,6 +61,14 @@ av_cold void ff_vvc_dsp_init_wasm(VVCDSPContext *c, const int bit_depth)
             c->inter.put[1][w][1][0] = ff_vvc_put_chroma_v_8_simd128;
             c->inter.put[1][w][1][1] = ff_vvc_put_chroma_hv_8_simd128;
         }
+        for (int w = 2; w < 7; w++) {
+            c->inter.put_uni[0][w][0][1] = ff_vvc_put_uni_luma_h_8_simd128;
+            c->inter.put_uni[0][w][1][0] = ff_vvc_put_uni_luma_v_8_simd128;
+            c->inter.put_uni[0][w][1][1] = ff_vvc_put_uni_luma_hv_8_simd128;
+            c->inter.put_uni[1][w][0][1] = ff_vvc_put_uni_chroma_h_8_simd128;
+            c->inter.put_uni[1][w][1][0] = ff_vvc_put_uni_chroma_v_8_simd128;
+            c->inter.put_uni[1][w][1][1] = ff_vvc_put_uni_chroma_hv_8_simd128;
+        }
         for (int w = 0; w < FF_ARRAY_ELEMS(c->sao.band_filter); w++) {
             c->sao.band_filter[w] = ff_vvc_sao_band_8_simd128;
             c->sao.edge_filter[w] = ff_vvc_sao_edge_8_simd128;

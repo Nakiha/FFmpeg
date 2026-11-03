@@ -66,4 +66,15 @@ void ff_vvc_put_chroma_v_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t 
 void ff_vvc_put_chroma_hv_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
     int height, const int8_t *hf, const int8_t *vf, int width);
 
+#define VVC_UNI_DECL(name) \
+void ff_vvc_put_uni_ ## name ## _8_simd128(uint8_t *dst, ptrdiff_t dst_stride, \
+    const uint8_t *src, ptrdiff_t src_stride, int height, const int8_t *hf, const int8_t *vf, int width)
+VVC_UNI_DECL(luma_h);
+VVC_UNI_DECL(luma_v);
+VVC_UNI_DECL(luma_hv);
+VVC_UNI_DECL(chroma_h);
+VVC_UNI_DECL(chroma_v);
+VVC_UNI_DECL(chroma_hv);
+#undef VVC_UNI_DECL
+
 #endif /* AVCODEC_WASM_VVC_INTER_H */
