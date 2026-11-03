@@ -21,6 +21,7 @@
  */
 
 #include "libavutil/error.h"
+#include "libavutil/intreadwrite.h"
 #include "libavutil/refstruct.h"
 
 #include "cabac.h"
@@ -40,6 +41,22 @@ typedef enum VVCModeType {
     MODE_TYPE_INTRA,
 } VVCModeType;
 
+/* The hottest CTU tables are filled one short row at a time. Keep
+ * fixed-size stores visible to the Wasm compiler. */
+static av_always_inline void fill_tab_row(uint8_t *dst, uint8_t value, int width)
+{
+#if ARCH_WASM
+    const uint32_t v = value * UINT32_C(0x01010101);
+    switch (width) {
+    case 1: *dst = value; return;
+    case 2: AV_WN16(dst, v); return;
+    case 4: AV_WN32(dst, v); return;
+    case 8: AV_WN64(dst, v * UINT64_C(0x100000001)); return;
+    }
+#endif
+    memset(dst, value, width);
+}
+
 static void set_tb_size(const VVCFrameContext *fc, const TransformBlock *tb)
 {
     const int x_tb      = tb->x0 >> MIN_TU_LOG2;
@@ -52,8 +69,8 @@ static void set_tb_size(const VVCFrameContext *fc, const TransformBlock *tb)
 
     for (int y = y_tb; y < end; y++) {
         const int off = y * fc->ps.pps->min_tu_width + x_tb;
-        memset(fc->tab.tb_width [is_chroma] + off, tb->tb_width,  width);
-        memset(fc->tab.tb_height[is_chroma] + off, tb->tb_height, width);
+        fill_tab_row(fc->tab.tb_width [is_chroma] + off, tb->tb_width,  width);
+        fill_tab_row(fc->tab.tb_height[is_chroma] + off, tb->tb_height, width);
     }
 }
 
@@ -67,7 +84,7 @@ static void set_tb_tab(uint8_t *tab, uint8_t v, const VVCFrameContext *fc,
         const int y = (tb->y0 + h) >> MIN_TU_LOG2;
         const int off = y * fc->ps.pps->min_tu_width + (tb->x0 >> MIN_TU_LOG2);
         const int w = FFMAX(1, width >> MIN_TU_LOG2);
-        memset(tab + off, v, w);
+        fill_tab_row(tab + off, v, w);
     }
 }
 
@@ -134,7 +151,7 @@ static void set_cb_tab(const VVCLocalContext *lc, uint8_t *tab, const uint8_t v)
     for (int y = 0; y < (cb_height >> log2_min_cb_size); y++) {
         const int width = cb_width >> log2_min_cb_size;
 
-        memset(&tab[x], v, width);
+        fill_tab_row(&tab[x], v, width);
         x += pps->min_cb_width;
     }
 }
