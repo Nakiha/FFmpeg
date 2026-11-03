@@ -24,6 +24,7 @@
 #include "libavcodec/vvc/dsp.h"
 #include "libavcodec/wasm/vvc/alf.h"
 #include "libavcodec/wasm/vvc/inter.h"
+#include "libavcodec/wasm/vvc/itx.h"
 #include "libavcodec/wasm/vvc/sao.h"
 
 av_cold void ff_vvc_dsp_init_wasm(VVCDSPContext *c, const int bit_depth)
@@ -34,6 +35,17 @@ av_cold void ff_vvc_dsp_init_wasm(VVCDSPContext *c, const int bit_depth)
         return;
 
 #if HAVE_SIMD128
+    if (bit_depth == 8 || bit_depth == 10) {
+        c->itx.itx[VVC_DCT8][1] = ff_vvc_inv_dct8_4_simd128;
+        c->itx.itx[VVC_DCT8][2] = ff_vvc_inv_dct8_8_simd128;
+        c->itx.itx[VVC_DCT8][3] = ff_vvc_inv_dct8_16_simd128;
+        c->itx.itx[VVC_DCT8][4] = ff_vvc_inv_dct8_32_simd128;
+        c->itx.itx[VVC_DST7][1] = ff_vvc_inv_dst7_4_simd128;
+        c->itx.itx[VVC_DST7][2] = ff_vvc_inv_dst7_8_simd128;
+        c->itx.itx[VVC_DST7][3] = ff_vvc_inv_dst7_16_simd128;
+        c->itx.itx[VVC_DST7][4] = ff_vvc_inv_dst7_32_simd128;
+    }
+
     if (bit_depth == 8) {
         c->alf.filter[0] = ff_vvc_alf_filter_luma_8_simd128;
         c->alf.filter[1] = ff_vvc_alf_filter_chroma_8_simd128;
