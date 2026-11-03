@@ -80,7 +80,7 @@ static av_always_inline void FUNC(alf_store_row)(FUNC(pixel) *dst, v128_t v16, i
  */
 static av_always_inline void FUNC(alf_luma_row8)(FUNC(pixel) *dst, const FUNC(pixel) *const p[7],
     const v128_t *fv, const v128_t *cv,
-    const int is_near_vb, const int npix)
+    const int is_near_vb, const int npix, const int clipped)
 {
     const v128_t curr = FUNC(alf_load8)(p[0]);
     v128_t acc_lo = wasm_i32x4_splat(0);
@@ -88,9 +88,10 @@ static av_always_inline void FUNC(alf_luma_row8)(FUNC(pixel) *dst, const FUNC(pi
 
 #define ALF_TAP(k, a, ax, b, bx)                                                     \
     do {                                                                             \
-        const v128_t t = FUNC(alf_clip_pair16)(FUNC(alf_load8)(p[a] + (ax)),                       \
-                                       FUNC(alf_load8)(p[b] + (bx)), curr,                 \
-                                       cv[k]);                       \
+        const v128_t a0 = FUNC(alf_load8)(p[a] + (ax));                         \
+        const v128_t a1 = FUNC(alf_load8)(p[b] + (bx));                         \
+        const v128_t t = clipped ? FUNC(alf_clip_pair16)(a0, a1, curr, cv[k]) : \
+            wasm_i16x8_sub(wasm_i16x8_add(a0, a1), wasm_i16x8_add(curr, curr)); \
         const v128_t f = fv[k];                                        \
         acc_lo = wasm_i32x4_add(acc_lo, wasm_i32x4_extmul_low_i16x8(t, f));          \
         acc_hi = wasm_i32x4_add(acc_hi, wasm_i32x4_extmul_high_i16x8(t, f));         \
@@ -180,6 +181,7 @@ void ALF_EXPORT(alf_filter_luma)(uint8_t *_dst, ptrdiff_t dst_stride,
             v128_t fv[ALF_NUM_COEFF_LUMA];
             v128_t cv[ALF_NUM_COEFF_LUMA];
             const int second = npix == 2 * ALF_BLOCK_SIZE ? ALF_NUM_COEFF_LUMA : 0;
+            int clipped = 0;
 
             for (int k = 0; k < ALF_NUM_COEFF_LUMA; k++) {
                 const v128_t f0 = wasm_i16x8_splat(filter[k]);
@@ -188,6 +190,7 @@ void ALF_EXPORT(alf_filter_luma)(uint8_t *_dst, ptrdiff_t dst_stride,
                 const v128_t c1 = wasm_i16x8_splat(clip[second + k]);
                 fv[k] = wasm_i32x4_shuffle(f0, f1, 0, 1, 4, 5);
                 cv[k] = wasm_i32x4_shuffle(c0, c1, 0, 1, 4, 5);
+                clipped |= (clip[k] < (1 << BIT_DEPTH)) | (clip[second + k] < (1 << BIT_DEPTH));
             }
 
             for (int i = 0; i < ALF_BLOCK_SIZE; i++) {
@@ -220,7 +223,11 @@ void ALF_EXPORT(alf_filter_luma)(uint8_t *_dst, ptrdiff_t dst_stride,
                         p[6] = p[4];
                     }
                 }
-                FUNC(alf_luma_row8)(drow, p, fv, cv, is_near_vb, npix);
+                // A full-range clip never changes a difference between two samples.
+                if (clipped)
+                    FUNC(alf_luma_row8)(drow, p, fv, cv, is_near_vb, npix, 1);
+                else
+                    FUNC(alf_luma_row8)(drow, p, fv, cv, is_near_vb, npix, 0);
             }
             filter += (npix / ALF_BLOCK_SIZE) * ALF_NUM_COEFF_LUMA;
             clip   += (npix / ALF_BLOCK_SIZE) * ALF_NUM_COEFF_LUMA;
