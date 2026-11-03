@@ -1895,6 +1895,32 @@ static int get_local_sum_ts(const int *level, const int w, const int h, const in
     return loc_sum;
 }
 
+// A significant pass-one coefficient has a level of at least one.
+static av_always_inline int level_above_one(int level)
+{
+    return level - (level != 0);
+}
+
+static int get_local_excess(const int *level, int w, int h, int x, int y)
+{
+    int sum = 0;
+
+    level += w * y + x;
+    if (x < w - 1) {
+        sum += level_above_one(level[1]);
+        if (x < w - 2)
+            sum += level_above_one(level[2]);
+        if (y < h - 1)
+            sum += level_above_one(level[w + 1]);
+    }
+    if (y < h - 1) {
+        sum += level_above_one(level[w]);
+        if (y < h - 2)
+            sum += level_above_one(level[w << 1]);
+    }
+    return sum;
+}
+
 static int get_gtx_flag_inc(const ResidualCoding* rc, const int xc, const int yc, const int last)
 {
     const TransformBlock *tb = rc->tb;
@@ -1904,11 +1930,10 @@ static int get_gtx_flag_inc(const ResidualCoding* rc, const int xc, const int yc
         inc =  incs[tb->c_idx];
     } else {
         const int d = xc + yc;
-        const int local_sum_sig = get_local_sum(rc->sig_coeff_flag,
-                tb->tb_width,tb->tb_height, xc, yc, rc->hist_value);
-        const int loc_sum_abs_pass1 = get_local_sum(rc->abs_level_pass1,
-                tb->tb_width, tb->tb_height, xc, yc, rc->hist_value);
-        const int offset = FFMIN(loc_sum_abs_pass1 - local_sum_sig, 4);
+        // The two local sums use the same history and neighbours. Their
+        // difference is the sum of each significant level minus one.
+        const int excess = get_local_excess(rc->abs_level_pass1, tb->tb_width, tb->tb_height, xc, yc);
+        const int offset = FFMIN(excess, 4);
 
         if (!tb->c_idx)
             inc =  1 + offset + (!d ? 15 : (d < 3 ? 10 : (d < 10 ? 5 : 0)));
@@ -2340,19 +2365,19 @@ static inline int residual_coding_subblock(VVCLocalContext *lc, ResidualCoding *
         const int yc   = (ys << rc->log2_sb_h) + rc->scan_y_off[n];
         const int last = (xc == rc->last_significant_coeff_x && yc == rc->last_significant_coeff_y);
         int *abs_level_pass1 = rc->abs_level_pass1 + yc * tb->tb_width + xc;
-        int *sig_coeff_flag  = rc->sig_coeff_flag + yc * tb->tb_width + xc;
+        int significant;
 
         if ((n > 0 || !infer_sb_dc_sig_coeff_flag ) && !last) {
-            *sig_coeff_flag = sig_coeff_flag_decode(lc, rc, xc, yc);
+            significant = sig_coeff_flag_decode(lc, rc, xc, yc);
             rc->rem_bins_pass1--;
-            if (*sig_coeff_flag)
+            if (significant)
                 infer_sb_dc_sig_coeff_flag = 0;
         } else {
-            *sig_coeff_flag = last || (!rc->scan_x_off[n] && !rc ->scan_y_off[n] &&
+            significant = last || (!rc->scan_x_off[n] && !rc ->scan_y_off[n] &&
                 infer_sb_dc_sig_coeff_flag);
         }
         *abs_level_pass1 = 0;
-        if (*sig_coeff_flag) {
+        if (significant) {
             int abs_level_gt1_flag, par_level_flag = 0;
             const int inc = get_gtx_flag_inc(rc, xc, yc, last);
             abs_level_gt1_flag = abs_level_gtx_flag_decode(lc, inc);
@@ -2531,7 +2556,6 @@ static int hls_residual_coding(VVCLocalContext *lc, TransformBlock *tb)
     memset(rc.abs_level, 0, tb->tb_width * tb->tb_height * sizeof(rc.abs_level[0]));
     memset(rc.sb_coded_flag, 0, rc.nb_sbs);
     memset(rc.abs_level_pass1, 0, tb->tb_width * tb->tb_height * sizeof(rc.abs_level_pass1[0]));
-    memset(rc.sig_coeff_flag, 0, tb->tb_width * tb->tb_height * sizeof(rc.sig_coeff_flag[0]));
 
     for (int i = rc.last_sub_block; i >= 0; i--) {
         int ret = residual_coding_subblock(lc, &rc, i);
