@@ -864,7 +864,10 @@ int ff_vvc_cabac_init(VVCLocalContext *lc,
 static void vvc_refill2(CABACContext* c) {
     int i;
     unsigned x;
-#if !HAVE_FAST_CLZ
+#if ARCH_WASM
+    // WASM has a native ctz even when the configure-time fast-clz probe is off.
+    i = ff_ctz((uint32_t)c->low | UINT32_C(0x80000000)) - CABAC_BITS;
+#elif !HAVE_FAST_CLZ
     x = c->low ^ (c->low - 1);
     i = 7 - ff_h264_norm_shift[x >> (CABAC_BITS - 1)];
 #else
@@ -889,6 +892,30 @@ static void vvc_refill2(CABACContext* c) {
 static int inline vvc_get_cabac(CABACContext *c, VVCCabacState* base, const int ctx)
 {
     VVCCabacState *s = base + ctx;
+#if ARCH_WASM
+    const int state0 = s->state[0], state1 = s->state[1];
+    const int pstate = state1 + (state0 << 4);
+    const int mps = pstate >> 14;
+    const int probability = (pstate >> 9) ^ (63 & -mps);
+    const int lps_range = ((c->range >> 5) * probability >> 1) + 4;
+    const int mps_range = c->range - lps_range;
+    const int boundary = mps_range << (CABAC_BITS + 1);
+    const int lps = c->low > boundary;
+    const int range = lps ? lps_range : mps_range;
+    const int low = c->low - (boundary & -lps);
+    // Both subranges are positive. Normalize the selected range to [256, 511].
+    const int shift = ff_clz((unsigned)range) - 23;
+    const int bit = mps ^ lps;
+    const int shift0 = s->shift[0], shift1 = s->shift[1];
+
+    c->range = range << shift;
+    c->low = low << shift;
+    s->state[0] = state0 - (state0 >> shift0) + ((1023 >> shift0) & -bit);
+    s->state[1] = state1 - (state1 >> shift1) + ((16383 >> shift1) & -bit);
+    if (!(c->low & CABAC_MASK))
+        vvc_refill2(c);
+    return bit;
+#else
     const int qRangeIdx = c->range >> 5;
     const int pState = s->state[1] + (s->state[0] << 4);
     const int valMps = pState >> 14;
@@ -912,9 +939,26 @@ static int inline vvc_get_cabac(CABACContext *c, VVCCabacState* base, const int 
     s->state[0] = s->state[0] - (s->state[0] >> s->shift[0]) + (1023 * bit >> s->shift[0]);
     s->state[1] = s->state[1] - (s->state[1] >> s->shift[1]) + (16383 * bit >> s->shift[1]);
     return bit;
+#endif
 }
 
 #define GET_CABAC(ctx) vvc_get_cabac(&lc->ep->cc, lc->ep->cabac_state, ctx)
+
+#if ARCH_WASM
+static av_always_inline int vvc_get_cabac_bypass(CABACContext *c)
+{
+    const int boundary = c->range << (CABAC_BITS + 1);
+
+    c->low += c->low;
+    if (!(c->low & CABAC_MASK))
+        refill(c);
+
+    const int bit = c->low >= boundary;
+    c->low -= boundary & -bit;
+    return bit;
+}
+#define get_cabac_bypass vvc_get_cabac_bypass
+#endif
 
 //9.3.3.4 Truncated binary (TB) binarization process
 static int truncated_binary_decode(VVCLocalContext *lc, const int c_max)
@@ -1852,6 +1896,32 @@ static int get_local_sum_ts(const int *level, const int w, const int h, const in
     return loc_sum;
 }
 
+// A significant pass-one coefficient has a level of at least one.
+static av_always_inline int level_above_one(int level)
+{
+    return level - (level != 0);
+}
+
+static int get_local_excess(const int *level, int w, int h, int x, int y)
+{
+    int sum = 0;
+
+    level += w * y + x;
+    if (x < w - 1) {
+        sum += level_above_one(level[1]);
+        if (x < w - 2)
+            sum += level_above_one(level[2]);
+        if (y < h - 1)
+            sum += level_above_one(level[w + 1]);
+    }
+    if (y < h - 1) {
+        sum += level_above_one(level[w]);
+        if (y < h - 2)
+            sum += level_above_one(level[w << 1]);
+    }
+    return sum;
+}
+
 static int get_gtx_flag_inc(const ResidualCoding* rc, const int xc, const int yc, const int last)
 {
     const TransformBlock *tb = rc->tb;
@@ -1861,11 +1931,10 @@ static int get_gtx_flag_inc(const ResidualCoding* rc, const int xc, const int yc
         inc =  incs[tb->c_idx];
     } else {
         const int d = xc + yc;
-        const int local_sum_sig = get_local_sum(rc->sig_coeff_flag,
-                tb->tb_width,tb->tb_height, xc, yc, rc->hist_value);
-        const int loc_sum_abs_pass1 = get_local_sum(rc->abs_level_pass1,
-                tb->tb_width, tb->tb_height, xc, yc, rc->hist_value);
-        const int offset = FFMIN(loc_sum_abs_pass1 - local_sum_sig, 4);
+        // The two local sums use the same history and neighbours. Their
+        // difference is the sum of each significant level minus one.
+        const int excess = get_local_excess(rc->abs_level_pass1, tb->tb_width, tb->tb_height, xc, yc);
+        const int offset = FFMIN(excess, 4);
 
         if (!tb->c_idx)
             inc =  1 + offset + (!d ? 15 : (d < 3 ? 10 : (d < 10 ? 5 : 0)));
@@ -2299,19 +2368,19 @@ static inline int residual_coding_subblock(VVCLocalContext *lc, ResidualCoding *
         const int yc   = (ys << rc->log2_sb_h) + rc->scan_y_off[n];
         const int last = (xc == rc->last_significant_coeff_x && yc == rc->last_significant_coeff_y);
         int *abs_level_pass1 = rc->abs_level_pass1 + yc * tb->tb_width + xc;
-        int *sig_coeff_flag  = rc->sig_coeff_flag + yc * tb->tb_width + xc;
+        int significant;
 
         if ((n > 0 || !infer_sb_dc_sig_coeff_flag ) && !last) {
-            *sig_coeff_flag = sig_coeff_flag_decode(lc, rc, xc, yc);
+            significant = sig_coeff_flag_decode(lc, rc, xc, yc);
             rc->rem_bins_pass1--;
-            if (*sig_coeff_flag)
+            if (significant)
                 infer_sb_dc_sig_coeff_flag = 0;
         } else {
-            *sig_coeff_flag = last || (!rc->scan_x_off[n] && !rc ->scan_y_off[n] &&
+            significant = last || (!rc->scan_x_off[n] && !rc ->scan_y_off[n] &&
                 infer_sb_dc_sig_coeff_flag);
         }
         *abs_level_pass1 = 0;
-        if (*sig_coeff_flag) {
+        if (significant) {
             int abs_level_gt1_flag, par_level_flag = 0;
             const int inc = get_gtx_flag_inc(rc, xc, yc, last);
             abs_level_gt1_flag = abs_level_gtx_flag_decode(lc, inc);
@@ -2408,20 +2477,32 @@ static inline int residual_coding_subblock(VVCLocalContext *lc, ResidualCoding *
     return 0;
 }
 
+static av_always_inline int triangle(int n)
+{
+    return n * (n + 1) / 2;
+}
+
+// Diagonals advance in x + y order, with increasing x within each diagonal.
+static av_always_inline int diagonal_scan_pos(int x, int y, int w, int h)
+{
+    const int diagonal = x + y;
+    const int beyond_width = FFMAX(diagonal - w, 0);
+    const int beyond_height = FFMAX(diagonal - h, 0);
+    const int first_x = FFMAX(diagonal - h + 1, 0);
+
+    // Subtract the preceding positions outside the rectangle.
+    return triangle(diagonal) - triangle(beyond_width) - triangle(beyond_height) + x - first_x;
+}
+
 static void derive_last_scan_pos(ResidualCoding *rc)
 {
-    int xc, yc, xs, ys;
-    do {
-        if (!rc->last_scan_pos) {
-            rc->last_scan_pos = rc->num_sb_coeff;
-            rc->last_sub_block--;
-        }
-        rc->last_scan_pos--;
-        xs = rc->sb_scan_x_off[rc->last_sub_block];
-        ys = rc->sb_scan_y_off[rc->last_sub_block];
-        xc = (xs << rc->log2_sb_w) + rc->scan_x_off[rc->last_scan_pos];
-        yc = (ys << rc->log2_sb_h) + rc->scan_y_off[rc->last_scan_pos];
-    } while ((xc != rc->last_significant_coeff_x) || (yc != rc->last_significant_coeff_y));
+    const int x = rc->last_significant_coeff_x;
+    const int y = rc->last_significant_coeff_y;
+    const int w = 1 << rc->log2_sb_w;
+    const int h = 1 << rc->log2_sb_h;
+
+    rc->last_sub_block = diagonal_scan_pos(x >> rc->log2_sb_w, y >> rc->log2_sb_h, rc->width_in_sbs, rc->height_in_sbs);
+    rc->last_scan_pos = diagonal_scan_pos(x & (w - 1), y & (h - 1), w, h);
 }
 
 static void last_significant_coeff_x_y_decode(ResidualCoding *rc, VVCLocalContext *lc,
@@ -2493,7 +2574,6 @@ static int hls_residual_coding(VVCLocalContext *lc, TransformBlock *tb)
     memset(rc.abs_level, 0, tb->tb_width * tb->tb_height * sizeof(rc.abs_level[0]));
     memset(rc.sb_coded_flag, 0, rc.nb_sbs);
     memset(rc.abs_level_pass1, 0, tb->tb_width * tb->tb_height * sizeof(rc.abs_level_pass1[0]));
-    memset(rc.sig_coeff_flag, 0, tb->tb_width * tb->tb_height * sizeof(rc.sig_coeff_flag[0]));
 
     for (int i = rc.last_sub_block; i >= 0; i--) {
         int ret = residual_coding_subblock(lc, &rc, i);

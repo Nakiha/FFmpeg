@@ -799,46 +799,53 @@ static void vvc_deblock(const VVCLocalContext *lc, int x0, int y0, const int rs,
         const int beta_offset = params->beta_offset[c_idx];
         const int src_stride  = fc->frame->linesize[c_idx];
 
+        const uint8_t *strengths = fc->tab.bs[vertical][c_idx];
+        const int bs_width       = fc->ps.pps->min_tu_width;
+        const int bs_step        = vertical ? bs_width : 1;
+
         for (int y = y0; y < y_end; y += (DEBLOCK_STEP << vs)) {
+            const int segments = FFMIN(DEBLOCK_STEP >> (2 - vs), (y_end - y + 3) >> 2);
+            const uint8_t *row = strengths + (y >> MIN_TU_LOG2) * (vertical ? bs_width : 1);
             for (int x = x0 ? x0 : grid; x < x_end; x += grid) {
+                const uint8_t *bs = row + (x >> MIN_TU_LOG2) * (vertical ? 1 : bs_width);
+                const unsigned active = (bs[0] != 0) |
+                    ((segments > 1 && bs[bs_step] != 0) << 1) |
+                    ((segments > 2 && bs[2 * bs_step] != 0) << 2) |
+                    ((segments > 3 && bs[3 * bs_step] != 0) << 3);
+                if (!active)
+                    continue;
+
                 const uint8_t horizontal_ctu_edge = !vertical && !(x % ctb_size);
-                int32_t bs[4], beta[4], tc[4] = { 0 }, all_zero_bs = 1;
+                int32_t beta[4], tc[4] = { 0 };
                 uint8_t max_len_p[4], max_len_q[4];
                 uint8_t no_p[4] = { 0 };
                 uint8_t no_q[4] = { 0 };
 
-                for (int i = 0; i < DEBLOCK_STEP >> (2 - vs); i++) {
-                    int tx         = x;
-                    int ty         = y + (i << 2);
-                    const int end  = ty >= y_end;
+                for (unsigned pending = active; pending; pending &= pending - 1) {
+                    const int i = ff_ctz(pending);
+                    const int along = y + (i << 2);
+                    const int tx = vertical ? x : along;
+                    const int ty = vertical ? along : x;
+                    const int strength = bs[i * bs_step];
+                    const int qp = get_qp(fc, POS(c_idx, tx, ty), tx, ty, c_idx, vertical);
 
-                    if (!vertical)
-                        FFSWAP(int, tx, ty);
+                    beta[i] = betatable[av_clip(qp + beta_offset, 0, MAX_QP)];
+                    tc[i] = TC_CALC(qp, strength);
+                    max_filter_length(fc, tx, ty, c_idx, vertical, horizontal_ctu_edge, strength, &max_len_p[i], &max_len_q[i]);
 
-                    bs[i] = end ? 0 : TAB_BS(fc->tab.bs[vertical][c_idx], tx, ty);
-                    if (bs[i]) {
-                        const int qp = get_qp(fc, POS(c_idx, tx, ty), tx, ty, c_idx, vertical);
-                        beta[i] = betatable[av_clip(qp + beta_offset, 0, MAX_QP)];
-                        tc[i] = TC_CALC(qp, bs[i]) ;
-                        max_filter_length(fc, tx, ty, c_idx, vertical, horizontal_ctu_edge, bs[i], &max_len_p[i], &max_len_q[i]);
-                        all_zero_bs = 0;
-
-                        if (sps->r->sps_palette_enabled_flag) {
-                            const int cu_q = (ty             >> log2_min_cb_size) * min_cb_width + (tx            >> log2_min_cb_size);
-                            const int cu_p = (ty - !vertical >> log2_min_cb_size) * min_cb_width + (tx - vertical >> log2_min_cb_size);
-                            no_q[i] = fc->tab.cpm[!!c_idx][cu_q] == MODE_PLT;
-                            no_p[i] = cu_p >= 0 && fc->tab.cpm[!!c_idx][cu_p] == MODE_PLT;
-                        }
+                    if (sps->r->sps_palette_enabled_flag) {
+                        const int cu_q = (ty             >> log2_min_cb_size) * min_cb_width + (tx            >> log2_min_cb_size);
+                        const int cu_p = (ty - !vertical >> log2_min_cb_size) * min_cb_width + (tx - vertical >> log2_min_cb_size);
+                        no_q[i] = fc->tab.cpm[!!c_idx][cu_q] == MODE_PLT;
+                        no_p[i] = cu_p >= 0 && fc->tab.cpm[!!c_idx][cu_p] == MODE_PLT;
                     }
                 }
 
-                if (!all_zero_bs) {
-                    uint8_t *src = vertical ? POS(c_idx, x, y) : POS(c_idx, y, x);
-                    if (!c_idx)
-                        fc->vvcdsp.lf.filter_luma[vertical](src, src_stride, beta, tc, no_p, no_q, max_len_p, max_len_q, horizontal_ctu_edge);
-                    else
-                        fc->vvcdsp.lf.filter_chroma[vertical](src, src_stride, beta, tc, no_p, no_q, max_len_p, max_len_q, vs);
-                }
+                uint8_t *src = vertical ? POS(c_idx, x, y) : POS(c_idx, y, x);
+                if (!c_idx)
+                    fc->vvcdsp.lf.filter_luma[vertical](src, src_stride, beta, tc, no_p, no_q, max_len_p, max_len_q, horizontal_ctu_edge);
+                else
+                    fc->vvcdsp.lf.filter_chroma[vertical](src, src_stride, beta, tc, no_p, no_q, max_len_p, max_len_q, vs);
             }
         }
     }
