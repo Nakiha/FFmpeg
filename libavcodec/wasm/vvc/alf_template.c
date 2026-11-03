@@ -362,6 +362,18 @@ static av_always_inline void FUNC(alf_gradient_groups8)(int *out,
 }
 #endif
 
+#if BIT_DEPTH == 8
+static av_always_inline v128_t FUNC(alf_sum_column_pair)(const int *g, int stride, int rows)
+{
+    v128_t sum = wasm_i32x4_splat(0);
+    for (int i = 0; i < rows; i++, g += stride) {
+        sum = wasm_i32x4_add(sum, wasm_v128_load(g));
+        sum = wasm_i32x4_add(sum, wasm_v128_load(g + 4));
+    }
+    return sum;
+}
+#endif
+
 void ALF_EXPORT(alf_classify)(int *class_idx, int *transpose_idx,
     const uint8_t *_src, const ptrdiff_t _src_stride, const int width, const int height,
     const int vb_pos, int *gradient_tmp)
@@ -428,12 +440,24 @@ void ALF_EXPORT(alf_classify)(int *class_idx, int *transpose_idx,
             start += 1;
             ac = 3;
         }
+#if BIT_DEPTH == 8
+        const int rows = end - start;
+        const int *columns = gradient_tmp + (y / 2 + start) * gstride;
+        v128_t previous = FUNC(alf_sum_column_pair)(columns, gstride, rows);
+#endif
         for (int x = 0; x < width; x += ALF_BLOCK_SIZE) {
+            int sum[4];
+#if BIT_DEPTH == 8
+            // Consecutive blocks share the middle two columns.
+            columns += 8;
+            const v128_t next = FUNC(alf_sum_column_pair)(columns, gstride, rows);
+            const v128_t acc = wasm_i32x4_add(previous, next);
+            previous = next;
+#else
             const int xg = x / 2;
             const int yg = y / 2;
             const int *g = gradient_tmp + (yg + start) * gstride + xg * 4;
             v128_t acc = wasm_i32x4_splat(0);
-            int sum[4];
 
             for (int i = start; i < end; i++) {
                 for (int j = 0; j < size; j++) {
@@ -442,6 +466,7 @@ void ALF_EXPORT(alf_classify)(int *class_idx, int *transpose_idx,
                 }
                 g += gstride - size * 4;
             }
+#endif
             sum[0] = wasm_i32x4_extract_lane(acc, 0);
             sum[1] = wasm_i32x4_extract_lane(acc, 1);
             sum[2] = wasm_i32x4_extract_lane(acc, 2);
