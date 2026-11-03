@@ -47,7 +47,7 @@ void ff_vvc_put_pixels_8_simd128(int16_t *dst, const uint8_t *_src,
         int x = 0;
 
         for (; x + 8 <= width; x += 8) {
-            const v128_t v = wasm_u16x8_extend_low_u8x16(wasm_v128_load(src + x));
+            const v128_t v = wasm_u16x8_load8x8(src + x);
             wasm_v128_store(dst + x, wasm_i16x8_shl(v, 14 - 8));
         }
         for (; x < width; x++)
@@ -55,6 +55,14 @@ void ff_vvc_put_pixels_8_simd128(int16_t *dst, const uint8_t *_src,
         src += src_stride;
         dst += MAX_PB_SIZE;
     }
+}
+
+// After rounding, both output ranges end at the result of 32767 >> shift.
+// Saturating a signed sum in either direction therefore preserves clipping.
+static av_always_inline v128_t rounded_sum(v128_t a, v128_t b, const int shift)
+{
+    const v128_t offset = wasm_i16x8_splat(1 << (shift - 1));
+    return wasm_i16x8_shr(wasm_i16x8_add_sat(wasm_i16x8_add_sat(a, b), offset), shift);
 }
 
 void ff_vvc_avg_8_simd128(uint8_t *_dst, const ptrdiff_t _dst_stride,
@@ -68,20 +76,15 @@ void ff_vvc_avg_8_simd128(uint8_t *_dst, const ptrdiff_t _dst_stride,
     for (int y = 0; y < height; y++) {
         int x = 0;
 
-        for (; x + 8 <= width; x += 8) {
-            const v128_t a  = wasm_v128_load(src0 + x);
-            const v128_t b  = wasm_v128_load(src1 + x);
-            v128_t lo = wasm_i32x4_add(wasm_i32x4_extend_low_i16x8(a),
-                                       wasm_i32x4_extend_low_i16x8(b));
-            v128_t hi = wasm_i32x4_add(wasm_i32x4_extend_high_i16x8(a),
-                                       wasm_i32x4_extend_high_i16x8(b));
-            v128_t v16, v8;
-
-            lo = wasm_i32x4_shr(wasm_i32x4_add(lo, wasm_i32x4_splat(offset)), shift);
-            hi = wasm_i32x4_shr(wasm_i32x4_add(hi, wasm_i32x4_splat(offset)), shift);
-            v16 = wasm_i16x8_narrow_i32x4(lo, hi);
-            v8  = wasm_u8x16_narrow_i16x8(v16, v16);
-            wasm_v128_store64_lane(dst + x, v8, 0);
+        for (; x + 16 <= width; x += 16) {
+            const v128_t lo = rounded_sum(wasm_v128_load(src0 + x), wasm_v128_load(src1 + x), shift);
+            const v128_t hi = rounded_sum(wasm_v128_load(src0 + x + 8), wasm_v128_load(src1 + x + 8), shift);
+            wasm_v128_store(dst + x, wasm_u8x16_narrow_i16x8(lo, hi));
+        }
+        if (x + 8 <= width) {
+            const v128_t v = rounded_sum(wasm_v128_load(src0 + x), wasm_v128_load(src1 + x), shift);
+            wasm_v128_store64_lane(dst + x, wasm_u8x16_narrow_i16x8(v, v), 0);
+            x += 8;
         }
         for (; x < width; x++)
             dst[x] = av_clip_uint8((src0[x] + src1[x] + offset) >> shift);
@@ -101,6 +104,7 @@ static av_always_inline int i32x4_sum(v128_t v)
 int ff_vvc_sad_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int dy,
     const int block_w, const int block_h)
 {
+    v128_t acc = wasm_i32x4_const_splat(0);
     int sad = 0;
 
     dx -= 2;
@@ -108,33 +112,27 @@ int ff_vvc_sad_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int d
     src0 += (2 + dy) * MAX_PB_SIZE + 2 + dx;
     src1 += (2 - dy) * MAX_PB_SIZE + 2 - dx;
     for (int y = 0; y < block_h; y += 2) {
-        v128_t acc_lo = wasm_i32x4_splat(0);
-        v128_t acc_hi = wasm_i32x4_splat(0);
         int x = 0;
 
         for (; x + 8 <= block_w; x += 8) {
             const v128_t a = wasm_v128_load(src0 + x);
             const v128_t b = wasm_v128_load(src1 + x);
-            v128_t d_lo = wasm_i32x4_sub(wasm_i32x4_extend_low_i16x8(a),
-                                         wasm_i32x4_extend_low_i16x8(b));
-            v128_t d_hi = wasm_i32x4_sub(wasm_i32x4_extend_high_i16x8(a),
-                                         wasm_i32x4_extend_high_i16x8(b));
-
-            acc_lo = wasm_i32x4_add(acc_lo, wasm_i32x4_abs(d_lo));
-            acc_hi = wasm_i32x4_add(acc_hi, wasm_i32x4_abs(d_hi));
+            // The difference fits in unsigned 16 bits, including opposite
+            // signed extremes. Widen before accumulating across the block.
+            const v128_t d = wasm_i16x8_sub(wasm_i16x8_max(a, b), wasm_i16x8_min(a, b));
+            acc = wasm_i32x4_add(acc, wasm_u32x4_extadd_pairwise_u16x8(d));
         }
-        sad += i32x4_sum(acc_lo) + i32x4_sum(acc_hi);
         for (; x < block_w; x++)
             sad += FFABS(src0[x] - src1[x]);
         src0 += 2 * MAX_PB_SIZE;
         src1 += 2 * MAX_PB_SIZE;
     }
-    return sad;
+    return sad + i32x4_sum(acc);
 }
 
 static av_always_inline v128_t load_pix8(const pixel *p)
 {
-    return wasm_u16x8_extend_low_u8x16(wasm_v128_load(p));
+    return wasm_u16x8_load8x8(p);
 }
 
 /* One separable filter pass over 8-bit samples.  `first` is the offset of the
@@ -211,22 +209,13 @@ void ff_vvc_avg_10_simd128(uint8_t *_dst, ptrdiff_t dst_stride,
     const int16_t *src0, const int16_t *src1, int width, int height)
 {
     uint16_t *dst = (uint16_t *)_dst;
-    const v128_t offset = wasm_i32x4_splat(16);
     const v128_t zero = wasm_i16x8_splat(0);
     const v128_t max = wasm_i16x8_splat(1023);
     dst_stride /= sizeof(*dst);
     for (int y = 0; y < height; y++) {
         int x = 0;
         for (; x + 8 <= width; x += 8) {
-            const v128_t a = wasm_v128_load(src0 + x);
-            const v128_t b = wasm_v128_load(src1 + x);
-            const v128_t lo = wasm_i32x4_add(wasm_i32x4_extend_low_i16x8(a),
-                                              wasm_i32x4_extend_low_i16x8(b));
-            const v128_t hi = wasm_i32x4_add(wasm_i32x4_extend_high_i16x8(a),
-                                              wasm_i32x4_extend_high_i16x8(b));
-            const v128_t v = wasm_i16x8_narrow_i32x4(
-                wasm_i32x4_shr(wasm_i32x4_add(lo, offset), 5),
-                wasm_i32x4_shr(wasm_i32x4_add(hi, offset), 5));
+            const v128_t v = rounded_sum(wasm_v128_load(src0 + x), wasm_v128_load(src1 + x), 5);
             wasm_v128_store(dst + x, wasm_i16x8_min(wasm_i16x8_max(v, zero), max));
         }
         for (; x < width; x++)
