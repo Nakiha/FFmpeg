@@ -943,6 +943,22 @@ static int inline vvc_get_cabac(CABACContext *c, VVCCabacState* base, const int 
 
 #define GET_CABAC(ctx) vvc_get_cabac(&lc->ep->cc, lc->ep->cabac_state, ctx)
 
+#if ARCH_WASM
+static av_always_inline int vvc_get_cabac_bypass(CABACContext *c)
+{
+    const int boundary = c->range << (CABAC_BITS + 1);
+
+    c->low += c->low;
+    if (!(c->low & CABAC_MASK))
+        refill(c);
+
+    const int bit = c->low >= boundary;
+    c->low -= boundary & -bit;
+    return bit;
+}
+#define get_cabac_bypass vvc_get_cabac_bypass
+#endif
+
 //9.3.3.4 Truncated binary (TB) binarization process
 static int truncated_binary_decode(VVCLocalContext *lc, const int c_max)
 {
