@@ -151,10 +151,8 @@ static inline int vp_vvc_admit_config(VVCContext *s, const VVCSPS *sps)
         s->avctx->thread_count != 1 || s->avctx->thread_type || s->avctx->hwaccel ||
         (s->avctx->err_recognition & AV_EF_CRCCHECK))
         return s->vp_analysis_started ? vp_vvc_require_full(s, VP_ANALYSIS_REASON_CONFIG) : 0;
-    if (!vp_vvc_prune_supported(sps)) {
-        s->vp_analysis_reason = VP_ANALYSIS_REASON_CONFIG;
-        return s->vp_analysis_started ? vp_vvc_require_full(s, VP_ANALYSIS_REASON_CONFIG) : 0;
-    }
+    if (!vp_vvc_prune_supported(sps))
+        return vp_vvc_disable_prune(s, VP_ANALYSIS_REASON_CONFIG);
     s->vp_analysis_path = 1;
     return 0;
 }

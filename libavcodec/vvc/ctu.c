@@ -34,6 +34,7 @@ extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
 #include "inter.h"
 #include "intra.h"
 #include "mvs.h"
+#include "vp_analysis_prune.h"
 
 #define PROF_TEMP_SIZE (PROF_BLOCK_SIZE) * sizeof(int16_t)
 
@@ -271,7 +272,8 @@ static TransformBlock* add_tb(TransformUnit *tu, VVCLocalContext *lc,
     tb->c_idx = c_idx;
     tb->ts = 0;
     tb->coeffs = lc->coeffs;
-    lc->coeffs += tb_width * tb_height;
+    if (!VP_VVC_PRUNE_FRAME(lc))
+        lc->coeffs += tb_width * tb_height;
     tu->avail[!!c_idx] = true;
     return tb;
 }
@@ -399,7 +401,7 @@ static int hls_transform_unit(VVCLocalContext *lc, int x0, int y0,int tu_width, 
             if (ret < 0)
                 return ret;
             set_tb_tab(fc->tab.tu_coded_flag[tb->c_idx], tu->coded_flag[tb->c_idx], fc, tb);
-        } else if (cu->act_enabled_flag) {
+        } else if (cu->act_enabled_flag && !VP_VVC_PRUNE_FRAME(lc)) {
             memset(tb->coeffs, 0, tb->tb_width * tb->tb_height * sizeof(*tb->coeffs));
         }
         if (tb->c_idx != CR)
@@ -2074,9 +2076,11 @@ static int palette_subblock_data(VVCLocalContext *lc,
                     const int coeff = ff_vvc_palette_escape_val(lc, (1 << sps->bit_depth) - 1);
                     if (coeff < 0)
                         return AVERROR_INVALIDDATA;
-                    const int pixel = av_clip_intp2(RSHIFT(coeff * scale, 6), sps->bit_depth);
-                    PALETTE_SET_PIXEL(xc, yc, pixel);
-                } else {
+                    if (!VP_VVC_PRUNE_FRAME(lc)) {
+                        const int pixel = av_clip_intp2(RSHIFT(coeff * scale, 6), sps->bit_depth);
+                        PALETTE_SET_PIXEL(xc, yc, pixel);
+                    }
+                } else if (!VP_VVC_PRUNE_FRAME(lc)) {
                     PALETTE_SET_PIXEL(xc, yc, plt->entries[v]);
                 }
             }
@@ -3004,7 +3008,8 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
         ep->is_first_qg = ry == pps->ctb_to_row_bd[ry] || !ctu_idx;
     }
 
-    lc->coeffs = fc->tab.coeffs + rs * ctb_size * VVC_MAX_SAMPLE_ARRAYS;
+    lc->coeffs = VP_VVC_PRUNE_FRAME(lc) ? NULL :
+        fc->tab.coeffs + rs * ctb_size * VVC_MAX_SAMPLE_ARRAYS;
     lc->cu     = NULL;
 
     ff_vvc_cabac_init(lc, ctu_idx, rx, ry);

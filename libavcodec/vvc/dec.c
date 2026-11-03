@@ -116,7 +116,13 @@ static void ctu_nz_tl_init(TabList *l, VVCFrameContext *fc)
     const VVCPPS *pps   = fc->ps.pps;
     const int ctu_size  = sps ? (1 << sps->ctb_log2_size_y << sps->ctb_log2_size_y) : 0;
     const int ctu_count = pps ? pps->ctb_count : 0;
-    const int changed   = fc->tab.sz.ctu_count != ctu_count || fc->tab.sz.ctu_size != ctu_size;
+#if VP_ANALYSIS_ONLY
+    const int prune     = fc->vp_analysis_prune;
+#else
+    const int prune     = 0;
+#endif
+    const int changed  = fc->tab.sz.ctu_count != ctu_count || fc->tab.sz.ctu_size != ctu_size ||
+                         (ctu_count && (prune == !!fc->tab.coeffs));
 
     tl_init(l, 0, changed);
 
@@ -126,7 +132,7 @@ static void ctu_nz_tl_init(TabList *l, VVCFrameContext *fc)
     TL_ADD(sao,     ctu_count);
     TL_ADD(alf,     ctu_count);
     TL_ADD(slice_idx, ctu_count);
-    TL_ADD(coeffs,    ctu_count * ctu_size * VVC_MAX_SAMPLE_ARRAYS);
+    TL_ADD(coeffs,   prune ? 0 : ctu_count * ctu_size * VVC_MAX_SAMPLE_ARRAYS);
 }
 
 static void min_cb_tl_init(TabList *l, VVCFrameContext *fc)
@@ -1329,10 +1335,12 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
 #if VP_ANALYSIS_ONLY
     /* Report the selected execution path before the first frame. Per-frame
      * admission re-checks the SPS that is actually decoded. */
+    vp_vvc_admit_extradata(s);
+    if (!s->vp_analysis_path)
+        s->vp_analysis_mode = 0;
     ret = vp_vvc_check_prune_fragment(s, &s->current_frame);
     if (ret < 0)
         return ret;
-    vp_vvc_admit_extradata(s);
 #endif
 
     s->nb_fcs = (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) ? 1 : delayed;

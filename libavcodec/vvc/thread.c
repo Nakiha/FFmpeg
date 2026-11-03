@@ -525,8 +525,10 @@ static int run_inter(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 
 static int run_recon(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 {
-    if (vp_vvc_prune(s))
+    if (VP_VVC_PRUNE_FRAME(lc)) {
+        ff_vvc_ctu_free_cus(lc->fc->tab.cus + t->rs);
         return 0;
+    }
 
     return ff_vvc_reconstruct(lc, t->rs, t->rx, t->ry);
 }
