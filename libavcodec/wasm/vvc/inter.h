@@ -31,6 +31,8 @@ void ff_vvc_put_pixels_8_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src
 void ff_vvc_avg_8_simd128(uint8_t *dst, ptrdiff_t dst_stride,
     const int16_t *src0, const int16_t *src1, int width, int height);
 
+int ff_vvc_dmvr_sad_bound_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int dy,
+    int width, int height, int limit);
 int ff_vvc_sad_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int dy,
     int block_w, int block_h);
 

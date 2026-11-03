@@ -131,6 +131,34 @@ int ff_vvc_sad_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int d
     return sad + i32x4_sum(acc);
 }
 
+/* The 8-bit DMVR intermediate samples are in [0, 1020]. With at most
+ * eight sampled rows and two groups per row, each lane fits in 16 bits. */
+int ff_vvc_dmvr_sad_bound_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int dy,
+    int width, int height, int limit)
+{
+    v128_t acc = wasm_i16x8_splat(0);
+    src0 += dy * MAX_PB_SIZE + dx;
+    src1 += (4 - dy) * MAX_PB_SIZE + 4 - dx;
+
+    for (int y = 0; y < height; y += 2) {
+        const v128_t a = wasm_v128_load(src0);
+        const v128_t b = wasm_v128_load(src1);
+        acc = wasm_i16x8_add(acc, wasm_i16x8_abs(wasm_i16x8_sub(a, b)));
+        if (width == 16) {
+            const v128_t a1 = wasm_v128_load(src0 + 8);
+            const v128_t b1 = wasm_v128_load(src1 + 8);
+            acc = wasm_i16x8_add(acc, wasm_i16x8_abs(wasm_i16x8_sub(a1, b1)));
+        }
+        if (y == 6 && y + 2 < height &&
+            i32x4_sum(wasm_u32x4_extadd_pairwise_u16x8(acc)) >= limit)
+            return INT_MAX;
+
+        src0 += 2 * MAX_PB_SIZE;
+        src1 += 2 * MAX_PB_SIZE;
+    }
+    return i32x4_sum(wasm_u32x4_extadd_pairwise_u16x8(acc));
+}
+
 static av_always_inline v128_t load_pix8(const pixel *p)
 {
     return wasm_u16x8_load8x8(p);

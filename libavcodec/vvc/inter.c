@@ -25,6 +25,9 @@
 #include "inter.h"
 #include "mvs.h"
 #include "refs.h"
+#if HAVE_SIMD128 && ARCH_WASM
+#include "libavcodec/wasm/vvc/inter.h"
+#endif
 
 // +1 is enough, + 32 for asm alignment
 #define PROF_TEMP_OFFSET (MAX_PB_SIZE + 32)
@@ -804,11 +807,22 @@ static void dmvr_mv_refine(VVCLocalContext *lc, MvField *mvf, MvField *orig_mv, 
 
     if (min_sad >= block_w * block_h) {
         int dmv[2];
+#if HAVE_SIMD128 && ARCH_WASM
+        const int bounded = !fc->ps.sps->pixel_shift && block_h <= 16 &&
+            (block_w == 8 || block_w == 16) &&
+            fc->vvcdsp.inter.sad == ff_vvc_sad_8_simd128;
+#endif
         // 8.5.3.4 Array entry selection process
         for (dy = 0; dy < SAD_ARRAY_SIZE; dy++) {
             for (dx = 0; dx < SAD_ARRAY_SIZE; dx++) {
                 if (dx != sr_range || dy != sr_range) {
-                    sad[dy][dx] = fc->vvcdsp.inter.sad(lc->pred.tmp, lc->pred.tmp1, dx, dy, block_w, block_h);
+#if HAVE_SIMD128 && ARCH_WASM
+                    if (bounded)
+                        sad[dy][dx] = ff_vvc_dmvr_sad_bound_8_simd128(tmp[L0], tmp[L1], dx, dy,
+                            block_w, block_h, min_sad);
+                    else
+#endif
+                    sad[dy][dx] = fc->vvcdsp.inter.sad(tmp[L0], tmp[L1], dx, dy, block_w, block_h);
                     if (sad[dy][dx] < min_sad) {
                         min_sad = sad[dy][dx];
                         min_dx = dx;
@@ -820,6 +834,18 @@ static void dmvr_mv_refine(VVCLocalContext *lc, MvField *mvf, MvField *orig_mv, 
         dmv[0] = (min_dx - sr_range) * (1 << 4);
         dmv[1] = (min_dy - sr_range) * (1 << 4);
         if (min_dx != 0 && min_dx != 4 && min_dy != 0 && min_dy != 4) {
+#if HAVE_SIMD128 && ARCH_WASM
+            // Subpixel refinement still needs the exact four adjacent costs.
+            if (bounded) {
+                static const int neighbor[4][2] = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } };
+                for (int i = 0; i < 4; i++) {
+                    const int nx = min_dx + neighbor[i][0];
+                    const int ny = min_dy + neighbor[i][1];
+                    if (sad[ny][nx] == INT_MAX)
+                        sad[ny][nx] = fc->vvcdsp.inter.sad(tmp[L0], tmp[L1], nx, ny, block_w, block_h);
+                }
+            }
+#endif
             dmv[0] += parametric_mv_refine(&sad[min_dy][min_dx], 1);
             dmv[1] += parametric_mv_refine(&sad[min_dy][min_dx], SAD_ARRAY_SIZE);
         }
