@@ -863,7 +863,10 @@ int ff_vvc_cabac_init(VVCLocalContext *lc,
 static void vvc_refill2(CABACContext* c) {
     int i;
     unsigned x;
-#if !HAVE_FAST_CLZ
+#if ARCH_WASM
+    // WASM has a native ctz even when the configure-time fast-clz probe is off.
+    i = ff_ctz((uint32_t)c->low | UINT32_C(0x80000000)) - CABAC_BITS;
+#elif !HAVE_FAST_CLZ
     x = c->low ^ (c->low - 1);
     i = 7 - ff_h264_norm_shift[x >> (CABAC_BITS - 1)];
 #else
@@ -888,6 +891,30 @@ static void vvc_refill2(CABACContext* c) {
 static int inline vvc_get_cabac(CABACContext *c, VVCCabacState* base, const int ctx)
 {
     VVCCabacState *s = base + ctx;
+#if ARCH_WASM
+    const int state0 = s->state[0], state1 = s->state[1];
+    const int pstate = state1 + (state0 << 4);
+    const int mps = pstate >> 14;
+    const int probability = (pstate >> 9) ^ (63 & -mps);
+    const int lps_range = ((c->range >> 5) * probability >> 1) + 4;
+    const int mps_range = c->range - lps_range;
+    const int boundary = mps_range << (CABAC_BITS + 1);
+    const int lps = c->low > boundary;
+    const int range = lps ? lps_range : mps_range;
+    const int low = c->low - (boundary & -lps);
+    // Both subranges are positive. Normalize the selected range to [256, 511].
+    const int shift = ff_clz((unsigned)range) - 23;
+    const int bit = mps ^ lps;
+    const int shift0 = s->shift[0], shift1 = s->shift[1];
+
+    c->range = range << shift;
+    c->low = low << shift;
+    s->state[0] = state0 - (state0 >> shift0) + ((1023 >> shift0) & -bit);
+    s->state[1] = state1 - (state1 >> shift1) + ((16383 >> shift1) & -bit);
+    if (!(c->low & CABAC_MASK))
+        vvc_refill2(c);
+    return bit;
+#else
     const int qRangeIdx = c->range >> 5;
     const int pState = s->state[1] + (s->state[0] << 4);
     const int valMps = pState >> 14;
@@ -911,6 +938,7 @@ static int inline vvc_get_cabac(CABACContext *c, VVCCabacState* base, const int 
     s->state[0] = s->state[0] - (s->state[0] >> s->shift[0]) + (1023 * bit >> s->shift[0]);
     s->state[1] = s->state[1] - (s->state[1] >> s->shift[1]) + (16383 * bit >> s->shift[1]);
     return bit;
+#endif
 }
 
 #define GET_CABAC(ctx) vvc_get_cabac(&lc->ep->cc, lc->ep->cabac_state, ctx)
