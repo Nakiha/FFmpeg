@@ -37,7 +37,7 @@ typedef uint16_t FUNC(pixel);
 static av_always_inline v128_t FUNC(alf_load8)(const FUNC(pixel) *p)
 {
 #if BIT_DEPTH == 8
-    return wasm_u16x8_extend_low_u8x16(wasm_v128_load64_zero(p));
+    return wasm_u16x8_load8x8(p);
 #else
     return wasm_v128_load(p);
 #endif
@@ -79,7 +79,7 @@ static av_always_inline void FUNC(alf_store_row)(FUNC(pixel) *dst, v128_t v16, i
  * p[0..6] are expected to carry the virtual-boundary substitutions.
  */
 static av_always_inline void FUNC(alf_luma_row8)(FUNC(pixel) *dst, const FUNC(pixel) *const p[7],
-    const int16_t (*fv)[8], const int16_t (*cv)[8],
+    const v128_t *fv, const v128_t *cv,
     const int is_near_vb, const int npix)
 {
     const v128_t curr = FUNC(alf_load8)(p[0]);
@@ -90,8 +90,8 @@ static av_always_inline void FUNC(alf_luma_row8)(FUNC(pixel) *dst, const FUNC(pi
     do {                                                                             \
         const v128_t t = FUNC(alf_clip_pair16)(FUNC(alf_load8)(p[a] + (ax)),                       \
                                        FUNC(alf_load8)(p[b] + (bx)), curr,                 \
-                                       wasm_v128_load(cv[k]));                       \
-        const v128_t f = wasm_v128_load(fv[k]);                                        \
+                                       cv[k]);                       \
+        const v128_t f = fv[k];                                        \
         acc_lo = wasm_i32x4_add(acc_lo, wasm_i32x4_extmul_low_i16x8(t, f));          \
         acc_hi = wasm_i32x4_add(acc_hi, wasm_i32x4_extmul_high_i16x8(t, f));         \
     } while (0)
@@ -121,7 +121,7 @@ static av_always_inline void FUNC(alf_luma_row8)(FUNC(pixel) *dst, const FUNC(pi
 }
 
 static av_always_inline void FUNC(alf_chroma_row8)(FUNC(pixel) *dst, const FUNC(pixel) *const p[5],
-    const int16_t (*fv)[8], const int16_t (*cv)[8],
+    const v128_t *fv, const v128_t *cv,
     const int is_near_vb, const int npix)
 {
     const v128_t curr = FUNC(alf_load8)(p[0]);
@@ -132,8 +132,8 @@ static av_always_inline void FUNC(alf_chroma_row8)(FUNC(pixel) *dst, const FUNC(
     do {                                                                             \
         const v128_t t = FUNC(alf_clip_pair16)(FUNC(alf_load8)(p[a] + (ax)),                       \
                                        FUNC(alf_load8)(p[b] + (bx)), curr,                 \
-                                       wasm_v128_load(cv[k]));                       \
-        const v128_t f = wasm_v128_load(fv[k]);                                        \
+                                       cv[k]);                       \
+        const v128_t f = fv[k];                                        \
         acc_lo = wasm_i32x4_add(acc_lo, wasm_i32x4_extmul_low_i16x8(t, f));          \
         acc_hi = wasm_i32x4_add(acc_hi, wasm_i32x4_extmul_high_i16x8(t, f));         \
     } while (0)
@@ -177,16 +177,17 @@ void ALF_EXPORT(alf_filter_luma)(uint8_t *_dst, ptrdiff_t dst_stride,
             const FUNC(pixel) *s5 = s3 + src_stride;
             const FUNC(pixel) *s6 = s4 - src_stride;
             const int npix = FFMIN(width - x, 2 * ALF_BLOCK_SIZE);
-            int16_t fv[ALF_NUM_COEFF_LUMA][8];
-            int16_t cv[ALF_NUM_COEFF_LUMA][8];
+            v128_t fv[ALF_NUM_COEFF_LUMA];
+            v128_t cv[ALF_NUM_COEFF_LUMA];
+            const int second = npix == 2 * ALF_BLOCK_SIZE ? ALF_NUM_COEFF_LUMA : 0;
 
             for (int k = 0; k < ALF_NUM_COEFF_LUMA; k++) {
-                for (int j = 0; j < 4; j++) {
-                    fv[k][j]     = filter[k];
-                    fv[k][4 + j] = filter[ALF_NUM_COEFF_LUMA + k];
-                    cv[k][j]     = clip[k];
-                    cv[k][4 + j] = clip[ALF_NUM_COEFF_LUMA + k];
-                }
+                const v128_t f0 = wasm_i16x8_splat(filter[k]);
+                const v128_t f1 = wasm_i16x8_splat(filter[second + k]);
+                const v128_t c0 = wasm_i16x8_splat(clip[k]);
+                const v128_t c1 = wasm_i16x8_splat(clip[second + k]);
+                fv[k] = wasm_i32x4_shuffle(f0, f1, 0, 1, 4, 5);
+                cv[k] = wasm_i32x4_shuffle(c0, c1, 0, 1, 4, 5);
             }
 
             for (int i = 0; i < ALF_BLOCK_SIZE; i++) {
@@ -236,6 +237,15 @@ void ALF_EXPORT(alf_filter_chroma)(uint8_t *_dst, ptrdiff_t dst_stride,
     src_stride /= sizeof(*src);
     dst_stride /= sizeof(*dst);
 
+    v128_t fv[ALF_NUM_COEFF_CHROMA];
+    v128_t cv[ALF_NUM_COEFF_CHROMA];
+
+    // Chroma ALF uses one filter set for the whole subblock.
+    for (int k = 0; k < ALF_NUM_COEFF_CHROMA; k++) {
+        fv[k] = wasm_i16x8_splat(filter[k]);
+        cv[k] = wasm_i16x8_splat(clip[k]);
+    }
+
     for (int y = 0; y < height; y += ALF_BLOCK_SIZE) {
         const int far = (y + ALF_BLOCK_SIZE - 1 < vb_pos - 2) || (y > vb_pos + 1);
 
@@ -246,18 +256,6 @@ void ALF_EXPORT(alf_filter_chroma)(uint8_t *_dst, ptrdiff_t dst_stride,
             const FUNC(pixel) *s3 = s1 + src_stride;
             const FUNC(pixel) *s4 = s2 - src_stride;
             const int npix = FFMIN(width - x, 2 * ALF_BLOCK_SIZE);
-            int16_t fv[ALF_NUM_COEFF_CHROMA][8];
-            int16_t cv[ALF_NUM_COEFF_CHROMA][8];
-
-            /* Chroma ALF uses one filter set for the whole subblock. */
-            for (int k = 0; k < ALF_NUM_COEFF_CHROMA; k++) {
-                for (int j = 0; j < 4; j++) {
-                    fv[k][j]     = filter[k];
-                    fv[k][4 + j] = filter[k];
-                    cv[k][j]     = clip[k];
-                    cv[k][4 + j] = clip[k];
-                }
-            }
 
             for (int i = 0; i < ALF_BLOCK_SIZE; i++) {
                 FUNC(pixel) *drow = dst + (y + i) * dst_stride + x;
