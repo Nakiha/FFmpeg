@@ -77,4 +77,13 @@ VVC_UNI_DECL(chroma_v);
 VVC_UNI_DECL(chroma_hv);
 #undef VVC_UNI_DECL
 
+#define VVC_DMVR8_DECL(name) \
+void ff_vvc_dmvr ## name ## _8_simd128(int16_t *dst, const uint8_t *src, \
+    ptrdiff_t stride, int height, intptr_t mx, intptr_t my, int width)
+VVC_DMVR8_DECL();
+VVC_DMVR8_DECL(_h);
+VVC_DMVR8_DECL(_v);
+VVC_DMVR8_DECL(_hv);
+#undef VVC_DMVR8_DECL
+
 #endif /* AVCODEC_WASM_VVC_INTER_H */

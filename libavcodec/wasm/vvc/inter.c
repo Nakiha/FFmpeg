@@ -31,6 +31,7 @@
 #include "libavutil/common.h"
 
 #include "libavcodec/wasm/vvc/inter.h"
+#include "libavcodec/vvc/data.h"
 
 #define MAX_PB_SIZE 128
 
@@ -433,3 +434,71 @@ void ff_vvc_put_uni_ ## name ## _hv_8_simd128(uint8_t *dst, ptrdiff_t dst_stride
 
 PUT_UNI_8(luma, LUMA_FIRST, LUMA_TAPS)
 PUT_UNI_8(chroma, CHROMA_FIRST, CHROMA_TAPS)
+
+
+static av_always_inline v128_t dmvr_blend8(v128_t a, v128_t b,
+    v128_t wa, v128_t wb, int shift)
+{
+    const v128_t round = wasm_i16x8_splat(1 << (shift - 1));
+    const v128_t sum = wasm_i16x8_add(wasm_i16x8_mul(a, wa), wasm_i16x8_mul(b, wb));
+    return wasm_u16x8_shr(wasm_i16x8_add(sum, round), shift);
+}
+
+static av_always_inline void dmvr_8(int16_t *dst, const pixel *src, ptrdiff_t stride,
+    int height, intptr_t mx, intptr_t my, int width, int horizontal, int vertical)
+{
+    const int8_t *fx = ff_vvc_inter_luma_dmvr_filters[mx];
+    const int8_t *fy = ff_vvc_inter_luma_dmvr_filters[my];
+    const v128_t x0 = wasm_i16x8_splat(fx[0]), x1 = wasm_i16x8_splat(fx[1]);
+    const v128_t y0 = wasm_i16x8_splat(fy[0]), y1 = wasm_i16x8_splat(fy[1]);
+    int x = 0;
+
+    if (horizontal && vertical) {
+        for (; x + 8 <= width; x += 8) {
+            const pixel *row = src + x;
+            int16_t *out = dst + x;
+            v128_t prev = dmvr_blend8(load_pix8(row), load_pix8(row + 1), x0, x1, 2);
+            for (int y = 0; y < height; y++, out += MAX_PB_SIZE) {
+                row += stride;
+                const v128_t next = dmvr_blend8(load_pix8(row), load_pix8(row + 1), x0, x1, 2);
+                wasm_v128_store(out, dmvr_blend8(prev, next, y0, y1, 4));
+                prev = next;
+            }
+        }
+        for (int y = 0; y < height; y++, src += stride, dst += MAX_PB_SIZE)
+            for (int col = x; col < width; col++) {
+                const int a = (fx[0] * src[col] + fx[1] * src[col + 1] + 2) >> 2;
+                const int b = (fx[0] * src[col + stride] + fx[1] * src[col + stride + 1] + 2) >> 2;
+                dst[col] = (fy[0] * a + fy[1] * b + 8) >> 4;
+            }
+        return;
+    }
+
+    const ptrdiff_t step = horizontal ? 1 : stride;
+    const v128_t a = horizontal ? x0 : y0, b = horizontal ? x1 : y1;
+    const int8_t *f = horizontal ? fx : fy;
+    for (int y = 0; y < height; y++, src += stride, dst += MAX_PB_SIZE) {
+        x = 0;
+        for (; x + 8 <= width; x += 8) {
+            const v128_t value = load_pix8(src + x);
+            const v128_t result = horizontal || vertical
+                ? dmvr_blend8(value, load_pix8(src + x + step), a, b, 2)
+                : wasm_i16x8_shl(value, 2);
+            wasm_v128_store(dst + x, result);
+        }
+        for (; x < width; x++)
+            dst[x] = horizontal || vertical ? (f[0] * src[x] + f[1] * src[x + step] + 2) >> 2 : src[x] << 2;
+    }
+}
+
+#define DMVR8(name, horizontal, vertical)                                       \
+void ff_vvc_dmvr ## name ## _8_simd128(int16_t *dst, const uint8_t *src,          \
+    ptrdiff_t stride, int height, intptr_t mx, intptr_t my, int width)           \
+{                                                                              \
+    dmvr_8(dst, src, stride, height, mx, my, width, horizontal, vertical);       \
+}
+
+DMVR8(, 0, 0)
+DMVR8(_h, 1, 0)
+DMVR8(_v, 0, 1)
+DMVR8(_hv, 1, 1)

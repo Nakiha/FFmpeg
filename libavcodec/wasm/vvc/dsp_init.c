@@ -73,6 +73,10 @@ av_cold void ff_vvc_dsp_init_wasm(VVCDSPContext *c, const int bit_depth)
             c->sao.band_filter[w] = ff_vvc_sao_band_8_simd128;
             c->sao.edge_filter[w] = ff_vvc_sao_edge_8_simd128;
         }
+        c->inter.dmvr[0][0] = ff_vvc_dmvr_8_simd128;
+        c->inter.dmvr[0][1] = ff_vvc_dmvr_h_8_simd128;
+        c->inter.dmvr[1][0] = ff_vvc_dmvr_v_8_simd128;
+        c->inter.dmvr[1][1] = ff_vvc_dmvr_hv_8_simd128;
         c->inter.avg = ff_vvc_avg_8_simd128;
         c->inter.sad = ff_vvc_sad_8_simd128;
     } else if (bit_depth == 10) {
