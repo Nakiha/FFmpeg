@@ -17,22 +17,37 @@ static uint32_t rnd(void)
     return rng_state >> 8;
 }
 
+#ifndef TEST_DEPTH
+#define TEST_DEPTH 8
+#endif
+#define TEST_CAT(name, depth) name ## _ ## depth
+#define TEST_NAME(name, depth) TEST_CAT(name, depth)
+#define REF(name) TEST_NAME(name, TEST_DEPTH)
+#define SIMD_SUFFIX(name) name ## _simd128
+#define SIMD_EXPAND(name) SIMD_SUFFIX(name)
+#define SIMD(name) SIMD_EXPAND(REF(ff_vvc_ ## name))
+#if TEST_DEPTH == 8
+typedef uint8_t test_pixel;
+#else
+typedef uint16_t test_pixel;
+#endif
+
 static int failures;
 
 static int test_put_pixels(int w, int h)
 {
     const int stride = w + 8;
-    uint8_t *src = malloc((size_t)stride * (h + 2));
+    test_pixel *src = malloc((size_t)stride * (h + 2) * sizeof(*src));
     int16_t a[MAX_PB * 32], b[MAX_PB * 32];
     int i;
 
     for (i = 0; i < stride * (h + 2); i++)
-        src[i] = (uint8_t)rnd();
+        src[i] = rnd() & ((1 << TEST_DEPTH) - 1);
     for (i = 0; i < MAX_PB * 32; i++)
         a[i] = b[i] = (int16_t)0xabcdef;
 
-    put_pixels_8(a, src + stride, stride, h, NULL, NULL, w);
-    ff_vvc_put_pixels_8_simd128(b, src + stride, stride, h, NULL, NULL, w);
+    REF(put_pixels)(a, (const uint8_t *)(src + stride), stride * sizeof(*src), h, NULL, NULL, w);
+    SIMD(put_pixels)(b, (const uint8_t *)(src + stride), stride * sizeof(*src), h, NULL, NULL, w);
     for (i = 0; i < MAX_PB * 32; i++) {
         if (a[i] != b[i]) {
             printf("MISMATCH put_pixels w=%d h=%d idx=%d ref=%d sim=%d\n", w, h, i, a[i], b[i]);
@@ -49,7 +64,7 @@ static int test_avg(int w, int h, int draw)
 {
     int16_t *s0 = malloc((size_t)MAX_PB * h * 2);
     int16_t *s1 = malloc((size_t)MAX_PB * h * 2);
-    uint8_t a[MAX_PB * 32], b[MAX_PB * 32];
+    test_pixel a[MAX_PB * 32], b[MAX_PB * 32];
     int i;
 
     for (i = 0; i < MAX_PB * h; i++) {
@@ -60,8 +75,8 @@ static int test_avg(int w, int h, int draw)
     memset(a, 0x5a, sizeof(a));
     memset(b, 0x5a, sizeof(b));
 
-    avg_8(a, w + 4, s0, s1, w, h);
-    ff_vvc_avg_8_simd128(b, w + 4, s0, s1, w, h);
+    REF(avg)((uint8_t *)a, (w + 4) * sizeof(*a), s0, s1, w, h);
+    SIMD(avg)((uint8_t *)b, (w + 4) * sizeof(*a), s0, s1, w, h);
     for (i = 0; i < MAX_PB * 32; i++) {
         if (a[i] != b[i]) {
             printf("MISMATCH avg w=%d h=%d draw=%d idx=%d ref=%u sim=%u\n", w, h, draw, i, a[i], b[i]);
@@ -143,29 +158,29 @@ static int test_qpel(int chroma, int w, int h, int which, const int8_t *hf,
                      const int8_t *vf, int draw)
 {
     const int pad = 16, stride = w + 2 * pad;
-    uint8_t *src = malloc((size_t)stride * (h + 2 * pad));
+    test_pixel *src = malloc((size_t)stride * (h + 2 * pad) * sizeof(*src));
     int16_t a[MAX_PB * 32], b[MAX_PB * 32];
     int i;
 
     for (i = 0; i < stride * (h + 2 * pad); i++)
-        src[i] = (uint8_t)rnd();
+        src[i] = rnd() & ((1 << TEST_DEPTH) - 1);
     for (i = 0; i < MAX_PB * 32; i++)
         a[i] = b[i] = (int16_t)0x1357;
 
     if (!chroma) {
-        if (which == 0)      put_luma_h_8(a, src + pad * stride + pad, stride, h, hf, vf, w);
-        else if (which == 1) put_luma_v_8(a, src + pad * stride + pad, stride, h, hf, vf, w);
-        else                 put_luma_hv_8(a, src + pad * stride + pad, stride, h, hf, vf, w);
-        if (which == 0)      ff_vvc_put_luma_h_8_simd128(b, src + pad * stride + pad, stride, h, hf, vf, w);
-        else if (which == 1) ff_vvc_put_luma_v_8_simd128(b, src + pad * stride + pad, stride, h, hf, vf, w);
-        else                 ff_vvc_put_luma_hv_8_simd128(b, src + pad * stride + pad, stride, h, hf, vf, w);
+        if (which == 0)      REF(put_luma_h)(a, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else if (which == 1) REF(put_luma_v)(a, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else                 REF(put_luma_hv)(a, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        if (which == 0)      SIMD(put_luma_h)(b, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else if (which == 1) SIMD(put_luma_v)(b, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else                 SIMD(put_luma_hv)(b, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
     } else {
-        if (which == 0)      put_chroma_h_8(a, src + pad * stride + pad, stride, h, hf, vf, w);
-        else if (which == 1) put_chroma_v_8(a, src + pad * stride + pad, stride, h, hf, vf, w);
-        else                 put_chroma_hv_8(a, src + pad * stride + pad, stride, h, hf, vf, w);
-        if (which == 0)      ff_vvc_put_chroma_h_8_simd128(b, src + pad * stride + pad, stride, h, hf, vf, w);
-        else if (which == 1) ff_vvc_put_chroma_v_8_simd128(b, src + pad * stride + pad, stride, h, hf, vf, w);
-        else                 ff_vvc_put_chroma_hv_8_simd128(b, src + pad * stride + pad, stride, h, hf, vf, w);
+        if (which == 0)      REF(put_chroma_h)(a, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else if (which == 1) REF(put_chroma_v)(a, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else                 REF(put_chroma_hv)(a, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        if (which == 0)      SIMD(put_chroma_h)(b, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else if (which == 1) SIMD(put_chroma_v)(b, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
+        else                 SIMD(put_chroma_hv)(b, (const uint8_t *)(src + pad * stride + pad), stride * sizeof(*src), h, hf, vf, w);
     }
 
     for (i = 0; i < MAX_PB * 32; i++) {

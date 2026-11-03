@@ -47,4 +47,23 @@ void ff_vvc_put_chroma_v_8_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t s
 void ff_vvc_put_chroma_hv_8_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
     int height, const int8_t *hf, const int8_t *vf, int width);
 
+void ff_vvc_put_pixels_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+    int height, const int8_t *hf, const int8_t *vf, int width);
+
+void ff_vvc_avg_10_simd128(uint8_t *dst, ptrdiff_t dst_stride,
+    const int16_t *src0, const int16_t *src1, int width, int height);
+
+void ff_vvc_put_luma_h_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+    int height, const int8_t *hf, const int8_t *vf, int width);
+void ff_vvc_put_luma_v_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+    int height, const int8_t *hf, const int8_t *vf, int width);
+void ff_vvc_put_luma_hv_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+    int height, const int8_t *hf, const int8_t *vf, int width);
+void ff_vvc_put_chroma_h_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+    int height, const int8_t *hf, const int8_t *vf, int width);
+void ff_vvc_put_chroma_v_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+    int height, const int8_t *hf, const int8_t *vf, int width);
+void ff_vvc_put_chroma_hv_10_simd128(int16_t *dst, const uint8_t *src, ptrdiff_t src_stride,
+    int height, const int8_t *hf, const int8_t *vf, int width);
+
 #endif /* AVCODEC_WASM_VVC_INTER_H */

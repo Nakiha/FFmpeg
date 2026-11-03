@@ -1,5 +1,5 @@
 /*
- * VVC inter prediction helpers for WebAssembly SIMD128, 8-bit
+ * VVC inter prediction helpers for WebAssembly SIMD128, 8- and 10-bit
  *
  * 16-bit intermediate prediction (put_*_pixels), bi-prediction averaging and
  * the block SAD used by decoder-side refinement, mirroring the 8-bit C
@@ -142,7 +142,7 @@ static av_always_inline v128_t load_pix8(const pixel *p)
  * taps (1 for horizontal, the line size for vertical).  The running sum of
  * the spec filters stays within int16: max sum |f| * 255 <= 29580 for luma
  * and <= 24990 for chroma. */
-static av_always_inline void put_filter_pass(int16_t *dst, const pixel *src,
+static av_always_inline void put_filter_pass_8(int16_t *dst, const pixel *src,
     const ptrdiff_t stride, const int width, const int first, const int ntaps,
     const int8_t *filter)
 {
@@ -191,13 +191,85 @@ static av_always_inline void put_filter_v_from16(int16_t *dst, const int16_t *tm
     }
 }
 
+void ff_vvc_put_pixels_10_simd128(int16_t *dst, const uint8_t *_src,
+    ptrdiff_t src_stride, int height, const int8_t *hf, const int8_t *vf, int width)
+{
+    const uint16_t *src = (const uint16_t *)_src;
+    src_stride /= sizeof(*src);
+    for (int y = 0; y < height; y++) {
+        int x = 0;
+        for (; x + 8 <= width; x += 8)
+            wasm_v128_store(dst + x, wasm_i16x8_shl(wasm_v128_load(src + x), 4));
+        for (; x < width; x++)
+            dst[x] = src[x] << 4;
+        src += src_stride;
+        dst += MAX_PB_SIZE;
+    }
+}
+
+void ff_vvc_avg_10_simd128(uint8_t *_dst, ptrdiff_t dst_stride,
+    const int16_t *src0, const int16_t *src1, int width, int height)
+{
+    uint16_t *dst = (uint16_t *)_dst;
+    const v128_t offset = wasm_i32x4_splat(16);
+    const v128_t zero = wasm_i16x8_splat(0);
+    const v128_t max = wasm_i16x8_splat(1023);
+    dst_stride /= sizeof(*dst);
+    for (int y = 0; y < height; y++) {
+        int x = 0;
+        for (; x + 8 <= width; x += 8) {
+            const v128_t a = wasm_v128_load(src0 + x);
+            const v128_t b = wasm_v128_load(src1 + x);
+            const v128_t lo = wasm_i32x4_add(wasm_i32x4_extend_low_i16x8(a),
+                                              wasm_i32x4_extend_low_i16x8(b));
+            const v128_t hi = wasm_i32x4_add(wasm_i32x4_extend_high_i16x8(a),
+                                              wasm_i32x4_extend_high_i16x8(b));
+            const v128_t v = wasm_i16x8_narrow_i32x4(
+                wasm_i32x4_shr(wasm_i32x4_add(lo, offset), 5),
+                wasm_i32x4_shr(wasm_i32x4_add(hi, offset), 5));
+            wasm_v128_store(dst + x, wasm_i16x8_min(wasm_i16x8_max(v, zero), max));
+        }
+        for (; x < width; x++)
+            dst[x] = av_clip_uintp2((src0[x] + src1[x] + 16) >> 5, 10);
+        dst  += dst_stride;
+        src0 += MAX_PB_SIZE;
+        src1 += MAX_PB_SIZE;
+    }
+}
+
+/* Unlike the 8-bit path, a 10-bit first-pass tap sum can exceed int16.
+ * Apply the reference shift before narrowing to the 14-bit intermediate. */
+static av_always_inline void put_filter_pass_10(int16_t *dst, const uint16_t *src,
+    ptrdiff_t stride, int width, int first, int ntaps, const int8_t *filter)
+{
+    int x = 0;
+    for (; x + 8 <= width; x += 8) {
+        v128_t lo = wasm_i32x4_splat(0);
+        v128_t hi = wasm_i32x4_splat(0);
+        for (int k = 0; k < ntaps; k++) {
+            const v128_t tap = wasm_i16x8_splat(filter[k]);
+            const v128_t v = wasm_v128_load(src + (first + k) * stride + x);
+            lo = wasm_i32x4_add(lo, wasm_i32x4_extmul_low_i16x8(v, tap));
+            hi = wasm_i32x4_add(hi, wasm_i32x4_extmul_high_i16x8(v, tap));
+        }
+        wasm_v128_store(dst + x, wasm_i16x8_narrow_i32x4(
+            wasm_i32x4_shr(lo, 2), wasm_i32x4_shr(hi, 2)));
+    }
+    for (; x < width; x++) {
+        int sum = 0;
+        for (int k = 0; k < ntaps; k++)
+            sum += filter[k] * src[(first + k) * stride + x];
+        dst[x] = sum >> 2;
+    }
+}
+
 #define LUMA_FIRST   (-3)
 #define CHROMA_FIRST (-1)
 #define LUMA_TAPS     8
 #define CHROMA_TAPS   4
 
-#define PUT_FILTER_FUNCS(name, first, ntaps, before, extra)                       \
-void ff_vvc_put_##name##_h_8_simd128(int16_t *dst, const uint8_t *_src,           \
+#define PUT_FILTER_FUNCS(depth, pixel, name, first, ntaps, before, extra)                       \
+void ff_vvc_put_##name##_h_##depth##_simd128(int16_t *dst, const uint8_t *_src,           \
     ptrdiff_t _src_stride, const int height, const int8_t *hf, const int8_t *vf,  \
     const int width)                                                              \
 {                                                                                 \
@@ -205,12 +277,12 @@ void ff_vvc_put_##name##_h_8_simd128(int16_t *dst, const uint8_t *_src,         
     const ptrdiff_t src_stride = _src_stride / sizeof(pixel);                     \
                                                                                   \
     for (int y = 0; y < height; y++) {                                            \
-        put_filter_pass(dst, src + y * src_stride, 1, width, first, ntaps, hf);   \
+        put_filter_pass_##depth(dst, src + y * src_stride, 1, width, first, ntaps, hf);   \
         dst += MAX_PB_SIZE;                                                       \
     }                                                                             \
 }                                                                                 \
                                                                                   \
-void ff_vvc_put_##name##_v_8_simd128(int16_t *dst, const uint8_t *_src,           \
+void ff_vvc_put_##name##_v_##depth##_simd128(int16_t *dst, const uint8_t *_src,           \
     ptrdiff_t _src_stride, const int height, const int8_t *hf, const int8_t *vf,  \
     const int width)                                                              \
 {                                                                                 \
@@ -218,13 +290,13 @@ void ff_vvc_put_##name##_v_8_simd128(int16_t *dst, const uint8_t *_src,         
     const ptrdiff_t src_stride = _src_stride / sizeof(pixel);                     \
                                                                                   \
     for (int y = 0; y < height; y++) {                                            \
-        put_filter_pass(dst, src + y * src_stride, src_stride, width, first,      \
+        put_filter_pass_##depth(dst, src + y * src_stride, src_stride, width, first,      \
                         ntaps, vf);                                               \
         dst += MAX_PB_SIZE;                                                       \
     }                                                                             \
 }                                                                                 \
                                                                                   \
-void ff_vvc_put_##name##_hv_8_simd128(int16_t *dst, const uint8_t *_src,          \
+void ff_vvc_put_##name##_hv_##depth##_simd128(int16_t *dst, const uint8_t *_src,          \
     ptrdiff_t _src_stride, const int height, const int8_t *hf, const int8_t *vf,  \
     const int width)                                                              \
 {                                                                                 \
@@ -235,7 +307,7 @@ void ff_vvc_put_##name##_hv_8_simd128(int16_t *dst, const uint8_t *_src,        
                                                                                   \
     src -= before * src_stride;                                                   \
     for (int y = 0; y < height + extra; y++) {                                    \
-        put_filter_pass(tmp, src + y * src_stride, 1, width, first, ntaps, hf);   \
+        put_filter_pass_##depth(tmp, src + y * src_stride, 1, width, first, ntaps, hf);   \
         tmp += MAX_PB_SIZE;                                                       \
     }                                                                             \
                                                                                   \
@@ -247,5 +319,7 @@ void ff_vvc_put_##name##_hv_8_simd128(int16_t *dst, const uint8_t *_src,        
     }                                                                             \
 }
 
-PUT_FILTER_FUNCS(luma, LUMA_FIRST, LUMA_TAPS, 3, 7)
-PUT_FILTER_FUNCS(chroma, CHROMA_FIRST, CHROMA_TAPS, 1, 3)
+PUT_FILTER_FUNCS(8, uint8_t, luma, LUMA_FIRST, LUMA_TAPS, 3, 7)
+PUT_FILTER_FUNCS(8, uint8_t, chroma, CHROMA_FIRST, CHROMA_TAPS, 1, 3)
+PUT_FILTER_FUNCS(10, uint16_t, luma, LUMA_FIRST, LUMA_TAPS, 3, 7)
+PUT_FILTER_FUNCS(10, uint16_t, chroma, CHROMA_FIRST, CHROMA_TAPS, 1, 3)

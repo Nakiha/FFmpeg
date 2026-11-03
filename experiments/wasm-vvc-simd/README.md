@@ -13,6 +13,8 @@ entry points against the C template functions over randomized inputs.
         <ffmpeg-wasm-build>/work/install/lib/libavutil.a -o test.js
     node test.js
 
+Repeat with `-DTEST_DEPTH=10` to exercise the 10-bit SIMD entry points.
+
 `test-alf.c` sweeps luma/chroma ALF (widths 4..64, heights 4..32, 15
 virtual-boundary positions, random coefficients) and the ALF
 classification (same sizes, 10 virtual-boundary positions, comparing the
