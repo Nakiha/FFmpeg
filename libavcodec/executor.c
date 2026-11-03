@@ -21,7 +21,9 @@
 #include "config.h"
 
 #include <stdbool.h>
+#include <limits.h>
 
+#include "libavutil/error.h"
 #include "libavutil/mem.h"
 #include "libavutil/thread.h"
 
@@ -56,6 +58,10 @@ typedef struct Queue {
 struct FFExecutor {
     FFTaskCallbacks cb;
     int thread_count;
+    int active_threads;
+    int observe;
+    int queued, running;
+    unsigned dispatched, saturated;
     bool recursive;
 
     ThreadInfo *threads;
@@ -63,6 +69,7 @@ struct FFExecutor {
 
     AVMutex lock;
     AVCond cond;
+    AVCond parked;
     int die;
 
     Queue *q;
@@ -98,11 +105,18 @@ static int run_one_task(FFExecutor *e, void *lc)
         t = remove_task(e->q + i);
 
     if (t) {
+        if (e->observe) {
+            e->queued--;
+            e->running++;
+            e->dispatched++;
+            e->saturated += e->running == e->active_threads && e->queued > 0;
+        }
         if (e->thread_count > 0)
             ff_mutex_unlock(&e->lock);
         cb->run(t, lc, cb->user_data);
         if (e->thread_count > 0)
             ff_mutex_lock(&e->lock);
+        if (e->observe) e->running--;
         return 1;
     }
     return 0;
@@ -119,7 +133,9 @@ static void *executor_worker_task(void *data)
     while (1) {
         if (e->die) break;
 
-        if (!run_one_task(e, lc)) {
+        if (ti - e->threads >= e->active_threads) {
+            ff_cond_wait(&e->parked, &e->lock);
+        } else if (!run_one_task(e, lc)) {
             //no task in one loop
             ff_cond_wait(&e->cond, &e->lock);
         }
@@ -129,18 +145,21 @@ static void *executor_worker_task(void *data)
 }
 #endif
 
-static av_cold void executor_free(FFExecutor *e, const int has_lock, const int has_cond)
+static av_cold void executor_free(FFExecutor *e, const int has_lock, const int has_cond, const int has_parked)
 {
     if (e->thread_count) {
         //signal die
         ff_mutex_lock(&e->lock);
         e->die = 1;
         ff_cond_broadcast(&e->cond);
+        ff_cond_broadcast(&e->parked);
         ff_mutex_unlock(&e->lock);
 
         for (int i = 0; i < e->thread_count; i++)
             executor_thread_join(e->threads[i].thread, NULL);
     }
+    if (has_parked)
+        ff_cond_destroy(&e->parked);
     if (has_cond)
         ff_cond_destroy(&e->cond);
     if (has_lock)
@@ -153,10 +172,10 @@ static av_cold void executor_free(FFExecutor *e, const int has_lock, const int h
     av_free(e);
 }
 
-av_cold FFExecutor* ff_executor_alloc(const FFTaskCallbacks *cb, int thread_count)
+av_cold FFExecutor* ff_executor_alloc(const FFTaskCallbacks *cb, int thread_count, int active_threads, int observe)
 {
     FFExecutor *e;
-    int has_lock = 0, has_cond = 0;
+    int has_lock = 0, has_cond = 0, has_parked = 0;
     if (!cb || !cb->user_data || !cb->run || !cb->priorities)
         return NULL;
 
@@ -164,6 +183,8 @@ av_cold FFExecutor* ff_executor_alloc(const FFTaskCallbacks *cb, int thread_coun
     if (!e)
         return NULL;
     e->cb = *cb;
+    e->active_threads = active_threads;
+    e->observe = observe && thread_count > 0;
 
     e->local_contexts = av_calloc(FFMAX(thread_count, 1), e->cb.local_context_size);
     if (!e->local_contexts)
@@ -182,8 +203,9 @@ av_cold FFExecutor* ff_executor_alloc(const FFTaskCallbacks *cb, int thread_coun
 
     has_lock = !ff_mutex_init(&e->lock, NULL);
     has_cond = !ff_cond_init(&e->cond, NULL);
+    has_parked = !ff_cond_init(&e->parked, NULL);
 
-    if (!has_lock || !has_cond)
+    if (!has_lock || !has_cond || !has_parked)
         goto free_executor;
 
     for (/* nothing */; e->thread_count < thread_count; e->thread_count++) {
@@ -195,7 +217,7 @@ av_cold FFExecutor* ff_executor_alloc(const FFTaskCallbacks *cb, int thread_coun
     return e;
 
 free_executor:
-    executor_free(e, has_lock, has_cond);
+    executor_free(e, has_lock, has_cond, has_parked);
     return NULL;
 }
 
@@ -206,7 +228,7 @@ av_cold void ff_executor_free(FFExecutor **executor)
     if (!executor || !*executor)
         return;
     thread_count = (*executor)->thread_count;
-    executor_free(*executor, thread_count, thread_count);
+    executor_free(*executor, thread_count, thread_count, thread_count);
     *executor = NULL;
 }
 
@@ -214,8 +236,10 @@ void ff_executor_execute(FFExecutor *e, FFTask *t)
 {
     if (e->thread_count)
         ff_mutex_lock(&e->lock);
-    if (t)
+    if (t) {
         add_task(e->q + t->priority % e->cb.priorities, t);
+        if (e->observe) e->queued++;
+    }
     if (e->thread_count) {
         ff_cond_signal(&e->cond);
         ff_mutex_unlock(&e->lock);
@@ -230,4 +254,32 @@ void ff_executor_execute(FFExecutor *e, FFTask *t)
             /* nothing */;
         e->recursive = false;
     }
+}
+
+
+int ff_executor_grow(FFExecutor *e, int count)
+{
+    if (!e || !e->observe || count > e->thread_count)
+        return AVERROR(EINVAL);
+    ff_mutex_lock(&e->lock);
+    int ret = AVERROR(EINVAL);
+    if (count > e->active_threads) {
+        e->active_threads = ret = count;
+        ff_cond_broadcast(&e->parked);
+    }
+    ff_mutex_unlock(&e->lock);
+    return ret;
+}
+
+void ff_executor_observe(FFExecutor *e, int *active, int *dispatched, int *saturated)
+{
+    if (!e || !e->observe)
+        return;
+    ff_mutex_lock(&e->lock);
+    *active = e->active_threads;
+    const int shift = e->dispatched > INT_MAX || e->saturated > INT_MAX;
+    *dispatched = e->dispatched >> shift;
+    *saturated = e->saturated >> shift;
+    e->dispatched = e->saturated = 0;
+    ff_mutex_unlock(&e->lock);
 }

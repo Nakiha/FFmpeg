@@ -684,7 +684,7 @@ static int task_run(FFTask *_t, void *local_context, void *user_data)
     return 0;
 }
 
-av_cold FFExecutor* ff_vvc_executor_alloc(VVCContext *s, const int thread_count)
+av_cold FFExecutor* ff_vvc_executor_alloc(VVCContext *s, int thread_count, int active_threads)
 {
     FFTaskCallbacks callbacks = {
         s,
@@ -692,7 +692,7 @@ av_cold FFExecutor* ff_vvc_executor_alloc(VVCContext *s, const int thread_count)
         PRIORITY_LOWEST + 1,
         task_run,
     };
-    return ff_executor_alloc(&callbacks, thread_count);
+    return ff_executor_alloc(&callbacks, thread_count, active_threads, s->thread_capacity || s->frame_context_capacity > s->nb_fcs);
 }
 
 av_cold void ff_vvc_executor_free(FFExecutor **e)

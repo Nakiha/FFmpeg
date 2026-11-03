@@ -228,6 +228,11 @@ typedef struct VVCContext {
     const AVClass *class;
     int frame_contexts;
     int frame_context_capacity;
+    int thread_capacity;
+    int tuning_enabled;
+    int max_frame_wait_us;
+    int full_waits;
+    int submitted_frames;
     struct AVCodecContext *avctx;
 
     CodedBitstreamContext *cbc;

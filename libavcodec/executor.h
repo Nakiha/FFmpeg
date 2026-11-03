@@ -53,7 +53,9 @@ typedef struct FFTaskCallbacks {
  * @param thread_count worker thread number, 0 for run on caller's thread directly
  * @return return the executor
  */
-FFExecutor* ff_executor_alloc(const FFTaskCallbacks *callbacks, int thread_count);
+FFExecutor* ff_executor_alloc(const FFTaskCallbacks *callbacks, int thread_count, int active_threads, int observe);
+int ff_executor_grow(FFExecutor *e, int count);
+void ff_executor_observe(FFExecutor *e, int *active, int *dispatched, int *saturated);
 
 /**
  * Free executor

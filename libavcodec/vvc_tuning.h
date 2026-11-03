@@ -11,4 +11,12 @@
  * AVERROR. A count of zero queries the active count. */
 int avcodec_vvc_grow_frame_contexts(AVCodecContext *avctx, int count);
 
+typedef struct AVVvcTuning {
+    int threads, contexts, in_flight, dispatched, saturated;
+    int submitted_frames, full_waits, max_frame_wait_us;
+} AVVvcTuning;
+
+int avcodec_vvc_tuning(AVCodecContext *avctx, AVVvcTuning *stats);
+int avcodec_vvc_grow_threads(AVCodecContext *avctx, int count);
+
 #endif

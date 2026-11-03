@@ -35,6 +35,8 @@
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
 #include "libavutil/thread.h"
+#include "libavutil/time.h"
+#include "libavcodec/executor.h"
 #include "libavutil/film_grain_params.h"
 
 #include "dec.h"
@@ -1122,7 +1124,10 @@ static int frame_end(VVCContext *s, VVCFrameContext *fc)
 static int wait_delayed_frame(VVCContext *s, AVFrame *output, int *got_output)
 {
     VVCFrameContext *delayed = s->delayed_head;
-    int ret                  = ff_vvc_frame_wait(s, delayed);
+    const int64_t start = s->tuning_enabled ? av_gettime_relative() : 0;
+    int ret = ff_vvc_frame_wait(s, delayed);
+    if (s->tuning_enabled)
+        s->max_frame_wait_us = FFMAX(s->max_frame_wait_us, FFMIN(INT_MAX, av_gettime_relative() - start));
 
     if (!ret) {
         ret = frame_end(s, delayed);
@@ -1158,6 +1163,10 @@ static int submit_frame(VVCContext *s, VVCFrameContext *fc, AVFrame *output, int
     if (!s->nb_delayed++)
         s->delayed_head = fc;
     s->nb_frames++;
+    if (s->tuning_enabled) {
+        s->submitted_frames++;
+        s->full_waits += s->nb_delayed >= s->nb_fcs;
+    }
 
     if (s->nb_delayed >= s->nb_fcs || s->avctx->hwaccel) {
         if ((ret = wait_delayed_frame(s, output, got_output)) < 0)
@@ -1298,7 +1307,9 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
 
     if (thread_count == 1)
         thread_count = 0;
-    s->executor = ff_vvc_executor_alloc(s, thread_count);
+    const int workers = thread_count ? FFMAX(thread_count, s->thread_capacity) : 0;
+    s->tuning_enabled = workers && (s->thread_capacity || s->frame_context_capacity > s->nb_fcs);
+    s->executor = ff_vvc_executor_alloc(s, workers, thread_count);
     if (!s->executor)
         return AVERROR(ENOMEM);
 
@@ -1309,16 +1320,43 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
     return 0;
 }
 
+static const AVClass vvc_class;
+
+static VVCContext *tunable_vvc(AVCodecContext *avctx)
+{
+    return avctx && avcodec_is_open(avctx) && avctx->codec->priv_class == &vvc_class &&
+           !avctx->hwaccel ? avctx->priv_data : NULL;
+}
+
+int avcodec_vvc_tuning(AVCodecContext *avctx, AVVvcTuning *stats)
+{
+    VVCContext *s = tunable_vvc(avctx);
+    if (!s || !s->tuning_enabled || !stats)
+        return AVERROR(EINVAL);
+    *stats = (AVVvcTuning) {
+        .contexts = s->nb_fcs, .in_flight = s->nb_delayed,
+        .submitted_frames = s->submitted_frames, .full_waits = s->full_waits,
+        .max_frame_wait_us = s->max_frame_wait_us,
+    };
+    ff_executor_observe(s->executor, &stats->threads, &stats->dispatched, &stats->saturated);
+    s->submitted_frames = s->full_waits = s->max_frame_wait_us = 0;
+    return 0;
+}
+
+int avcodec_vvc_grow_threads(AVCodecContext *avctx, int count)
+{
+    VVCContext *s = tunable_vvc(avctx);
+    return s && s->tuning_enabled ? ff_executor_grow(s->executor, count) : AVERROR(EINVAL);
+}
+
 int avcodec_vvc_grow_frame_contexts(AVCodecContext *avctx, int count)
 {
-    VVCContext *s;
+    VVCContext *s = tunable_vvc(avctx);
     int initialized;
     int ret;
 
-    if (!avctx || avctx->codec_id != AV_CODEC_ID_VVC ||
-        !avcodec_is_open(avctx) || avctx->hwaccel)
+    if (!s)
         return AVERROR(EINVAL);
-    s = avctx->priv_data;
     if (!count)
         return s->nb_fcs;
     if (count <= s->nb_fcs || count > s->frame_context_capacity ||
@@ -1358,6 +1396,9 @@ static const AVOption vvc_options[] = {
       AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM },
     { "frame_context_capacity", "Reserved VVC frame-context slots",
       offsetof(VVCContext, frame_context_capacity), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX,
+      AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM },
+    { "thread_capacity", "Reserved VVC executor workers",
+      offsetof(VVCContext, thread_capacity), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX,
       AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM },
     { NULL },
 };
