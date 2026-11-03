@@ -122,7 +122,7 @@ static inline int vp_vvc_admit_extradata(VVCContext *s)
     int eligible = 0;
     s->vp_analysis_path = 0;
     if (!VP_VVC_NO_PIXELS || !s->vp_analysis_mode || !ff_voidplayer_vachunk_is_active() ||
-        s->avctx->thread_count != 1 || s->avctx->thread_type || s->avctx->hwaccel ||
+        s->avctx->thread_type || s->avctx->hwaccel ||
         (s->avctx->err_recognition & AV_EF_CRCCHECK))
         return 0;
     for (int i = 0; i < s->current_frame.nb_units; i++) {
@@ -148,7 +148,7 @@ static inline int vp_vvc_admit_config(VVCContext *s, const VVCSPS *sps)
 {
     s->vp_analysis_path = 0;
     if (!VP_VVC_NO_PIXELS || !s->vp_analysis_mode || !ff_voidplayer_vachunk_is_active() ||
-        s->avctx->thread_count != 1 || s->avctx->thread_type || s->avctx->hwaccel ||
+        s->avctx->thread_type || s->avctx->hwaccel ||
         (s->avctx->err_recognition & AV_EF_CRCCHECK))
         return s->vp_analysis_started ? vp_vvc_require_full(s, VP_ANALYSIS_REASON_CONFIG) : 0;
     if (!vp_vvc_prune_supported(sps))
@@ -174,10 +174,10 @@ static inline int vp_vvc_sei_grain(VVCContext *s, const VVCSEI *sei)
 }
 
 /* Decoded-picture-hash SEI needs real pixels. */
-static inline int vp_vvc_frame_sei(VVCContext *s, const VVCSEI *sei)
+static inline int vp_vvc_frame_sei(VVCContext *s, const VVCFrameContext *fc)
 {
 #if VP_ANALYSIS_ONLY
-    if (s->vp_analysis_path && sei->picture_hash.present)
+    if (fc->vp_analysis_prune && fc->sei.picture_hash.present)
         return vp_vvc_require_full(s, VP_ANALYSIS_REASON_PIXEL_HASH);
 #endif
     return 0;

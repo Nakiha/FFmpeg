@@ -499,7 +499,7 @@ static int run_deblock_bs(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 {
     /* Pruned frames discard the whole deblocking stage, including the
      * boundary-strength derivation, mirroring HEVC's filter prune. */
-    if (!vp_vvc_prune(s) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
+    if (!VP_VVC_PRUNE_FRAME(lc) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
         ff_vvc_deblock_bs(lc, t->rx, t->ry, t->rs);
 
     return 0;
@@ -511,7 +511,7 @@ static int run_inter(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const CTU *ctu      = fc->tab.ctus + t->rs;
     int ret;
 
-    if (!vp_vvc_prune(s)) {
+    if (!VP_VVC_PRUNE_FRAME(lc)) {
         ret = ff_vvc_predict_inter(lc, t->rs);
         if (ret < 0)
             return ret;
@@ -541,7 +541,7 @@ static int run_lmcs(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctu_size;
     const int y0        = t->ry * ctu_size;
 
-    if (!vp_vvc_prune(s))
+    if (!VP_VVC_PRUNE_FRAME(lc))
         ff_vvc_lmcs_filter(lc, x0, y0);
 
     return 0;
@@ -555,7 +555,7 @@ static int run_deblock_v(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
 
-    if (!vp_vvc_prune(s) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
+    if (!VP_VVC_PRUNE_FRAME(lc) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
         ff_vvc_deblock_vertical(lc, x0, y0, t->rs);
     }
@@ -571,7 +571,7 @@ static int run_deblock_h(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
 
-    if (vp_vvc_prune(s))
+    if (VP_VVC_PRUNE_FRAME(lc))
         return 0;
 
     if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
@@ -592,7 +592,7 @@ static int run_sao(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
 
-    if (vp_vvc_prune(s))
+    if (VP_VVC_PRUNE_FRAME(lc))
         return 0;
 
     if (fc->ps.sps->r->sps_sao_enabled_flag) {
@@ -614,7 +614,7 @@ static int run_alf(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctu_size;
     const int y0        = t->ry * ctu_size;
 
-    if (!vp_vvc_prune(s) && fc->ps.sps->r->sps_alf_enabled_flag) {
+    if (!VP_VVC_PRUNE_FRAME(lc) && fc->ps.sps->r->sps_alf_enabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
         ff_vvc_alf_filter(lc, x0, y0);
     }

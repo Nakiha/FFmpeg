@@ -1125,7 +1125,7 @@ static int frame_end(VVCContext *s, VVCFrameContext *fc)
 
 #if VP_ANALYSIS_ONLY
     /* Film grain and decoded-picture-hash SEI require real pixels. */
-    if ((ret = vp_vvc_frame_sei(s, &fc->sei)) < 0)
+    if ((ret = vp_vvc_frame_sei(s, fc)) < 0)
         return ret;
 #endif
 
