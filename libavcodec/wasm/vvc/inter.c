@@ -133,30 +133,55 @@ int ff_vvc_sad_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int d
 
 /* The 8-bit DMVR intermediate samples are in [0, 1020]. With at most
  * eight sampled rows and two groups per row, each lane fits in 16 bits. */
+static av_always_inline v128_t dmvr_sad_row8(v128_t acc, const int16_t *a, const int16_t *b, int width)
+{
+    const v128_t diff = wasm_i16x8_sub(wasm_v128_load(a), wasm_v128_load(b));
+    acc = wasm_i16x8_add(acc, wasm_i16x8_abs(diff));
+    if (width == 16) {
+        const v128_t diff1 = wasm_i16x8_sub(wasm_v128_load(a + 8), wasm_v128_load(b + 8));
+        acc = wasm_i16x8_add(acc, wasm_i16x8_abs(diff1));
+    }
+    return acc;
+}
+
+static av_always_inline int dmvr_sad_bound8(const int16_t *a, const int16_t *b,
+    int width, int height, int limit)
+{
+    const ptrdiff_t step = 2 * MAX_PB_SIZE;
+    v128_t acc = wasm_i16x8_splat(0);
+
+    if (height >= 8) {
+        acc = dmvr_sad_row8(acc, a, b, width);
+        acc = dmvr_sad_row8(acc, a + step, b + step, width);
+        acc = dmvr_sad_row8(acc, a + 2 * step, b + 2 * step, width);
+        acc = dmvr_sad_row8(acc, a + 3 * step, b + 3 * step, width);
+        if (height > 8 && i32x4_sum(wasm_u32x4_extadd_pairwise_u16x8(acc)) >= limit)
+            return INT_MAX;
+
+        a += 4 * step;
+        b += 4 * step;
+        height -= 8;
+    }
+    if (height == 8) {
+        acc = dmvr_sad_row8(acc, a, b, width);
+        acc = dmvr_sad_row8(acc, a + step, b + step, width);
+        acc = dmvr_sad_row8(acc, a + 2 * step, b + 2 * step, width);
+        acc = dmvr_sad_row8(acc, a + 3 * step, b + 3 * step, width);
+    } else {
+        for (int y = 0; y < height; y += 2, a += step, b += step)
+            acc = dmvr_sad_row8(acc, a, b, width);
+    }
+    return i32x4_sum(wasm_u32x4_extadd_pairwise_u16x8(acc));
+}
+
 int ff_vvc_dmvr_sad_bound_8_simd128(const int16_t *src0, const int16_t *src1, int dx, int dy,
     int width, int height, int limit)
 {
-    v128_t acc = wasm_i16x8_splat(0);
     src0 += dy * MAX_PB_SIZE + dx;
     src1 += (4 - dy) * MAX_PB_SIZE + 4 - dx;
-
-    for (int y = 0; y < height; y += 2) {
-        const v128_t a = wasm_v128_load(src0);
-        const v128_t b = wasm_v128_load(src1);
-        acc = wasm_i16x8_add(acc, wasm_i16x8_abs(wasm_i16x8_sub(a, b)));
-        if (width == 16) {
-            const v128_t a1 = wasm_v128_load(src0 + 8);
-            const v128_t b1 = wasm_v128_load(src1 + 8);
-            acc = wasm_i16x8_add(acc, wasm_i16x8_abs(wasm_i16x8_sub(a1, b1)));
-        }
-        if (y == 6 && y + 2 < height &&
-            i32x4_sum(wasm_u32x4_extadd_pairwise_u16x8(acc)) >= limit)
-            return INT_MAX;
-
-        src0 += 2 * MAX_PB_SIZE;
-        src1 += 2 * MAX_PB_SIZE;
-    }
-    return i32x4_sum(wasm_u32x4_extadd_pairwise_u16x8(acc));
+    if (width == 16)
+        return dmvr_sad_bound8(src0, src1, 16, height, limit);
+    return dmvr_sad_bound8(src0, src1, 8, height, limit);
 }
 
 static av_always_inline v128_t load_pix8(const pixel *p)
