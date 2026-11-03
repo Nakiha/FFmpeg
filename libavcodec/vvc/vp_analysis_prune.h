@@ -17,6 +17,8 @@
 #define VP_VVC_NO_PIXELS 1
 #endif
 
+#include <string.h>
+
 #include "libavcodec/cbs_h266.h"
 #include "libavcodec/defs.h"
 #include "libavcodec/voidplayer_analysis.h"
@@ -32,8 +34,7 @@ static inline int vp_vvc_prune_supported_raw(const H266RawSPS *r, int bit_depth)
     return r->profile_tier_level.general_profile_idc == AV_PROFILE_VVC_MAIN_10 &&
            bit_depth >= 8 && bit_depth <= 10 &&
            r->sps_chroma_format_idc == CHROMA_FORMAT_420 &&
-           !r->profile_tier_level.ptl_multilayer_enabled_flag &&
-           !r->sps_gdr_enabled_flag;
+           !r->profile_tier_level.ptl_multilayer_enabled_flag;
 }
 
 static inline int vp_vvc_prune_supported(const VVCSPS *sps)
@@ -68,6 +69,49 @@ static inline int vp_vvc_require_full(VVCContext *s, int reason)
     if (s->vp_analysis_started)
         return VP_ANALYSIS_RETRY_FULL;
     s->vp_analysis_path = 0;
+    return 0;
+}
+
+static inline int vp_vvc_disable_prune(VVCContext *s, int reason)
+{
+    s->vp_analysis_mode = 0;
+    return vp_vvc_require_full(s, reason);
+}
+
+/* Check the complete parsed fragment before running any picture tasks.
+ * A stream may advertise GDR without ever using it. Repeated parameter
+ * sets are safe only when their complete RBSP matches the previous one. */
+static inline int vp_vvc_check_prune_fragment(VVCContext *s,
+                                             const CodedBitstreamFragment *frame)
+{
+    if (!VP_VVC_NO_PIXELS || !s->vp_analysis_mode)
+        return 0;
+    for (int i = 0; i < frame->nb_units; i++) {
+        const CodedBitstreamUnit *unit = &frame->units[i];
+        AVBufferRef **previous, *copy;
+
+        if (unit->type == VVC_GDR_NUT)
+            return vp_vvc_disable_prune(s, VP_ANALYSIS_REASON_CONFIG);
+        if (unit->type < VVC_VPS_NUT || unit->type > VVC_PPS_NUT)
+            continue;
+        if (!unit->data || !unit->data_size || unit->data_bit_padding ||
+            unit->data_size > 64 * 1024)
+            return vp_vvc_disable_prune(s, VP_ANALYSIS_REASON_PARAMETER_CHANGE);
+
+        previous = &s->vp_analysis_parameter_sets[unit->type - VVC_VPS_NUT];
+        if (*previous && (*previous)->size == unit->data_size &&
+            !memcmp((*previous)->data, unit->data, unit->data_size))
+            continue;
+        if (s->vp_analysis_started)
+            return vp_vvc_disable_prune(s, VP_ANALYSIS_REASON_PARAMETER_CHANGE);
+
+        copy = av_buffer_alloc(unit->data_size);
+        if (!copy)
+            return vp_vvc_disable_prune(s, VP_ANALYSIS_REASON_CONFIG);
+        memcpy(copy->data, unit->data, unit->data_size);
+        av_buffer_unref(previous);
+        *previous = copy;
+    }
     return 0;
 }
 
@@ -115,17 +159,6 @@ static inline int vp_vvc_admit_config(VVCContext *s, const VVCSPS *sps)
     return 0;
 }
 #endif
-
-/* Any in-band parameter set after pruning started discards this DPB and
- * retries full, including a byte-identical re-send (HEVC contract). */
-static inline int vp_vvc_parameter_set(VVCContext *s)
-{
-#if VP_ANALYSIS_ONLY
-    if (s->vp_analysis_path && s->vp_analysis_started)
-        return vp_vvc_require_full(s, VP_ANALYSIS_REASON_PARAMETER_CHANGE);
-#endif
-    return 0;
-}
 
 /* Film-grain SEI needs real pixels and is checked where the prefix SEI is
  * decoded: the per-frame SEI context can be overwritten by a later picture

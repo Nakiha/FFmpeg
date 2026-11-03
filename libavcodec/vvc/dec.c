@@ -943,12 +943,9 @@ static int frame_setup(VVCFrameContext *fc, VVCContext *s)
         return ret;
 
 #if VP_ANALYSIS_ONLY
-    /* In-band parameter sets that parsed successfully (new, replaced or a
-     * deduplicated re-send) retry full once pruning already started. Malformed
-     * parameter sets returned above and keep their parser failure. */
-    if (s->vp_analysis_ps_seen) {
-        s->vp_analysis_ps_seen = 0;
-        if ((ret = vp_vvc_parameter_set(s)) < 0)
+    if (fc->ps.ph.r->ph_gdr_pic_flag && s->vp_analysis_mode) {
+        ret = vp_vvc_disable_prune(s, VP_ANALYSIS_REASON_CONFIG);
+        if (ret < 0)
             return ret;
     }
     /* Select full/no-pixels execution for this picture from its SPS. */
@@ -1037,11 +1034,7 @@ static int decode_nal_unit(VVCContext *s, VVCFrameContext *fc, AVBufferRef *buf_
     case VVC_VPS_NUT:
     case VVC_SPS_NUT:
     case VVC_PPS_NUT:
-        /* vps, sps, sps cached by s->cbc */
-#if VP_ANALYSIS_ONLY
-        /* Deferred: only a successfully parsed parameter set retries full. */
-        s->vp_analysis_ps_seen = 1;
-#endif
+        /* VPS, SPS and PPS cached by s->cbc. */
         break;
     case VVC_TRAIL_NUT:
     case VVC_STSA_NUT:
@@ -1090,6 +1083,11 @@ static int decode_nal_units(VVCContext *s, VVCFrameContext *fc, AVPacket *avpkt)
         av_log(s->avctx, AV_LOG_ERROR, "Failed to read packet.\n");
         return ret;
     }
+#if VP_ANALYSIS_ONLY
+    ret = vp_vvc_check_prune_fragment(s, frame);
+    if (ret < 0)
+        return ret;
+#endif
     /* decode the NAL units */
     for (int i = 0; i < frame->nb_units; i++) {
         const H2645NAL *nal            = h266->common.read_packet.nals + i;
@@ -1282,6 +1280,10 @@ static av_cold int vvc_decode_free(AVCodecContext *avctx)
 {
     VVCContext *s = avctx->priv_data;
 
+#if VP_ANALYSIS_ONLY
+    for (int i = 0; i < FF_ARRAY_ELEMS(s->vp_analysis_parameter_sets); i++)
+        av_buffer_unref(&s->vp_analysis_parameter_sets[i]);
+#endif
     ff_cbs_fragment_free(&s->current_frame);
     vvc_decode_flush(avctx);
     ff_vvc_executor_free(&s->executor);
@@ -1327,6 +1329,9 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
 #if VP_ANALYSIS_ONLY
     /* Report the selected execution path before the first frame. Per-frame
      * admission re-checks the SPS that is actually decoded. */
+    ret = vp_vvc_check_prune_fragment(s, &s->current_frame);
+    if (ret < 0)
+        return ret;
     vp_vvc_admit_extradata(s);
 #endif
 

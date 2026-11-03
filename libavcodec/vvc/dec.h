@@ -245,7 +245,7 @@ typedef struct VVCContext {
     int vp_analysis_path;
     int vp_analysis_started;
     int vp_analysis_reason;
-    int vp_analysis_ps_seen;
+    AVBufferRef *vp_analysis_parameter_sets[3];
 #endif
 
     /**
