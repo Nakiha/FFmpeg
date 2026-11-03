@@ -176,13 +176,11 @@ static av_always_inline void put_uni_filter8(pixel *dst, ptrdiff_t dst_stride,
 
 /* Keep a rolling window of horizontally filtered rows for each eight-column
  * stripe, so the vertical pass consumes the SIMD values directly. */
-static av_always_inline void put_hv_fused8(void *dst, ptrdiff_t dst_stride,
+static av_always_inline void put_uni_hv8(pixel *dst, ptrdiff_t dst_stride,
     const pixel *src, ptrdiff_t src_stride, int height, int width,
-    int first, int taps, const int8_t *hf, const int8_t *vf, int uni)
+    int first, int taps, const int8_t *hf, const int8_t *vf)
 {
-    const int shift = uni ? 12 : 6;
-    const int rounding = uni ? 2048 : 0;
-    const v128_t round = wasm_i32x4_splat(rounding);
+    const v128_t round = wasm_i32x4_const_splat(2048);
     v128_t weights[8];
     int x = 0;
 
@@ -192,7 +190,7 @@ static av_always_inline void put_hv_fused8(void *dst, ptrdiff_t dst_stride,
 
     for (; x + 8 <= width; x += 8) {
         const pixel *row = src + x;
-        uint8_t *out = (uint8_t *)dst + x * (uni ? 1 : 2);
+        pixel *out = dst + x;
         v128_t window[8];
 
         for (int k = 0; k < taps - 1; k++, row += src_stride)
@@ -204,26 +202,19 @@ static av_always_inline void put_hv_fused8(void *dst, ptrdiff_t dst_stride,
                 lo = wasm_i32x4_add(lo, wasm_i32x4_extmul_low_i16x8(window[k], weights[k]));
                 hi = wasm_i32x4_add(hi, wasm_i32x4_extmul_high_i16x8(window[k], weights[k]));
             }
-            const v128_t result = wasm_i16x8_narrow_i32x4(wasm_i32x4_shr(lo, shift), wasm_i32x4_shr(hi, shift));
-            if (uni)
-                store_uni8(out, result);
-            else
-                wasm_v128_store(out, result);
+            store_uni8(out, wasm_i16x8_narrow_i32x4(wasm_i32x4_shr(lo, 12), wasm_i32x4_shr(hi, 12)));
             for (int k = 0; k < taps - 1; k++)
                 window[k] = window[k + 1];
         }
     }
 
     for (int y = 0; x < width && y < height; y++) {
-        uint8_t *out = (uint8_t *)dst + y * dst_stride;
+        pixel *out = dst + y * dst_stride;
         for (int col = x; col < width; col++) {
-            int sum = rounding;
+            int sum = 2048;
             for (int k = 0; k < taps; k++)
                 sum += vf[k] * filter_scalar(src + (y + k) * src_stride + col, 1, taps, hf);
-            if (uni)
-                out[col] = av_clip_uint8(sum >> shift);
-            else
-                ((int16_t *)out)[col] = sum >> shift;
+            out[col] = av_clip_uint8(sum >> 12);
         }
     }
 }
@@ -382,11 +373,6 @@ void ff_vvc_put_##name##_hv_##depth##_simd128(int16_t *dst, const uint8_t *_src,
     ptrdiff_t _src_stride, const int height, const int8_t *hf, const int8_t *vf,  \
     const int width)                                                              \
 {                                                                                 \
-    if (depth == 8 && width >= 8) {                                                \
-        put_hv_fused8(dst, MAX_PB_SIZE * sizeof(*dst), _src, _src_stride,           \
-            height, width, first, ntaps, hf, vf, 0);                              \
-        return;                                                                  \
-    }                                                                            \
     int16_t tmp_array[(MAX_PB_SIZE + extra) * MAX_PB_SIZE];                       \
     int16_t *tmp                = tmp_array;                                      \
     const pixel *src            = (const pixel *)_src;                            \
@@ -429,7 +415,7 @@ void ff_vvc_put_uni_ ## name ## _hv_8_simd128(uint8_t *dst, ptrdiff_t dst_stride
     const uint8_t *src, ptrdiff_t src_stride, int height,                        \
     const int8_t *hf, const int8_t *vf, int width)                               \
 {                                                                               \
-    put_hv_fused8(dst, dst_stride, src, src_stride, height, width, first, taps, hf, vf, 1); \
+    put_uni_hv8(dst, dst_stride, src, src_stride, height, width, first, taps, hf, vf); \
 }
 
 PUT_UNI_8(luma, LUMA_FIRST, LUMA_TAPS)
