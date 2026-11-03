@@ -2472,20 +2472,32 @@ static inline int residual_coding_subblock(VVCLocalContext *lc, ResidualCoding *
     return 0;
 }
 
+static av_always_inline int triangle(int n)
+{
+    return n * (n + 1) / 2;
+}
+
+// Diagonals advance in x + y order, with increasing x within each diagonal.
+static av_always_inline int diagonal_scan_pos(int x, int y, int w, int h)
+{
+    const int diagonal = x + y;
+    const int beyond_width = FFMAX(diagonal - w, 0);
+    const int beyond_height = FFMAX(diagonal - h, 0);
+    const int first_x = FFMAX(diagonal - h + 1, 0);
+
+    // Subtract the preceding positions outside the rectangle.
+    return triangle(diagonal) - triangle(beyond_width) - triangle(beyond_height) + x - first_x;
+}
+
 static void derive_last_scan_pos(ResidualCoding *rc)
 {
-    int xc, yc, xs, ys;
-    do {
-        if (!rc->last_scan_pos) {
-            rc->last_scan_pos = rc->num_sb_coeff;
-            rc->last_sub_block--;
-        }
-        rc->last_scan_pos--;
-        xs = rc->sb_scan_x_off[rc->last_sub_block];
-        ys = rc->sb_scan_y_off[rc->last_sub_block];
-        xc = (xs << rc->log2_sb_w) + rc->scan_x_off[rc->last_scan_pos];
-        yc = (ys << rc->log2_sb_h) + rc->scan_y_off[rc->last_scan_pos];
-    } while ((xc != rc->last_significant_coeff_x) || (yc != rc->last_significant_coeff_y));
+    const int x = rc->last_significant_coeff_x;
+    const int y = rc->last_significant_coeff_y;
+    const int w = 1 << rc->log2_sb_w;
+    const int h = 1 << rc->log2_sb_h;
+
+    rc->last_sub_block = diagonal_scan_pos(x >> rc->log2_sb_w, y >> rc->log2_sb_h, rc->width_in_sbs, rc->height_in_sbs);
+    rc->last_scan_pos = diagonal_scan_pos(x & (w - 1), y & (h - 1), w, h);
 }
 
 static void last_significant_coeff_x_y_decode(ResidualCoding *rc, VVCLocalContext *lc,
