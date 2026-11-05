@@ -357,6 +357,17 @@ static void task_stage_done(const VVCTask *t, VVCContext *s)
 #define ADD(dx, dy, stage) frame_thread_add_score(s, ft, t->rx + (dx), t->ry + (dy), stage)
 
     //this is a reserve map of ready_score, ordered by zigzag
+#if VP_ANALYSIS_ONLY
+    if (fc->vp_analysis_prune) {
+        if (stage == VVC_TASK_STAGE_PARSE && t->rx >= 0 && t->rx < ft->ctu_width &&
+            t->ry >= 0 && t->ry < ft->ctu_height) {
+            const int slice_idx = fc->tab.slice_idx[t->rs];
+            schedule_next_parse(s, fc, fc->slices[slice_idx], t);
+        }
+        return;
+    }
+#endif
+
     if (stage == VVC_TASK_STAGE_PARSE) {
         ADD( 0,  1, VVC_TASK_STAGE_DEBLOCK_BS);
         ADD( 1,  0, VVC_TASK_STAGE_DEBLOCK_BS);
@@ -488,6 +499,18 @@ static int run_parse(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     ret = ff_vvc_coding_tree_unit(lc, t->ctu_idx, rs, t->rx, t->ry);
     if (ret < 0)
         return ret;
+
+#if VP_ANALYSIS_ONLY
+    if (fc->vp_analysis_prune) {
+        /* Syntax records and motion tables are complete. No reconstruction or
+         * filter stage consumes these CUs; publish both dependency timelines
+         * directly without scheduling empty pixel stages. */
+        ff_vvc_ctu_free_cus(fc->tab.cus + rs);
+        report_frame_progress(fc, t->ry, VVC_PROGRESS_MV);
+        report_frame_progress(fc, t->ry, VVC_PROGRESS_PIXEL);
+        return 0;
+    }
+#endif
 
     if (!ctu->has_dmvr)
         report_frame_progress(lc->fc, t->ry, VVC_PROGRESS_MV);
@@ -690,6 +713,12 @@ static int task_run(FFTask *_t, void *local_context, void *user_data)
 
     do {
         task_run_stage(t, s, lc);
+#if VP_ANALYSIS_ONLY
+        if (t->fc->vp_analysis_prune && t->stage == VVC_TASK_STAGE_PARSE) {
+            t->stage = VVC_TASK_STAGE_LAST;
+            break;
+        }
+#endif
         t->stage++;
     } while (task_is_stage_ready(t, 1));
 
@@ -738,6 +767,12 @@ static void frame_thread_init_score(VVCFrameContext *fc)
 
     task_init(&task, VVC_TASK_STAGE_PARSE, fc, 0, 0);
 
+#if VP_ANALYSIS_ONLY
+    /* The analysis graph has only PARSE dependencies, supplied by INIT,
+     * colocation and the previous entry-point CTU. No pixel border scores. */
+    if (fc->vp_analysis_prune)
+        return;
+#endif
     for (int i = VVC_TASK_STAGE_PARSE; i < VVC_TASK_STAGE_LAST; i++) {
         task.stage = i;
 

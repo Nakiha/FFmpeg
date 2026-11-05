@@ -3044,7 +3044,8 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
     ret = hls_coding_tree_unit(lc, x_ctb, y_ctb, ctu_idx, rx, ry);
     if (ret < 0)
         return ret;
-    ctu_get_pred(lc, rs);
+    if (!VP_VVC_PRUNE_FRAME(lc))
+        ctu_get_pred(lc, rs);
 
     return 0;
 }
