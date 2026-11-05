@@ -61,6 +61,7 @@ struct FFExecutor {
     int active_threads;
     int observe;
     int queued, running;
+    int waiting;                    // protected by the queue lock
     unsigned dispatched, saturated;
     bool recursive;
 
@@ -137,7 +138,9 @@ static void *executor_worker_task(void *data)
             ff_cond_wait(&e->parked, &e->lock);
         } else if (!run_one_task(e, lc)) {
             //no task in one loop
+            e->waiting++;
             ff_cond_wait(&e->cond, &e->lock);
+            e->waiting--;
         }
     }
     ff_mutex_unlock(&e->lock);
@@ -241,7 +244,8 @@ void ff_executor_execute(FFExecutor *e, FFTask *t)
         if (e->observe) e->queued++;
     }
     if (e->thread_count) {
-        ff_cond_signal(&e->cond);
+        if (e->waiting)
+            ff_cond_signal(&e->cond);
         ff_mutex_unlock(&e->lock);
     }
 

@@ -30,6 +30,10 @@
 #include "intra.h"
 #include "mvs.h"
 
+#if ARCH_WASM && HAVE_SIMD128
+#include <wasm_simd128.h>
+#endif
+
 #define PROF_TEMP_SIZE (PROF_BLOCK_SIZE) * sizeof(int16_t)
 
 #define TAB_MSM(fc, depth, x, y) fc->tab.msm[(depth)][((y) >> 5) * fc->ps.pps->width32 + ((x) >> 5)]
@@ -52,6 +56,15 @@ static av_always_inline void fill_tab_row(uint8_t *dst, uint8_t value, int width
     case 2: AV_WN16(dst, v); return;
     case 4: AV_WN32(dst, v); return;
     case 8: AV_WN64(dst, v * UINT64_C(0x100000001)); return;
+#if HAVE_SIMD128
+    case 16: wasm_v128_store(dst, wasm_i8x16_splat(value)); return;
+    case 32: {
+        const v128_t lanes = wasm_i8x16_splat(value);
+        wasm_v128_store(dst, lanes);
+        wasm_v128_store(dst + 16, lanes);
+        return;
+    }
+#endif
     }
 #endif
     memset(dst, value, width);
@@ -136,7 +149,11 @@ static int get_qp_y_pred(const VVCLocalContext *lc)
     return (qPy_a + qPy_b + 1) >> 1;
 }
 
+#if ARCH_WASM
+static av_always_inline void set_cb_tab(const VVCLocalContext *lc, uint8_t *tab, const uint8_t v)
+#else
 static void set_cb_tab(const VVCLocalContext *lc, uint8_t *tab, const uint8_t v)
+#endif
 {
     const VVCFrameContext *fc   = lc->fc;
     const VVCPPS *pps           = fc->ps.pps;

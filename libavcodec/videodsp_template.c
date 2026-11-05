@@ -21,6 +21,39 @@
 
 #include "bit_depth_template.c"
 
+#if ARCH_WASM && HAVE_SIMD128
+#include <wasm_simd128.h>
+static av_always_inline void FUNC(vp_edge_copy)(uint8_t *dst, const uint8_t *src, size_t bytes)
+{
+    while (bytes >= 16) {
+        wasm_v128_store(dst, wasm_v128_load(src));
+        dst += 16;
+        src += 16;
+        bytes -= 16;
+    }
+    if (bytes & 8) {
+        memcpy(dst, src, 8);
+        dst += 8;
+        src += 8;
+    }
+    if (bytes & 4) {
+        memcpy(dst, src, 4);
+        dst += 4;
+        src += 4;
+    }
+    if (bytes & 2) {
+        memcpy(dst, src, 2);
+        dst += 2;
+        src += 2;
+    }
+    if (bytes & 1)
+        *dst = *src;
+}
+#else
+#define vp_edge_copy_8 memcpy
+#define vp_edge_copy_16 memcpy
+#endif
+
 static void FUNC(emulated_edge_mc)(uint8_t *buf, const uint8_t *src,
                                    ptrdiff_t buf_linesize,
                                    ptrdiff_t src_linesize,
@@ -66,13 +99,13 @@ static void FUNC(emulated_edge_mc)(uint8_t *buf, const uint8_t *src,
 
     // top
     for (y = 0; y < start_y; y++) {
-        memcpy(buf, src, w * sizeof(pixel));
+        FUNC(vp_edge_copy)(buf, src, w * sizeof(pixel));
         buf += buf_linesize;
     }
 
     // copy existing part
     for (; y < end_y; y++) {
-        memcpy(buf, src, w * sizeof(pixel));
+        FUNC(vp_edge_copy)(buf, src, w * sizeof(pixel));
         src += src_linesize;
         buf += buf_linesize;
     }
@@ -80,10 +113,14 @@ static void FUNC(emulated_edge_mc)(uint8_t *buf, const uint8_t *src,
     // bottom
     src -= src_linesize;
     for (; y < block_h; y++) {
-        memcpy(buf, src, w * sizeof(pixel));
+        FUNC(vp_edge_copy)(buf, src, w * sizeof(pixel));
         buf += buf_linesize;
     }
 
+#if ARCH_WASM
+    if (!start_x && end_x == block_w)
+        return;
+#endif
     buf -= block_h * buf_linesize + start_x * (ptrdiff_t)sizeof(pixel);
     while (block_h--) {
         pixel *bufp = (pixel *) buf;

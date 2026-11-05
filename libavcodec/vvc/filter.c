@@ -660,6 +660,16 @@ static void vvc_deblock_bs_chroma(const VVCLocalContext *lc,
         const int is_vb = is_virtual_boundary(fc, pos, vertical);
         const int size  = vertical ? height : width;
 
+#if ARCH_WASM
+        for (int i = 0; i < size; i += 2) {
+            const int x = x0 + i * !vertical;
+            const int y = y0 + i * vertical;
+            const int cb = is_vb ? 0 : deblock_bs(lc, x - vertical, y - !vertical, x, y, cu, tu, NULL, CB, 0, 0);
+            const int cr = is_vb ? 0 : deblock_bs(lc, x - vertical, y - !vertical, x, y, cu, tu, NULL, CR, 0, 0);
+            TAB_BS(fc->tab.bs[vertical][CB], x, y) = cb;
+            TAB_BS(fc->tab.bs[vertical][CR], x, y) = cr;
+        }
+#else
         for (int c_idx = CB; c_idx <= CR; c_idx++) {
             for (int i = 0; i < size; i += 2) {
                 const int x  = x0 + i * !vertical;
@@ -669,6 +679,7 @@ static void vvc_deblock_bs_chroma(const VVCLocalContext *lc,
                 TAB_BS(fc->tab.bs[vertical][c_idx], x, y) = bs;
             }
         }
+#endif
     }
 }
 

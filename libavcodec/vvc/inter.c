@@ -141,6 +141,15 @@ static void emulated_edge(const VVCLocalContext *lc, uint8_t *dst,
 
     subpic_get_rect(&subpic, src_frame, subpic_idx, is_chroma);
 
+#if ARCH_WASM && !defined(VP_MT)
+    if (!dmvr_clip && (!wrap_enabled || (dmvr_left >= 0 && dmvr_right <= pic_width)) &&
+        x_off >= subpic.l + extra_before && y_off >= subpic.t + extra_before &&
+        x_off + block_w + extra_after < subpic.r && y_off + block_h + extra_after < subpic.b) {
+        *src += y_off * *src_stride + (x_off * (1 << ps));
+        return;
+    }
+#endif
+
     if (!wrap_enabled || (dmvr_left >= 0 && dmvr_right <= pic_width)) {
         emulated_edge_no_wrap(lc, dst, src, src_stride,
             x_off, y_off, block_w, block_h, extra_before, extra_after, &subpic, &sb, dmvr_clip);
