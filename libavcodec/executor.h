@@ -69,5 +69,8 @@ void ff_executor_free(FFExecutor **e);
  * @param t pointer to task. If NULL, it will wakeup one work thread
  */
 void ff_executor_execute(FFExecutor *e, FFTask *t);
+#if defined(VP_MT)
+void ff_executor_execute_batch(FFExecutor *e, FFTask *const *tasks, int count);
+#endif
 
 #endif //AVCODEC_EXECUTOR_H

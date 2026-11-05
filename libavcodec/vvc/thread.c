@@ -105,7 +105,11 @@ typedef struct VVCFrameThread {
 } VVCFrameThread;
 
 #define PRIORITY_LOWEST 2
+#if ARCH_WASM && defined(VP_MT)
+static FFTask *prepare_task(VVCContext *s, VVCTask *t)
+#else
 static void add_task(VVCContext *s, VVCTask *t)
+#endif
 {
     VVCFrameThread *ft     = t->fc->ft;
     FFTask *task           = &t->u.task;
@@ -126,7 +130,11 @@ static void add_task(VVCContext *s, VVCTask *t)
 
     atomic_fetch_add(&ft->nb_scheduled_tasks, 1);
     task->priority = priorities[t->stage];
+#if ARCH_WASM && defined(VP_MT)
+    return task;
+#else
     ff_executor_execute(s->executor, task);
+#endif
 }
 
 static void task_init(VVCTask *t, VVCTaskStage stage, VVCFrameContext *fc, const int rx, const int ry)
@@ -227,9 +235,32 @@ static void frame_thread_add_score(VVCContext *s, VVCFrameThread *ft,
     if (task_has_target_score(t, stage, score)) {
         av_assert0(s);
         av_assert0(stage == t->stage);
+#if ARCH_WASM && defined(VP_MT)
+        ff_executor_execute(s->executor, prepare_task(s, t));
+#else
         add_task(s, t);
+#endif
     }
 }
+
+#if ARCH_WASM && defined(VP_MT)
+static void frame_thread_add_score_batch(VVCContext *s, VVCFrameThread *ft,
+    const int rx, const int ry, const VVCTaskStage stage, FFTask **tasks, int *count)
+{
+    VVCTask *t;
+    uint8_t score;
+    if (rx < 0 || rx >= ft->ctu_width || ry < 0 || ry >= ft->ctu_height)
+        return;
+    t = ft->tasks + ft->ctu_width * ry + rx;
+    score = task_add_score(t, stage);
+    if (task_has_target_score(t, stage, score)) {
+        av_assert0(s);
+        av_assert0(stage == t->stage);
+        av_assert0(*count < 8);
+        tasks[(*count)++] = prepare_task(s, t);
+    }
+}
+#endif
 
 static void sheduled_done(VVCFrameThread *ft, atomic_int *scheduled)
 {
@@ -353,14 +384,25 @@ static void task_stage_done(const VVCTask *t, VVCContext *s)
     VVCFrameThread *ft       = fc->ft;
     const VVCTaskStage stage = t->stage;
 
+#if ARCH_WASM && defined(VP_MT)
+    FFTask *tasks[8];
+    int count = 0;
+#define ADD(dx, dy, stage) frame_thread_add_score_batch(s, ft, t->rx + (dx), t->ry + (dy), stage, tasks, &count)
+#else
 #define ADD(dx, dy, stage) frame_thread_add_score(s, ft, t->rx + (dx), t->ry + (dy), stage)
+#endif
 
     //this is a reserve map of ready_score, ordered by zigzag
     if (stage == VVC_TASK_STAGE_PARSE) {
         ADD( 0,  1, VVC_TASK_STAGE_DEBLOCK_BS);
         ADD( 1,  0, VVC_TASK_STAGE_DEBLOCK_BS);
-        if (t->rx < 0 || t->rx >= ft->ctu_width || t->ry < 0 || t->ry >= ft->ctu_height)
+        if (t->rx < 0 || t->rx >= ft->ctu_width || t->ry < 0 || t->ry >= ft->ctu_height) {
+#if ARCH_WASM && defined(VP_MT)
+            goto enqueue;
+#else
             return;
+#endif
+        }
         parse_task_done(s, fc, t->rx, t->ry);
     } else if (stage == VVC_TASK_STAGE_RECON) {
         ADD(-1,  1, VVC_TASK_STAGE_RECON);
@@ -388,6 +430,12 @@ static void task_stage_done(const VVCTask *t, VVCContext *s)
         ADD( 0,  1,  VVC_TASK_STAGE_ALF);
         ADD( 1,  1,  VVC_TASK_STAGE_ALF);
     }
+#if ARCH_WASM && defined(VP_MT)
+enqueue:
+    if (count)
+        ff_executor_execute_batch(s->executor, tasks, count);
+#endif
+
 }
 
 static int task_is_stage_ready(VVCTask *t, int add)

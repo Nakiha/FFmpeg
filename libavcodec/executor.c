@@ -287,3 +287,28 @@ void ff_executor_observe(FFExecutor *e, int *active, int *dispatched, int *satur
     e->dispatched = e->saturated = 0;
     ff_mutex_unlock(&e->lock);
 }
+
+#if ARCH_WASM && defined(VP_MT)
+/* Publish ready CTU neighbors while holding the shared queue lock once. */
+void ff_executor_execute_batch(FFExecutor *e, FFTask *const *tasks, int count)
+{
+    if (!count)
+        return;
+    if (e->thread_count)
+        ff_mutex_lock(&e->lock);
+    for (int i = 0; i < count; i++) {
+        FFTask *t = tasks[i];
+        add_task(e->q + t->priority % e->cb.priorities, t);
+    }
+    if (e->observe)
+        e->queued += count;
+    if (e->thread_count) {
+        const int wake = FFMIN(count, e->waiting);
+        for (int i = 0; i < wake; i++)
+            ff_cond_signal(&e->cond);
+        ff_mutex_unlock(&e->lock);
+    } else {
+        ff_executor_execute(e, NULL);
+    }
+}
+#endif

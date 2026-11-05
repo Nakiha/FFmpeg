@@ -61,6 +61,10 @@
 #include "itx_1d.h"
 #include "libavutil/avutil.h"
 
+#if ARCH_WASM && HAVE_SIMD128 && !defined(VP_MT)
+#include <wasm_simd128.h>
+#endif
+
 #define G2(m)  ((nz >  2) ? (m) : 0)
 #define G4(m)  ((nz >  4) ? (m) : 0)
 #define G8(m)  ((nz >  8) ? (m) : 0)
@@ -140,12 +144,44 @@ void ff_vvc_inv_dct2_8(int *coeffs, const ptrdiff_t stride, const size_t nz)
         EE[0] + EO[0], EE[1] + EO[1],
         EE[1] - EO[1], EE[0] - EO[0],
     };
+#if ARCH_WASM && HAVE_SIMD128 && !defined(VP_MT)
+    int O[4];
+    static const int32_t weights0[4][4] = {
+        { 89, 75, 50, 18 },
+        { 75, -18, -89, -50 },
+        { 50, -89, 18, 75 },
+        { 18, -50, 75, -89 },
+    };
+    v128_t sum0 = wasm_i32x4_const_splat(0);
+    int limit = 2;
+    while (limit < (int)nz && limit < 8)
+        limit *= 2;
+    for (int j = 0; j < limit / 2; j++) {
+        const v128_t input = wasm_i32x4_splat(coeffs[(j * 2 + 1) * stride]);
+        sum0 = wasm_i32x4_add(sum0, wasm_i32x4_mul(input, wasm_v128_load(weights0[j])));
+    }
+    wasm_v128_store(O + 0, sum0);
+#else
     const int O[4] = {
         d * x1 + G2(+e * x3) + G4(+f * x5 + g * x7),
         e * x1 + G2(-g * x3) + G4(-d * x5 - f * x7),
         f * x1 + G2(-d * x3) + G4(+g * x5 + e * x7),
         g * x1 + G2(-f * x3) + G4(+e * x5 - d * x7),
     };
+#endif
+
+#if ARCH_WASM && HAVE_SIMD128 && !defined(VP_MT)
+    if (stride == 1) {
+        for (int i = 0; i < 4; i += 4) {
+            const v128_t even = wasm_v128_load(E + i);
+            const v128_t odd = wasm_v128_load(O + i);
+            const v128_t sub = wasm_i32x4_sub(even, odd);
+            wasm_v128_store(coeffs + i, wasm_i32x4_add(even, odd));
+            wasm_v128_store(coeffs + 8 - i - 4, wasm_i32x4_shuffle(sub, sub, 3, 2, 1, 0));
+        }
+        return;
+    }
+#endif
 
     coeffs[0 * stride] = E[0] + O[0];
     coeffs[1 * stride] = E[1] + O[1];
@@ -211,6 +247,41 @@ void ff_vvc_inv_dct2_16(int *coeffs, const ptrdiff_t stride, const size_t nz)
         EE[0] + EO[0], EE[1] + EO[1], EE[2] + EO[2], EE[3] + EO[3],
         EE[3] - EO[3], EE[2] - EO[2], EE[1] - EO[1], EE[0] - EO[0],
     };
+#if ARCH_WASM && HAVE_SIMD128 && !defined(VP_MT)
+    int O[8];
+    static const int32_t weights0[8][4] = {
+        { 90, 87, 80, 70 },
+        { 87, 57, 9, -43 },
+        { 80, 9, -70, -87 },
+        { 70, -43, -87, 9 },
+        { 57, -80, -25, 90 },
+        { 43, -90, 57, 25 },
+        { 25, -70, 90, -80 },
+        { 9, -25, 43, -57 },
+    };
+    v128_t sum0 = wasm_i32x4_const_splat(0);
+    static const int32_t weights1[8][4] = {
+        { 57, 43, 25, 9 },
+        { -80, -90, -70, -25 },
+        { -25, 57, 90, 43 },
+        { 90, 25, -80, -57 },
+        { -9, -87, 43, 70 },
+        { -87, 70, 9, -80 },
+        { 43, 9, -57, 87 },
+        { 70, -80, 87, -90 },
+    };
+    v128_t sum1 = wasm_i32x4_const_splat(0);
+    int limit = 2;
+    while (limit < (int)nz && limit < 16)
+        limit *= 2;
+    for (int j = 0; j < limit / 2; j++) {
+        const v128_t input = wasm_i32x4_splat(coeffs[(j * 2 + 1) * stride]);
+        sum0 = wasm_i32x4_add(sum0, wasm_i32x4_mul(input, wasm_v128_load(weights0[j])));
+        sum1 = wasm_i32x4_add(sum1, wasm_i32x4_mul(input, wasm_v128_load(weights1[j])));
+    }
+    wasm_v128_store(O + 0, sum0);
+    wasm_v128_store(O + 4, sum1);
+#else
     const int O[8] = {
         h * x1 + G2(+i * x3) + G4(+j * x5 + k * x7) + G8(+l * x9 + m * x11 + n * x13 + o * x15),
         i * x1 + G2(+l * x3) + G4(+o * x5 - m * x7) + G8(-j * x9 - h * x11 - k * x13 - n * x15),
@@ -221,6 +292,20 @@ void ff_vvc_inv_dct2_16(int *coeffs, const ptrdiff_t stride, const size_t nz)
         n * x1 + G2(-k * x3) + G4(+h * x5 - j * x7) + G8(+m * x9 + o * x11 - l * x13 + i * x15),
         o * x1 + G2(-n * x3) + G4(+m * x5 - l * x7) + G8(+k * x9 - j * x11 + i * x13 - h * x15),
     };
+#endif
+
+#if ARCH_WASM && HAVE_SIMD128 && !defined(VP_MT)
+    if (stride == 1) {
+        for (int i = 0; i < 8; i += 4) {
+            const v128_t even = wasm_v128_load(E + i);
+            const v128_t odd = wasm_v128_load(O + i);
+            const v128_t sub = wasm_i32x4_sub(even, odd);
+            wasm_v128_store(coeffs + i, wasm_i32x4_add(even, odd));
+            wasm_v128_store(coeffs + 16 - i - 4, wasm_i32x4_shuffle(sub, sub, 3, 2, 1, 0));
+        }
+        return;
+    }
+#endif
 
     coeffs[0  * stride] = E[0] + O[0];
     coeffs[1  * stride] = E[1] + O[1];
@@ -334,6 +419,99 @@ void ff_vvc_inv_dct2_32(int *coeffs, const ptrdiff_t stride, const size_t nz)
         EE[0] + EO[0], EE[1] + EO[1], EE[2] + EO[2], EE[3] + EO[3], EE[4] + EO[4], EE[5] + EO[5], EE[6] + EO[6], EE[7] + EO[7],
         EE[7] - EO[7], EE[6] - EO[6], EE[5] - EO[5], EE[4] - EO[4], EE[3] - EO[3], EE[2] - EO[2], EE[1] - EO[1], EE[0] - EO[0],
     };
+#if ARCH_WASM && HAVE_SIMD128 && !defined(VP_MT)
+    int O[16];
+    static const int32_t weights0[16][4] = {
+        { 90, 90, 88, 85 },
+        { 90, 82, 67, 46 },
+        { 88, 67, 31, -13 },
+        { 85, 46, -13, -67 },
+        { 82, 22, -54, -90 },
+        { 78, -4, -82, -73 },
+        { 73, -31, -90, -22 },
+        { 67, -54, -78, 38 },
+        { 61, -73, -46, 82 },
+        { 54, -85, -4, 88 },
+        { 46, -90, 38, 54 },
+        { 38, -88, 73, -4 },
+        { 31, -78, 90, -61 },
+        { 22, -61, 85, -90 },
+        { 13, -38, 61, -78 },
+        { 4, -13, 22, -31 },
+    };
+    v128_t sum0 = wasm_i32x4_const_splat(0);
+    static const int32_t weights1[16][4] = {
+        { 82, 78, 73, 67 },
+        { 22, -4, -31, -54 },
+        { -54, -82, -90, -78 },
+        { -90, -73, -22, 38 },
+        { -61, 13, 78, 85 },
+        { 13, 85, 67, -22 },
+        { 78, 67, -38, -90 },
+        { 85, -22, -90, 4 },
+        { 31, -88, -13, 90 },
+        { -46, -61, 82, 13 },
+        { -90, 31, 61, -88 },
+        { -67, 90, -46, -31 },
+        { 4, 54, -88, 82 },
+        { 73, -38, -4, 46 },
+        { 88, -90, 85, -73 },
+        { 38, -46, 54, -61 },
+    };
+    v128_t sum1 = wasm_i32x4_const_splat(0);
+    static const int32_t weights2[16][4] = {
+        { 61, 54, 46, 38 },
+        { -73, -85, -90, -88 },
+        { -46, -4, 38, 73 },
+        { 82, 88, 54, -4 },
+        { 31, -46, -90, -67 },
+        { -88, -61, 31, 90 },
+        { -13, 82, 61, -46 },
+        { 90, 13, -88, -31 },
+        { -4, -90, 22, 85 },
+        { -90, 38, 67, -78 },
+        { 22, 67, -85, 13 },
+        { 85, -78, 13, 61 },
+        { -38, -22, 73, -90 },
+        { -78, 90, -82, 54 },
+        { 54, -31, 4, 22 },
+        { 67, -73, 78, -82 },
+    };
+    v128_t sum2 = wasm_i32x4_const_splat(0);
+    static const int32_t weights3[16][4] = {
+        { 31, 22, 13, 4 },
+        { -78, -61, -38, -13 },
+        { 90, 85, 61, 22 },
+        { -61, -90, -78, -31 },
+        { 4, 73, 88, 38 },
+        { 54, -38, -90, -46 },
+        { -88, -4, 85, 54 },
+        { 82, 46, -73, -61 },
+        { -38, -78, 54, 67 },
+        { -22, 90, -31, -73 },
+        { 73, -82, 4, 78 },
+        { -90, 54, 22, -82 },
+        { 67, -13, -46, 85 },
+        { -13, -31, 67, -88 },
+        { -46, 67, -82, 90 },
+        { 85, -88, 90, -90 },
+    };
+    v128_t sum3 = wasm_i32x4_const_splat(0);
+    int limit = 2;
+    while (limit < (int)nz && limit < 32)
+        limit *= 2;
+    for (int j = 0; j < limit / 2; j++) {
+        const v128_t input = wasm_i32x4_splat(coeffs[(j * 2 + 1) * stride]);
+        sum0 = wasm_i32x4_add(sum0, wasm_i32x4_mul(input, wasm_v128_load(weights0[j])));
+        sum1 = wasm_i32x4_add(sum1, wasm_i32x4_mul(input, wasm_v128_load(weights1[j])));
+        sum2 = wasm_i32x4_add(sum2, wasm_i32x4_mul(input, wasm_v128_load(weights2[j])));
+        sum3 = wasm_i32x4_add(sum3, wasm_i32x4_mul(input, wasm_v128_load(weights3[j])));
+    }
+    wasm_v128_store(O + 0, sum0);
+    wasm_v128_store(O + 4, sum1);
+    wasm_v128_store(O + 8, sum2);
+    wasm_v128_store(O + 12, sum3);
+#else
     const int O[16] = {
         p * x1 + G2(+q * x3) + G4(+r * x5 + s * x7) + G8(+t * x9 + u * x11 + v * x13 + w * x15) + G16(+x * x17 + y * x19 + z * x21 + A * x23 + B * x25 + C * x27 + D * x29 + E_* x31),
         q * x1 + G2(+t * x3) + G4(+w * x5 + z * x7) + G8(+C * x9 - E_* x11 - B * x13 - y * x15) + G16(-v * x17 - s * x19 - p * x21 - r * x23 - u * x25 - x * x27 - A * x29 - D * x31),
@@ -352,6 +530,20 @@ void ff_vvc_inv_dct2_32(int *coeffs, const ptrdiff_t stride, const size_t nz)
         D * x1 + G2(-A * x3) + G4(+x * x5 - u * x7) + G8(+r * x9 - p * x11 + s * x13 - v * x15) + G16(+y * x17 - B * x19 + E_* x21 + C * x23 - z * x25 + w * x27 - t * x29 + q * x31),
         E_* x1 + G2(-D * x3) + G4(+C * x5 - B * x7) + G8(+A * x9 - z * x11 + y * x13 - x * x15) + G16(+w * x17 - v * x19 + u * x21 - t * x23 + s * x25 - r * x27 + q * x29 - p * x31),
     };
+#endif
+
+#if ARCH_WASM && HAVE_SIMD128 && !defined(VP_MT)
+    if (stride == 1) {
+        for (int i = 0; i < 16; i += 4) {
+            const v128_t even = wasm_v128_load(E + i);
+            const v128_t odd = wasm_v128_load(O + i);
+            const v128_t sub = wasm_i32x4_sub(even, odd);
+            wasm_v128_store(coeffs + i, wasm_i32x4_add(even, odd));
+            wasm_v128_store(coeffs + 32 - i - 4, wasm_i32x4_shuffle(sub, sub, 3, 2, 1, 0));
+        }
+        return;
+    }
+#endif
 
     coeffs[0  * stride] = E[0]  + O[0];
     coeffs[1  * stride] = E[1]  + O[1];
