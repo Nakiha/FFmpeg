@@ -21,6 +21,8 @@
 #ifndef AVCODEC_HEVC_SEI_H
 #define AVCODEC_HEVC_SEI_H
 
+#include "config.h"
+
 #include <stdint.h>
 
 #include "libavutil/buffer.h"
@@ -40,6 +42,9 @@ typedef enum {
 typedef struct HEVCSEIPictureHash {
     uint8_t       md5[3][16];
     uint8_t is_md5;
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    uint8_t vp_present;
+#endif
 } HEVCSEIPictureHash;
 
 typedef struct HEVCSEIFramePacking {

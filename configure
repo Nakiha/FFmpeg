@@ -106,6 +106,7 @@ Configuration options:
   --enable-shared          build shared libraries [no]
   --enable-small           optimize for size instead of speed
   --disable-runtime-cpudetect disable detecting CPU capabilities at runtime (smaller binary)
+  --enable-voidplayer-analysis  enable VoidPlayer decoder analysis hooks [no]
   --enable-gray            enable full grayscale support (slower color)
   --disable-swscale-alpha  disable alpha channel support in swscale
   --disable-unstable       disable building optional unstable / experimental code
@@ -2214,6 +2215,7 @@ FEATURE_LIST="
     checkasm
     ftrapv
     gray
+    voidplayer_analysis
     hardcoded_tables
     runtime_cpudetect
     safe_bitstream_reader

@@ -20,15 +20,23 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
+#include <limits.h>
+
 #include "libavutil/error.h"
 #include "libavutil/intreadwrite.h"
 #include "libavutil/refstruct.h"
+
+#if CONFIG_VOIDPLAYER_ANALYSIS
+#include "libavcodec/voidplayer_vachunk.h"
+extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
+#endif
 
 #include "cabac.h"
 #include "ctu.h"
 #include "inter.h"
 #include "intra.h"
 #include "mvs.h"
+#include "vp_analysis_prune.h"
 
 #if ARCH_WASM && HAVE_SIMD128
 #include <wasm_simd128.h>
@@ -287,7 +295,7 @@ static TransformBlock* add_tb(TransformUnit *tu, VVCLocalContext *lc,
     const int samples = tb_width * tb_height;
     TransformBlock *tb;
 
-    if (sps->r->sps_chroma_format_idc == 1) {
+    if (!VP_VVC_PRUNE_FRAME(lc) && sps->r->sps_chroma_format_idc == 1) {
         const int rx = lc->cu->x0 >> sps->ctb_log2_size_y;
         const int ry = lc->cu->y0 >> sps->ctb_log2_size_y;
         const int rs = ry * fc->ps.pps->ctb_width + rx;
@@ -313,7 +321,8 @@ static TransformBlock* add_tb(TransformUnit *tu, VVCLocalContext *lc,
     tb->c_idx = c_idx;
     tb->ts = 0;
     tb->coeffs = lc->coeffs;
-    lc->coeffs += samples;
+    if (!VP_VVC_PRUNE_FRAME(lc))
+        lc->coeffs += samples;
     tu->avail[!!c_idx] = true;
     return tb;
 }
@@ -442,14 +451,18 @@ static int hls_transform_unit(VVCLocalContext *lc, int x0, int y0,int tu_width, 
             ret = ff_vvc_residual_coding(lc, tb);
             if (ret < 0)
                 return ret;
-            set_tb_tab(fc->tab.tu_coded_flag[tb->c_idx], tu->coded_flag[tb->c_idx], fc, tb);
-        } else if (cu->act_enabled_flag) {
+            if (!VP_VVC_PRUNE_FRAME(lc))
+                set_tb_tab(fc->tab.tu_coded_flag[tb->c_idx], tu->coded_flag[tb->c_idx], fc, tb);
+        } else if (cu->act_enabled_flag && !VP_VVC_PRUNE_FRAME(lc)) {
             memset(tb->coeffs, 0, tb->tb_width * tb->tb_height * sizeof(*tb->coeffs));
         }
-        if (tb->c_idx != CR)
-            set_tb_size(fc, tb);
-        if (tb->c_idx == CB)
-            set_tb_tab(fc->tab.tu_joint_cbcr_residual_flag, tu->joint_cbcr_residual_flag, fc, tb);
+        // Only the deblocking stage reads these transform tables.
+        if (!VP_VVC_PRUNE_FRAME(lc)) {
+            if (tb->c_idx != CR)
+                set_tb_size(fc, tb);
+            if (tb->c_idx == CB)
+                set_tb_tab(fc->tab.tu_joint_cbcr_residual_flag, tu->joint_cbcr_residual_flag, fc, tb);
+        }
     }
 
     return 0;
@@ -1216,6 +1229,9 @@ static int skipped_transform_tree_unit(VVCLocalContext *lc)
     }
     if (rsps->sps_chroma_format_idc && cu->tree_type != DUAL_TREE_LUMA)
         set_qp_c(lc);
+    if (VP_VVC_PRUNE_FRAME(lc))
+        return 0;
+
     ret = skipped_transform_tree(lc, cu->x0, cu->y0, cu->cb_width, cu->cb_height);
     if (ret < 0)
         return ret;
@@ -1322,6 +1338,9 @@ static void set_cu_tabs(const VVCLocalContext *lc, const CodingUnit *cu)
     }
     if (cu->tree_type != DUAL_TREE_LUMA)
         set_cb_tab(lc, fc->tab.pcmf[CHROMA], cu->bdpcm_flag[CHROMA]);
+
+    if (VP_VVC_PRUNE_FRAME(lc))
+        return;
 
     while (tu) {
           for (int j = 0; j < tu->nb_tbs; j++) {
@@ -1893,7 +1912,7 @@ static TransformUnit* palette_add_tu(VVCLocalContext *lc, const int start, const
         TransformBlock *tb = add_tb(tu, lc, tu->x0, tu->y0, w, h, c);
         if (!tb)
             return NULL;
-        if (c != CR)
+        if (c != CR && !VP_VVC_PRUNE_FRAME(lc))
             set_tb_size(lc->fc, tb);
     }
 
@@ -2122,9 +2141,11 @@ static int palette_subblock_data(VVCLocalContext *lc,
                     const int coeff = ff_vvc_palette_escape_val(lc, (1 << sps->bit_depth) - 1);
                     if (coeff < 0)
                         return AVERROR_INVALIDDATA;
-                    const int pixel = av_clip_intp2(RSHIFT(coeff * scale, 6), sps->bit_depth);
-                    PALETTE_SET_PIXEL(xc, yc, pixel);
-                } else {
+                    if (!VP_VVC_PRUNE_FRAME(lc)) {
+                        const int pixel = av_clip_intp2(RSHIFT(coeff * scale, 6), sps->bit_depth);
+                        PALETTE_SET_PIXEL(xc, yc, pixel);
+                    }
+                } else if (!VP_VVC_PRUNE_FRAME(lc)) {
                     PALETTE_SET_PIXEL(xc, yc, plt->entries[v]);
                 }
             }
@@ -2230,6 +2251,178 @@ static int intra_data(VVCLocalContext *lc)
     return ret;
 }
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+static int16_t voidplayer_vvc_round_mv(int mv)
+{
+    int rounded = mv >= 0 ? (mv + 2) >> 2 : -((-mv + 2) >> 2);
+
+    if (rounded < INT16_MIN)
+        return INT16_MIN;
+    if (rounded > INT16_MAX)
+        return INT16_MAX;
+    return rounded;
+}
+
+static void voidplayer_vvc_ref_pocs(const RefPicList *rpl,
+                                    int list,
+                                    int32_t ref_pocs[15],
+                                    uint8_t *num_refs)
+{
+    int nb_refs = rpl ? FFMIN(rpl[list].nb_refs, 15) : 0;
+    int i;
+
+    *num_refs = (uint8_t)nb_refs;
+    for (i = 0; i < 15; ++i)
+        ref_pocs[i] = i < nb_refs ? rpl[list].refs[i].poc : -1;
+}
+
+static void voidplayer_vvc_fill_frame_info(const VVCLocalContext *lc,
+                                           VoidPlayerVachunkFrameInfo *info)
+{
+    const VVCFrameContext *fc = lc->fc;
+    const VVCPPS *pps = fc->ps.pps;
+    const H266RawSliceHeader *rsh = lc->sc->sh.r;
+    int32_t ref_pocs_l0[15];
+    int32_t ref_pocs_l1[15];
+    uint8_t num_ref_l0 = 0;
+    uint8_t num_ref_l1 = 0;
+    int i;
+
+    memset(info, 0, sizeof(*info));
+    voidplayer_vvc_ref_pocs(lc->sc->rpl, L0, ref_pocs_l0, &num_ref_l0);
+    voidplayer_vvc_ref_pocs(lc->sc->rpl, L1, ref_pocs_l1, &num_ref_l1);
+    info->poc = fc->ps.ph.poc;
+    info->width = pps ? pps->width : 0;
+    info->height = pps ? pps->height : 0;
+    info->temporal_id = rsh ? (uint8_t)av_clip_uint8(
+        rsh->nal_unit_header.nuh_temporal_id_plus1 > 0
+            ? rsh->nal_unit_header.nuh_temporal_id_plus1 - 1
+            : 0) : 0;
+    info->slice_type = rsh ? rsh->sh_slice_type : 0;
+    info->nal_unit_type = rsh ? rsh->nal_unit_header.nal_unit_type : 0;
+    info->num_ref_l0 = num_ref_l0;
+    info->num_ref_l1 = num_ref_l1;
+    info->frame_identity = (uintptr_t)fc->frame->opaque;
+    if (info->slice_type != 2)
+        for(int list=0;list<(info->slice_type==0?2:1);list++)
+            for(int r=0;r<lc->sc->sh.r->num_ref_idx_active[list];r++) {
+                const VVCFrame *ref=r<lc->sc->rpl[list].nb_refs?lc->sc->rpl[list].refs[r].ref:NULL;
+                ff_vpa_reference(info->frame_identity, ref&&ref->frame?(uintptr_t)ref->frame->opaque:0, list);
+            }
+    info->coded_order_key = fc->decode_order + 1;
+    info->has_coded_order_key = 1;
+    for (i = 0; i < 15; ++i) {
+        info->ref_pocs_l0[i] = ref_pocs_l0[i];
+        info->ref_pocs_l1[i] = ref_pocs_l1[i];
+    }
+}
+
+static uint32_t voidplayer_vvc_cabac_bitpos(const CABACContext *cc)
+{
+    int64_t bytes;
+    if (!cc || !cc->bytestream_start || !cc->bytestream)
+        return 0;
+    bytes = cc->bytestream - cc->bytestream_start;
+    if (bytes <= 0)
+        return 0;
+    if (bytes > UINT32_MAX / 8)
+        return UINT32_MAX;
+    return (uint32_t)bytes * 8u;
+}
+
+static uint32_t voidplayer_vvc_bit_delta(uint32_t start, uint32_t end)
+{
+    return end >= start ? end - start : 0;
+}
+
+static void voidplayer_vvc_record_cu(VVCLocalContext *lc,
+                                     const CodingUnit *cu,
+                                     uint32_t bit_count)
+{
+    const VVCFrameContext *fc = lc->fc;
+    const MotionInfo *mi = &cu->pu.mi;
+    const MvField *gpm = &cu->pu.gpm_mv[0];
+    const int frame_width = fc->ps.pps ? fc->ps.pps->width : 0;
+    const int frame_height = fc->ps.pps ? fc->ps.pps->height : 0;
+    const int w = FFMAX(0, FFMIN(cu->cb_width, frame_width - cu->x0));
+    const int h = FFMAX(0, FFMIN(cu->cb_height, frame_height - cu->y0));
+    VoidPlayerVachunkFrameInfo frame_info;
+    uint8_t qp;
+    uint8_t inter_dir;
+    int16_t mv_l0_x = 0;
+    int16_t mv_l0_y = 0;
+    int16_t mv_l1_x = 0;
+    int16_t mv_l1_y = 0;
+    int8_t ref_l0 = -1;
+    int8_t ref_l1 = -1;
+
+    if (!ff_voidplayer_vachunk_is_active() || w <= 0 || h <= 0 ||
+        cu->tree_type == DUAL_TREE_CHROMA)
+        return;
+
+    voidplayer_vvc_fill_frame_info(lc, &frame_info);
+    qp = (uint8_t)av_clip_uint8(cu->qp[LUMA]);
+    if (cu->pred_mode == MODE_INTRA || cu->pred_mode == MODE_PLT) {
+        ff_voidplayer_vachunk_write_intra_cu(&frame_info,
+                                             (uint16_t)cu->x0,
+                                             (uint16_t)cu->y0,
+                                             (uint8_t)FFMIN(w, 255),
+                                             (uint8_t)FFMIN(h, 255),
+                                             (uint8_t)av_clip_uint8(cu->cqt_depth),
+                                             qp,
+                                             cu->pred_mode == MODE_PLT ? 255 : cu->intra_pred_mode_y,
+                                             cu->intra_mip_flag,
+                                             cu->isp_split_type,
+                                             bit_count);
+        return;
+    }
+
+    if (cu->pu.merge_gpm_flag) {
+        inter_dir = gpm->pred_flag;
+        if (gpm->pred_flag & PF_L0) {
+            mv_l0_x = voidplayer_vvc_round_mv(gpm->mv[L0].x);
+            mv_l0_y = voidplayer_vvc_round_mv(gpm->mv[L0].y);
+            ref_l0 = gpm->ref_idx[L0];
+        }
+        if (gpm->pred_flag & PF_L1) {
+            mv_l1_x = voidplayer_vvc_round_mv(gpm->mv[L1].x);
+            mv_l1_y = voidplayer_vvc_round_mv(gpm->mv[L1].y);
+            ref_l1 = gpm->ref_idx[L1];
+        }
+    } else {
+        inter_dir = mi->pred_flag;
+        if (mi->pred_flag & PF_L0) {
+            mv_l0_x = voidplayer_vvc_round_mv(mi->mv[L0][0].x);
+            mv_l0_y = voidplayer_vvc_round_mv(mi->mv[L0][0].y);
+            ref_l0 = mi->ref_idx[L0];
+        }
+        if (mi->pred_flag & PF_L1) {
+            mv_l1_x = voidplayer_vvc_round_mv(mi->mv[L1][0].x);
+            mv_l1_y = voidplayer_vvc_round_mv(mi->mv[L1][0].y);
+            ref_l1 = mi->ref_idx[L1];
+        }
+    }
+
+    ff_voidplayer_vachunk_write_inter_cu(&frame_info,
+                                         (uint16_t)cu->x0,
+                                         (uint16_t)cu->y0,
+                                         (uint8_t)FFMIN(w, 255),
+                                         (uint8_t)FFMIN(h, 255),
+                                         (uint8_t)av_clip_uint8(cu->cqt_depth),
+                                         qp,
+                                         cu->skip_flag ? 1 : 0,
+                                         cu->pu.general_merge_flag ? 1 : 0,
+                                         inter_dir,
+                                         mv_l0_x,
+                                         mv_l0_y,
+                                         mv_l1_x,
+                                         mv_l1_y,
+                                         ref_l0,
+                                         ref_l1,
+                                         bit_count);
+}
+#endif
+
 static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, int cb_height,
     int cqt_depth, const VVCTreeType tree_type, VVCModeType mode_type)
 {
@@ -2238,6 +2431,9 @@ static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, in
     const H266RawSliceHeader *rsh = lc->sc->sh.r;
     const int is_128              = cb_width > 64 || cb_height > 64;
     int ret                       = 0;
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    uint32_t voidplayer_bit_start = voidplayer_vvc_cabac_bitpos(&lc->ep->cc);
+#endif
 
     CodingUnit *cu = add_cu(lc, x0, y0, cb_width, cb_height, cqt_depth, tree_type);
 
@@ -2286,6 +2482,12 @@ static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, in
             return ret;
     }
     set_cu_tabs(lc, cu);
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    voidplayer_vvc_record_cu(
+        lc,
+        cu,
+        voidplayer_vvc_bit_delta(voidplayer_bit_start, voidplayer_vvc_cabac_bitpos(&lc->ep->cc)));
+#endif
 
     return 0;
 }
@@ -2876,7 +3078,8 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
         ep->is_first_qg = ry == pps->ctb_to_row_bd[ry] || !ctu_idx;
     }
 
-    lc->coeffs = fc->tab.coeffs + (size_t)rs * ff_vvc_ctu_coeff_count(sps);
+    lc->coeffs = VP_VVC_PRUNE_FRAME(lc) ? NULL :
+        fc->tab.coeffs + (size_t)rs * ff_vvc_ctu_coeff_count(sps);
     lc->cu     = NULL;
 
     ff_vvc_cabac_init(lc, ctu_idx, rx, ry);
@@ -2884,7 +3087,8 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
     ret = hls_coding_tree_unit(lc, x_ctb, y_ctb, ctu_idx, rx, ry);
     if (ret < 0)
         return ret;
-    ctu_get_pred(lc, rs);
+    if (!VP_VVC_PRUNE_FRAME(lc))
+        ctu_get_pred(lc, rs);
 
     return 0;
 }

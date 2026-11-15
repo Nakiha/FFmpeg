@@ -76,6 +76,8 @@ include $(SRC_PATH)/libavcodec/vvc/Makefile
 include $(SRC_PATH)/libavcodec/vulkan/Makefile
 -include $(SRC_PATH)/libavcodec/$(ARCH)/hevc/Makefile
 -include $(SRC_PATH)/libavcodec/$(ARCH)/vvc/Makefile
+OBJS-$(CONFIG_VOIDPLAYER_ANALYSIS) += voidplayer_vachunk.o
+
 OBJS-$(CONFIG_AANDCTTABLES)            += aandcttab.o
 OBJS-$(CONFIG_AC3DSP)                  += ac3dsp.o ac3.o ac3tab.o
 OBJS-$(CONFIG_ADTS_HEADER)             += adts_header.o mpeg4audio_sample_rates.o

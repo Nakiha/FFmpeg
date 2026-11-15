@@ -114,6 +114,46 @@ static const uint8_t zigzag_scan8x8_cavlc[64+1] = {
     5 + 5 * 8, 6 + 5 * 8, 6 + 6 * 8, 7 + 7 * 8,
 };
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+static uint32_t voidplayer_h264_cabac_bitpos(const CABACContext *cc)
+{
+    int64_t bytes;
+    if (!cc || !cc->bytestream_start || !cc->bytestream)
+        return 0;
+    bytes = cc->bytestream - cc->bytestream_start;
+    if (bytes <= 0)
+        return 0;
+    if (bytes > UINT32_MAX / 8)
+        return UINT32_MAX;
+    return (uint32_t)bytes * 8u;
+}
+
+static uint32_t voidplayer_h264_bit_delta(uint32_t start, uint32_t end)
+{
+    return end >= start ? end - start : 0;
+}
+
+static inline int decode_mb_cabac(const H264Context *h, H264SliceContext *sl)
+{
+    const uint32_t start = voidplayer_h264_cabac_bitpos(&sl->cabac);
+    int ret = ff_h264_decode_mb_cabac(h, sl);
+    sl->voidplayer_mb_bit_count = ret >= 0 ? voidplayer_h264_bit_delta(start, voidplayer_h264_cabac_bitpos(&sl->cabac)) : 0;
+    return ret;
+}
+
+static inline int decode_mb_cavlc(const H264Context *h, H264SliceContext *sl)
+{
+    const uint32_t start = (uint32_t)FFMAX(get_bits_count(&sl->gb), 0);
+    int ret = ff_h264_decode_mb_cavlc(h, sl);
+    sl->voidplayer_mb_bit_count = ret >= 0 ? voidplayer_h264_bit_delta(start, (uint32_t)FFMAX(get_bits_count(&sl->gb), 0)) : 0;
+    return ret;
+}
+
+#else
+#define decode_mb_cabac ff_h264_decode_mb_cabac
+#define decode_mb_cavlc ff_h264_decode_mb_cavlc
+#endif
+
 static void release_unused_pictures(H264Context *h, int remove_current)
 {
     int i;
@@ -2623,7 +2663,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                 return AVERROR_INVALIDDATA;
             }
 
-            ret = ff_h264_decode_mb_cabac(h, sl);
+            ret = decode_mb_cabac(h, sl);
 
             if (ret >= 0)
                 ff_h264_hl_decode_mb(h, sl);
@@ -2632,7 +2672,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             if (ret >= 0 && FRAME_MBAFF(h)) {
                 sl->mb_y++;
 
-                ret = ff_h264_decode_mb_cabac(h, sl);
+                ret = decode_mb_cabac(h, sl);
 
                 if (ret >= 0)
                     ff_h264_hl_decode_mb(h, sl);
@@ -2694,7 +2734,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
                 return AVERROR_INVALIDDATA;
             }
 
-            ret = ff_h264_decode_mb_cavlc(h, sl);
+            ret = decode_mb_cavlc(h, sl);
 
             if (ret >= 0)
                 ff_h264_hl_decode_mb(h, sl);
@@ -2702,7 +2742,7 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
             // FIXME optimal? or let mb_decode decode 16x32 ?
             if (ret >= 0 && FRAME_MBAFF(h)) {
                 sl->mb_y++;
-                ret = ff_h264_decode_mb_cavlc(h, sl);
+                ret = decode_mb_cavlc(h, sl);
 
                 if (ret >= 0)
                     ff_h264_hl_decode_mb(h, sl);

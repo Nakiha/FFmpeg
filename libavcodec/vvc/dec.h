@@ -24,6 +24,8 @@
 #ifndef AVCODEC_VVC_DEC_H
 #define AVCODEC_VVC_DEC_H
 
+#include "config.h"
+
 #include "libavcodec/videodsp.h"
 #include "libavcodec/vvc.h"
 #include "libavcodec/h274.h"
@@ -153,6 +155,10 @@ typedef struct VVCFrameContext {
 
     uint64_t decode_order;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    int vp_analysis_prune;          ///< picture runs the no-pixels analysis path
+#endif
+
     struct AVRefStructPool *tab_dmvr_mvf_pool;
     struct AVRefStructPool *rpl_tab_pool;
 
@@ -250,6 +256,13 @@ typedef struct VVCContext {
     int no_output_before_recovery_flag; ///< NoOutputBeforeRecoveryFlag
     int gdr_recovery_point_poc;         ///< recoveryPointPocVal
     int film_grain_warning_shown;
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    int vp_analysis_mode;
+    int vp_analysis_path;
+    int vp_analysis_started;
+    int vp_analysis_reason;
+    AVBufferRef *vp_analysis_parameter_sets[3];
+#endif
 
     /**
      * Sequence counters for decoded and output frames, so that old

@@ -27,6 +27,7 @@
 #include "libavcodec/hwaccel_internal.h"
 #include "libavcodec/hwconfig.h"
 #include "libavcodec/profiles.h"
+#include "libavcodec/version.h"
 #include "libavutil/refstruct.h"
 #include "libavcodec/aom_film_grain.h"
 #include "libavcodec/thread.h"
@@ -44,6 +45,7 @@
 #include "data.h"
 #include "refs.h"
 #include "thread.h"
+#include "vp_analysis_prune.h"
 #include "config_components.h"
 
 #define TAB_MAX 32
@@ -117,7 +119,13 @@ static void ctu_nz_tl_init(TabList *l, VVCFrameContext *fc)
     const VVCPPS *pps   = fc->ps.pps;
     const int ctu_size  = sps ? (1 << sps->ctb_log2_size_y << sps->ctb_log2_size_y) : 0;
     const int ctu_count = pps ? pps->ctb_count : 0;
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    const int prune     = fc->vp_analysis_prune;
+#else
+    const int prune     = 0;
+#endif
     const int changed   = fc->tab.sz.ctu_count != ctu_count || fc->tab.sz.ctu_size != ctu_size ||
+                          (CONFIG_VOIDPLAYER_ANALYSIS && ctu_count && (prune == !!fc->tab.coeffs)) ||
                           (sps && fc->tab.sz.chroma_format_idc != sps->r->sps_chroma_format_idc);
 
     tl_init(l, 0, changed);
@@ -128,7 +136,7 @@ static void ctu_nz_tl_init(TabList *l, VVCFrameContext *fc)
     TL_ADD(sao,     ctu_count);
     TL_ADD(alf,     ctu_count);
     TL_ADD(slice_idx, ctu_count);
-    TL_ADD(coeffs, sps ? (size_t)ctu_count * ff_vvc_ctu_coeff_count(sps) : 0);
+    TL_ADD(coeffs, sps && !prune ? (size_t)ctu_count * ff_vvc_ctu_coeff_count(sps) : 0);
 }
 
 static void min_cb_tl_init(TabList *l, VVCFrameContext *fc)
@@ -738,8 +746,9 @@ static int frame_context_setup(VVCFrameContext *fc, VVCContext *s)
     return 0;
 }
 
-/* SEI does not affect decoding, so we ignore the return value */
-static void decode_prefix_sei(VVCFrameContext *fc, VVCContext *s)
+/* SEI does not affect decoding, so decode errors are ignored. The analysis
+ * extension still propagates the full-path retry for film grain. */
+static int decode_prefix_sei(VVCFrameContext *fc, VVCContext *s)
 {
     CodedBitstreamFragment *frame = &s->current_frame;
 
@@ -749,9 +758,15 @@ static void decode_prefix_sei(VVCFrameContext *fc, VVCContext *s)
         if (unit->type == VVC_PREFIX_SEI_NUT) {
             int ret = ff_vvc_sei_decode(&fc->sei, unit->content_ref, fc);
             if (ret < 0)
-                return;
+                return 0;
+#if CONFIG_VOIDPLAYER_ANALYSIS
+            if ((ret = vp_vvc_sei_grain(s, &fc->sei)) < 0)
+                return ret;
+#endif
         }
     }
+
+    return 0;
 }
 
 static int set_side_data(VVCContext *s, VVCFrameContext *fc)
@@ -808,7 +823,8 @@ static int frame_start(VVCContext *s, VVCFrameContext *fc, SliceContext *sc)
     if (!s->temporal_id && !ph->r->ph_non_ref_pic_flag && !(IS_RASL(s) || IS_RADL(s)))
         s->poc_tid0 = ph->poc;
 
-    decode_prefix_sei(fc, s);
+    if ((ret = decode_prefix_sei(fc, s)) < 0)
+        goto fail;
 
     if ((ret = ff_vvc_set_new_ref(s, fc, &fc->frame)) < 0)
         goto fail;
@@ -929,6 +945,23 @@ static int frame_setup(VVCFrameContext *fc, VVCContext *s)
     if (ret < 0)
         return ret;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    if (fc->ps.ph.r->ph_gdr_pic_flag && s->vp_analysis_mode) {
+        ret = vp_vvc_disable_prune(s, VP_ANALYSIS_REASON_CONFIG);
+        if (ret < 0)
+            return ret;
+    }
+    /* Select full/no-pixels execution for this picture from its SPS. */
+    ret = vp_vvc_admit_config(s, fc->ps.sps);
+    if (ret < 0)
+        return ret;
+    if (s->vp_analysis_path)
+        s->vp_analysis_started = 1;
+    /* Residual parsing only has the local context; publish the picture path
+     * there so it can skip coefficient materialization. */
+    fc->vp_analysis_prune = s->vp_analysis_path;
+#endif
+
     ret = frame_context_setup(fc, s);
     if (ret < 0)
         return ret;
@@ -1004,7 +1037,7 @@ static int decode_nal_unit(VVCContext *s, VVCFrameContext *fc, AVBufferRef *buf_
     case VVC_VPS_NUT:
     case VVC_SPS_NUT:
     case VVC_PPS_NUT:
-        /* vps, sps, sps cached by s->cbc */
+        /* VPS, SPS and PPS cached by s->cbc. */
         break;
     case VVC_TRAIL_NUT:
     case VVC_STSA_NUT:
@@ -1053,6 +1086,11 @@ static int decode_nal_units(VVCContext *s, VVCFrameContext *fc, AVPacket *avpkt)
         av_log(s->avctx, AV_LOG_ERROR, "Failed to read packet.\n");
         return ret;
     }
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    ret = vp_vvc_check_prune_fragment(s, frame);
+    if (ret < 0)
+        return ret;
+#endif
     /* decode the NAL units */
     for (int i = 0; i < frame->nb_units; i++) {
         const H2645NAL *nal            = h266->common.read_packet.nals + i;
@@ -1081,6 +1119,12 @@ static int frame_end(VVCContext *s, VVCFrameContext *fc)
 {
     const AVFilmGrainParams *fgp;
     int ret;
+
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    /* Film grain and decoded-picture-hash SEI require real pixels. */
+    if ((ret = vp_vvc_frame_sei(s, fc)) < 0)
+        return ret;
+#endif
 
     if (fc->ref->needs_fg) {
         av_assert0(fc->ref->frame_grain->buf[0]);
@@ -1248,6 +1292,10 @@ static av_cold int vvc_decode_free(AVCodecContext *avctx)
 {
     VVCContext *s = avctx->priv_data;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    for (int i = 0; i < FF_ARRAY_ELEMS(s->vp_analysis_parameter_sets); i++)
+        av_buffer_unref(&s->vp_analysis_parameter_sets[i]);
+#endif
     ff_cbs_fragment_free(&s->current_frame);
     vvc_decode_flush(avctx);
     ff_vvc_executor_free(&s->executor);
@@ -1289,6 +1337,17 @@ static av_cold int vvc_decode_init(AVCodecContext *avctx)
         if (ret < 0)
             return ret;
     }
+
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    /* Report the selected execution path before the first frame. Per-frame
+     * admission re-checks the SPS that is actually decoded. */
+    vp_vvc_admit_extradata(s);
+    if (!s->vp_analysis_path)
+        s->vp_analysis_mode = 0;
+    ret = vp_vvc_check_prune_fragment(s, &s->current_frame);
+    if (ret < 0)
+        return ret;
+#endif
 
     const int initial_contexts = (avctx->flags & AV_CODEC_FLAG_LOW_DELAY) ? 1 : delayed;
     s->frame_context_capacity = FFMAX(s->frame_context_capacity, initial_contexts);
@@ -1400,6 +1459,13 @@ static const AVOption vvc_options[] = {
     { "thread_capacity", "Reserved VVC executor workers",
       offsetof(VVCContext, thread_capacity), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, INT_MAX,
       AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM },
+#if CONFIG_VOIDPLAYER_ANALYSIS
+#define VVC_PRUNE_OPT (AV_OPT_FLAG_DECODING_PARAM | AV_OPT_FLAG_VIDEO_PARAM)
+    { "vp_analysis_mode", "request Main10 analysis pixel pruning", offsetof(VVCContext, vp_analysis_mode), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VVC_PRUNE_OPT },
+    { "vp_analysis_path", "selected analysis path: full=0, no-pixels=1", offsetof(VVCContext, vp_analysis_path), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 1, VVC_PRUNE_OPT | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
+    { "vp_analysis_reason", "analysis full-path reason", offsetof(VVCContext, vp_analysis_reason), AV_OPT_TYPE_INT, { .i64 = 0 }, 0, 4, VVC_PRUNE_OPT | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
+#undef VVC_PRUNE_OPT
+#endif
     { NULL },
 };
 static const AVClass vvc_class = {

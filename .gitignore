@@ -56,3 +56,4 @@
 /libavfilter/vulkan/*.c
 /.*/
 !/.forgejo/
+/dist-native-analysis/

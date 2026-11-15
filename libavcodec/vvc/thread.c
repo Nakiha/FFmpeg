@@ -32,6 +32,7 @@
 #include "inter.h"
 #include "intra.h"
 #include "refs.h"
+#include "vp_analysis_prune.h"
 
 typedef struct ProgressListener {
     VVCProgressListener l;
@@ -393,6 +394,17 @@ static void task_stage_done(const VVCTask *t, VVCContext *s)
 #endif
 
     //this is a reserve map of ready_score, ordered by zigzag
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    if (fc->vp_analysis_prune) {
+        if (stage == VVC_TASK_STAGE_PARSE && t->rx >= 0 && t->rx < ft->ctu_width &&
+            t->ry >= 0 && t->ry < ft->ctu_height) {
+            const int slice_idx = fc->tab.slice_idx[t->rs];
+            schedule_next_parse(s, fc, fc->slices[slice_idx], t);
+        }
+        return;
+    }
+#endif
+
     if (stage == VVC_TASK_STAGE_PARSE) {
         ADD( 0,  1, VVC_TASK_STAGE_DEBLOCK_BS);
         ADD( 1,  0, VVC_TASK_STAGE_DEBLOCK_BS);
@@ -536,6 +548,18 @@ static int run_parse(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     if (ret < 0)
         return ret;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    if (fc->vp_analysis_prune) {
+        /* Syntax records and motion tables are complete. No reconstruction or
+         * filter stage consumes these CUs; publish both dependency timelines
+         * directly without scheduling empty pixel stages. */
+        ff_vvc_ctu_free_cus(fc->tab.cus + rs);
+        report_frame_progress(fc, t->ry, VVC_PROGRESS_MV);
+        report_frame_progress(fc, t->ry, VVC_PROGRESS_PIXEL);
+        return 0;
+    }
+#endif
+
     if (!ctu->has_dmvr)
         report_frame_progress(lc->fc, t->ry, VVC_PROGRESS_MV);
 
@@ -544,7 +568,9 @@ static int run_parse(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 
 static int run_deblock_bs(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 {
-    if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
+    /* Pruned frames discard the whole deblocking stage, including the
+     * boundary-strength derivation, mirroring HEVC's filter prune. */
+    if (!VP_VVC_PRUNE_FRAME(lc) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag)
         ff_vvc_deblock_bs(lc, t->rx, t->ry, t->rs);
 
     return 0;
@@ -556,9 +582,11 @@ static int run_inter(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const CTU *ctu      = fc->tab.ctus + t->rs;
     int ret;
 
-    ret = ff_vvc_predict_inter(lc, t->rs);
-    if (ret < 0)
-        return ret;
+    if (!VP_VVC_PRUNE_FRAME(lc)) {
+        ret = ff_vvc_predict_inter(lc, t->rs);
+        if (ret < 0)
+            return ret;
+    }
 
     if (ctu->has_dmvr)
         report_frame_progress(fc, t->ry, VVC_PROGRESS_MV);
@@ -568,6 +596,11 @@ static int run_inter(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 
 static int run_recon(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
 {
+    if (VP_VVC_PRUNE_FRAME(lc)) {
+        ff_vvc_ctu_free_cus(lc->fc->tab.cus + t->rs);
+        return 0;
+    }
+
     return ff_vvc_reconstruct(lc, t->rs, t->rx, t->ry);
 }
 
@@ -579,7 +612,8 @@ static int run_lmcs(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctu_size;
     const int y0        = t->ry * ctu_size;
 
-    ff_vvc_lmcs_filter(lc, x0, y0);
+    if (!VP_VVC_PRUNE_FRAME(lc))
+        ff_vvc_lmcs_filter(lc, x0, y0);
 
     return 0;
 }
@@ -592,7 +626,7 @@ static int run_deblock_v(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
 
-    if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
+    if (!VP_VVC_PRUNE_FRAME(lc) && !lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
         ff_vvc_deblock_vertical(lc, x0, y0, t->rs);
     }
@@ -607,6 +641,9 @@ static int run_deblock_h(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int ctb_size  = ft->ctu_size;
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
+
+    if (VP_VVC_PRUNE_FRAME(lc))
+        return 0;
 
     if (!lc->sc->sh.r->sh_deblocking_filter_disabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
@@ -625,6 +662,9 @@ static int run_sao(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int ctb_size  = ft->ctu_size;
     const int x0        = t->rx * ctb_size;
     const int y0        = t->ry * ctb_size;
+
+    if (VP_VVC_PRUNE_FRAME(lc))
+        return 0;
 
     if (fc->ps.sps->r->sps_sao_enabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
@@ -645,7 +685,7 @@ static int run_alf(VVCContext *s, VVCLocalContext *lc, VVCTask *t)
     const int x0        = t->rx * ctu_size;
     const int y0        = t->ry * ctu_size;
 
-    if (fc->ps.sps->r->sps_alf_enabled_flag) {
+    if (!VP_VVC_PRUNE_FRAME(lc) && fc->ps.sps->r->sps_alf_enabled_flag) {
         ff_vvc_decode_neighbour(lc, x0, y0, t->rx, t->ry, t->rs);
         ff_vvc_alf_filter(lc, x0, y0);
     }
@@ -721,6 +761,12 @@ static int task_run(FFTask *_t, void *local_context, void *user_data)
 
     do {
         task_run_stage(t, s, lc);
+#if CONFIG_VOIDPLAYER_ANALYSIS
+        if (t->fc->vp_analysis_prune && t->stage == VVC_TASK_STAGE_PARSE) {
+            t->stage = VVC_TASK_STAGE_LAST;
+            break;
+        }
+#endif
         t->stage++;
     } while (task_is_stage_ready(t, 1));
 
@@ -769,6 +815,12 @@ static void frame_thread_init_score(VVCFrameContext *fc)
 
     task_init(&task, VVC_TASK_STAGE_PARSE, fc, 0, 0);
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    /* The analysis graph has only PARSE dependencies, supplied by INIT,
+     * colocation and the previous entry-point CTU. No pixel border scores. */
+    if (fc->vp_analysis_prune)
+        return;
+#endif
     for (int i = VVC_TASK_STAGE_PARSE; i < VVC_TASK_STAGE_LAST; i++) {
         task.stage = i;
 

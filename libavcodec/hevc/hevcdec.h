@@ -23,6 +23,8 @@
 #ifndef AVCODEC_HEVC_HEVCDEC_H
 #define AVCODEC_HEVC_HEVCDEC_H
 
+#include "config.h"
+
 #include <stdatomic.h>
 
 #include "libavutil/buffer.h"
@@ -585,6 +587,12 @@ typedef struct HEVCContext {
 
     AVBufferRef *rpu_buf;       ///< 0 or 1 Dolby Vision RPUs.
     DOVIContext dovi_ctx;       ///< Dolby Vision decoding context
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    int vp_analysis_mode;
+    int vp_analysis_path;
+    int vp_analysis_started;
+    int vp_analysis_reason;
+#endif
 } HEVCContext;
 
 /**

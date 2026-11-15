@@ -28,6 +28,8 @@
 #ifndef AVCODEC_H264DEC_H
 #define AVCODEC_H264DEC_H
 
+#include "config.h"
+
 #include "libavutil/mem_internal.h"
 
 #include "cabac.h"
@@ -236,6 +238,9 @@ typedef struct H264SliceContext {
     // index of the first MB of the next slice
     int next_slice_idx;
     int mb_skip_run;
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    uint32_t voidplayer_mb_bit_count;
+#endif
     int is_complex;
 
     int picture_structure;
