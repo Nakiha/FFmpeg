@@ -709,7 +709,7 @@ const static char* task_name[] = {
 
 typedef int (*run_func)(VVCContext *s, VVCLocalContext *lc, VVCTask *t);
 
-static void task_run_stage(VVCTask *t, VVCContext *s, VVCLocalContext *lc)
+static VVCTask *task_run_stage(VVCTask *t, VVCContext *s, VVCLocalContext *lc)
 {
     int ret;
     VVCFrameContext *fc      = t->fc;
@@ -744,10 +744,28 @@ static void task_run_stage(VVCTask *t, VVCContext *s, VVCLocalContext *lc)
                 "frame %5d, %s(%3d, %3d) failed with %d\r\n",
                 (int)fc->decode_order, task_name[stage], t->rx, t->ry, ret);
         }
-        if (!ret)
+        if (!ret) {
+#if CONFIG_VOIDPLAYER_ANALYSIS && HAVE_PTHREADS
+            // With entropy sync off there is only one successor in this entry
+            // point. Claim it only when our dependency is the last to arrive.
+            // Yield at each row boundary so other ready frames can run.
+            if (stage == VVC_TASK_STAGE_PARSE && fc->vp_analysis_prune &&
+                !fc->ps.sps->r->sps_entropy_coding_sync_enabled_flag && t->ctu_idx + 1 < t->ep->ctu_end) {
+                const int rs = t->sc->sh.ctb_addr_in_curr_slice[t->ctu_idx + 1];
+                VVCTask *next = ft->tasks + rs;
+                if (next->ry == t->ry) {
+                    if (task_has_target_score(next, stage, task_add_score(next, stage))) {
+                        av_assert0(next->stage == stage);
+                        return next;
+                    }
+                    return NULL;
+                }
+            }
+#endif
             task_stage_done(t, s);
+        }
     }
-    return;
+    return NULL;
 }
 
 static int task_run(FFTask *_t, void *local_context, void *user_data)
@@ -760,7 +778,16 @@ static int task_run(FFTask *_t, void *local_context, void *user_data)
     lc->fc = t->fc;
 
     do {
+#if CONFIG_VOIDPLAYER_ANALYSIS && HAVE_PTHREADS
+        VVCTask *next;
+        // The original scheduled-task reference covers this entire same-frame chain.
+        while ((next = task_run_stage(t, s, lc))) {
+            t->stage = VVC_TASK_STAGE_LAST;
+            t = next;
+        }
+#else
         task_run_stage(t, s, lc);
+#endif
 #if CONFIG_VOIDPLAYER_ANALYSIS
         if (t->fc->vp_analysis_prune && t->stage == VVC_TASK_STAGE_PARSE) {
             t->stage = VVC_TASK_STAGE_LAST;
