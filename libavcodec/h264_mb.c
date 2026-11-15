@@ -32,6 +32,7 @@
 #include "libavutil/intreadwrite.h"
 #include "avcodec.h"
 #include "h264dec.h"
+#include "voidplayer_prediction.h"
 #include "h264_ps.h"
 #include "qpeldsp.h"
 #include "rectangle.h"
@@ -891,6 +892,10 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
     } else {
         frame_info.frame_identity = (uintptr_t)h->cur_pic_ptr;
     }
+#if VP_COLLECT_PREDICTIONS
+    if ((FRAME_MBAFF(h) || h->picture_structure != PICT_FRAME) && ff_vp_wants_prediction(frame_info.frame_identity, VP_INTRA))
+        ff_vp_prediction_unsupported(frame_info.frame_identity);
+#endif
     for (i = 0; i < 15; ++i) {
         frame_info.ref_pocs_l0[i] = ref_pocs_l0[i];
         frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];

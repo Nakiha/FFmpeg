@@ -29,6 +29,7 @@ typedef struct {
 _Static_assert(sizeof(VPIntraPrediction) == 16, "intra prediction ABI");
 _Static_assert(sizeof(VPInterPrediction) == 32, "inter prediction ABI");
 int ff_vp_wants_prediction(uintptr_t id, int product);
+void ff_vp_prediction_unsupported(uintptr_t id);
 void ff_vp_write_prediction(uintptr_t id, const void *record);
 #else
 #define VP_COLLECT_PREDICTIONS 0
