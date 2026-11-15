@@ -31,6 +31,30 @@
 #include "h264dec.h"
 #include "mpegutils.h"
 #include "rectangle.h"
+#include "voidplayer_prediction.h"
+
+#if VP_COLLECT_PREDICTIONS
+static inline uintptr_t vp_h264_intra_id(const H264Context *h)
+{
+    if (FRAME_MBAFF(h) || h->picture_structure != PICT_FRAME || !h->cur_pic.f) return 0;
+    uintptr_t id = (uintptr_t)h->cur_pic.f->opaque;
+    return ff_vp_wants_prediction(id, VP_INTRA) ? id : 0;
+}
+
+static inline void vp_h264_intra(uintptr_t id, const H264SliceContext *sl, int components, int n, int size, int mode)
+{
+    int offset = scan8[n] - scan8[0];
+    /* libavcodec numbers the 16x16 Y predictors in chroma order. */
+    if (components == 1 && size == 16) {
+        static const uint8_t luma16[] = {2, 1, 0, 3};
+        mode = luma16[mode];
+    }
+    VPIntraPrediction row = { sl->mb_x * 16 + 4 * (offset % 8), sl->mb_y * 16 + 4 * (offset / 8),
+        size, size, components, 0, VP_DIRECTION, mode,
+        components == 6 ? VP_CHROMA_SELECTOR : VP_INFERRED, components == 6 ? mode : 255 };
+    ff_vp_write_prediction(id, &row);
+}
+#endif
 
 #include "libavutil/avassert.h"
 #include "libavutil/mem_internal.h"

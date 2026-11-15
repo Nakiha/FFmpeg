@@ -26,6 +26,7 @@
 #include "libavutil/intreadwrite.h"
 #include "libavutil/refstruct.h"
 
+#include "libavcodec/voidplayer_prediction.h"
 #if CONFIG_VOIDPLAYER_ANALYSIS
 #include "libavcodec/voidplayer_vachunk.h"
 extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
@@ -1070,6 +1071,14 @@ static void intra_luma_pred_modes(VVCLocalContext *lc)
             cu->intra_pred_mode_y = luma_intra_pred_mode(lc, intra_subpartitions_mode_flag);
         }
     }
+#if VP_COLLECT_PREDICTIONS
+    if (ff_vp_wants_prediction((uintptr_t)fc->frame->opaque, VP_INTRA)) {
+        VPIntraPrediction row = { x0, y0, cb_width, cb_height, 1, cu->tree_type,
+            cu->intra_mip_flag ? VP_MIP : cu->bdpcm_flag[LUMA] ? VP_BDPCM : VP_DIRECTION,
+            cu->intra_pred_mode_y, VP_INFERRED, 255, cu->isp_split_type, cu->intra_luma_ref_idx };
+        ff_vp_write_prediction((uintptr_t)fc->frame->opaque, &row);
+    }
+#endif
     set_cb_tab(lc, fc->tab.ipm, cu->intra_pred_mode_y);
 }
 
@@ -1107,6 +1116,18 @@ static void intra_chroma_pred_modes(VVCLocalContext *lc)
 
     if (!cu->bdpcm_flag[CHROMA])
         derive_chroma_intra_pred_mode(lc, cclm_mode_flag, cclm_mode_idx, intra_chroma_pred_mode);
+#if VP_COLLECT_PREDICTIONS
+    if (ff_vp_wants_prediction((uintptr_t)lc->fc->frame->opaque, VP_INTRA)) {
+        int selector = cu->act_enabled_flag || cu->bdpcm_flag[CHROMA] ? VP_INFERRED :
+                       cclm_mode_flag ? VP_CCLM_INDEX : VP_CHROMA_SELECTOR;
+        VPIntraPrediction row = { cu->x0, cu->y0, cu->cb_width, cu->cb_height, 6, cu->tree_type,
+            cclm_mode_flag ? VP_CCLM : cu->mip_chroma_direct_flag ? VP_MIP : cu->bdpcm_flag[CHROMA] ? VP_BDPCM : VP_DIRECTION,
+            cclm_mode_flag ? 67 + cclm_mode_idx : cu->intra_pred_mode_c, selector,
+            selector == VP_CCLM_INDEX ? cclm_mode_idx : selector == VP_CHROMA_SELECTOR ? intra_chroma_pred_mode : 255,
+            0, 0, cu->act_enabled_flag };
+        ff_vp_write_prediction((uintptr_t)lc->fc->frame->opaque, &row);
+    }
+#endif
 }
 
 static PredMode pred_mode_decode(VVCLocalContext *lc,
@@ -1894,6 +1915,19 @@ static int inter_data(VVCLocalContext *lc)
 
     if (!pu->dmvr_flag)
         fill_dmvr_info(lc);
+#if VP_COLLECT_PREDICTIONS
+    if (ff_vp_wants_prediction((uintptr_t)lc->fc->frame->opaque, VP_INTER)) {
+        unsigned flags = cu->skip_flag | pu->general_merge_flag << 1 | pu->mmvd_merge_flag << 2 |
+                         cu->ciip_flag << 3 | pu->merge_gpm_flag << 4 | pu->merge_subblock_flag << 5;
+        int model = cu->pred_mode == MODE_IBC ? VP_IBC : pu->merge_gpm_flag ? VP_OTHER :
+                    mi->motion_model_idc == MOTION_6_PARAMS_AFFINE ? VP_AFFINE6 :
+                    mi->motion_model_idc == MOTION_4_PARAMS_AFFINE ? VP_AFFINE4 :
+                    pu->merge_subblock_flag ? VP_SBTMVP : VP_TRANSLATION;
+        VPInterPrediction row = { cu->x0, cu->y0, cu->cb_width, cu->cb_height, flags, 0,
+            { -1, -1 }, {{0}}, { -1, -1 }, 255, model, pu->merge_gpm_flag ? pu->gpm_partition_idx : 255 };
+        ff_vp_write_prediction((uintptr_t)lc->fc->frame->opaque, &row);
+    }
+#endif
     return ret;
 }
 

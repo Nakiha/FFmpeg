@@ -766,6 +766,9 @@ decode_intra_mb:
     //mb_pred
     if(IS_INTRA(mb_type)){
         int pred_mode;
+#if VP_COLLECT_PREDICTIONS
+        const uintptr_t prediction_id = vp_h264_intra_id(h);
+#endif
 //            init_top_left_availability(h);
         if(IS_INTRA4x4(mb_type)){
             int i;
@@ -789,19 +792,33 @@ decode_intra_mb:
                 else
                     sl->intra4x4_pred_mode_cache[scan8[i]] = mode;
             }
+#if VP_COLLECT_PREDICTIONS
+            if (prediction_id) {
+                int step = IS_8x8DCT(mb_type) ? 4 : 1;
+                for (int n = 0; n < 16; n += step)
+                    vp_h264_intra(prediction_id, sl, 1, n, step == 4 ? 8 : 4, sl->intra4x4_pred_mode_cache[scan8[n]]);
+            }
+#endif
             write_back_intra_pred_mode(h, sl);
             if (ff_h264_check_intra4x4_pred_mode(sl->intra4x4_pred_mode_cache, h->avctx,
                                                  sl->top_samples_available, sl->left_samples_available) < 0)
                 return -1;
         }else{
+#if VP_COLLECT_PREDICTIONS
+            if (prediction_id) vp_h264_intra(prediction_id, sl, 1, 0, 16, sl->intra16x16_pred_mode);
+#endif
             sl->intra16x16_pred_mode = ff_h264_check_intra_pred_mode(h->avctx, sl->top_samples_available,
                                                                      sl->left_samples_available, sl->intra16x16_pred_mode, 0);
             if (sl->intra16x16_pred_mode < 0)
                 return -1;
         }
         if(decode_chroma){
+            pred_mode = get_ue_golomb_31(&sl->gb);
+#if VP_COLLECT_PREDICTIONS
+            if (prediction_id && (unsigned)pred_mode < 4) vp_h264_intra(prediction_id, sl, 6, 0, 16, pred_mode);
+#endif
             pred_mode= ff_h264_check_intra_pred_mode(h->avctx, sl->top_samples_available,
-                                                     sl->left_samples_available, get_ue_golomb_31(&sl->gb), 1);
+                                                     sl->left_samples_available, pred_mode, 1);
             if(pred_mode < 0)
                 return -1;
             sl->chroma_pred_mode = pred_mode;

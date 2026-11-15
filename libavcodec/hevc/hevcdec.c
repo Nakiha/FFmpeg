@@ -54,6 +54,7 @@
 #include "libavcodec/progressframe.h"
 #include "libavcodec/thread.h"
 #include "libavcodec/threadprogress.h"
+#include "libavcodec/voidplayer_prediction.h"
 #if CONFIG_VOIDPLAYER_ANALYSIS
 #include "libavcodec/voidplayer_vachunk.h"
 extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
@@ -2164,6 +2165,22 @@ static void hls_prediction_unit(HEVCLocalContext *lc,
         hevc_await_progress(s, ref1, &current_mv.mv[1], y0, nPbH);
     }
 
+#if VP_COLLECT_PREDICTIONS
+    if (ff_vp_wants_prediction((uintptr_t)s->cur_frame->f->opaque, VP_INTER)) {
+        int merge = skip_flag || lc->pu.merge_flag;
+        VPInterPrediction row = { x0, y0, nPbW, nPbH, !!skip_flag | merge << 1, current_mv.pred_flag,
+            { -1, -1 }, {{0}}, { -1, -1 }, merge ? merge_idx : 255, VP_TRANSLATION, 255 };
+        const HEVCFrame *refs[] = {ref0, ref1};
+        for (int list = 0; list < 2; list++) {
+            if (!refs[list]) continue;
+            row.ref_au[list] = (int)(uintptr_t)refs[list]->f->opaque - 1;
+            row.ref_idx[list] = current_mv.ref_idx[list];
+            row.mv[list][0] = current_mv.mv[list].x;
+            row.mv[list][1] = current_mv.mv[list].y;
+        }
+        ff_vp_write_prediction((uintptr_t)s->cur_frame->f->opaque, &row);
+    }
+#endif
     if (vp_hevc_prune(s, 2)) {
         return;
     }
@@ -2340,6 +2357,10 @@ static void intra_prediction_unit(HEVCLocalContext *lc,
     int split   = lc->cu.part_mode == PART_NxN;
     int pb_size = (1 << log2_cb_size) >> split;
     int side    = split + 1;
+#if VP_COLLECT_PREDICTIONS
+    const uintptr_t id = (uintptr_t)lc->parent->cur_frame->f->opaque;
+    const int collect = ff_vp_wants_prediction(id, VP_INTRA);
+#endif
     int chroma_mode;
     int i, j;
 
@@ -2358,6 +2379,15 @@ static void intra_prediction_unit(HEVCLocalContext *lc,
                 luma_intra_pred_mode(lc, l, sps,
                                      x0 + pb_size * j, y0 + pb_size * i, pb_size,
                                      prev_intra_luma_pred_flag[2 * i + j]);
+#if VP_COLLECT_PREDICTIONS
+            if (collect) {
+                int n = 2 * i + j;
+                VPIntraPrediction row = { x0 + j * pb_size, y0 + i * pb_size, pb_size, pb_size, 1, 0,
+                    VP_DIRECTION, lc->pu.intra_pred_mode[n], prev_intra_luma_pred_flag[n] ? VP_MPM : VP_REMAINDER,
+                    prev_intra_luma_pred_flag[n] ? lc->pu.mpm_idx : lc->pu.rem_intra_luma_pred_mode };
+                ff_vp_write_prediction(id, &row);
+            }
+#endif
         }
     }
 
@@ -2398,6 +2428,13 @@ static void intra_prediction_unit(HEVCLocalContext *lc,
             lc->pu.intra_pred_mode_c[0] = lc->pu.intra_pred_mode[0];
         }
     }
+#if VP_COLLECT_PREDICTIONS
+    if (collect && sps->chroma_format_idc == 1) {
+        VPIntraPrediction row = { x0, y0, 1 << log2_cb_size, 1 << log2_cb_size, 6, 0,
+            VP_DIRECTION, lc->pu.intra_pred_mode_c[0], VP_CHROMA_SELECTOR, chroma_mode };
+        ff_vp_write_prediction(id, &row);
+    }
+#endif
 }
 
 static void intra_prediction_unit_default_value(HEVCLocalContext *lc,
