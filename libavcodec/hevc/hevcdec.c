@@ -3402,7 +3402,7 @@ static int hevc_frame_start(HEVCContext *s, HEVCLayerContext *l,
 #if CONFIG_VOIDPLAYER_ANALYSIS
     if (s->vp_analysis_path &&
         (!vp_hevc_prune_supported(pps) || s->avctx->hwaccel ||
-         s->avctx->active_thread_type || s->cur_layer != 0)) {
+         (s->avctx->active_thread_type & ~FF_THREAD_SLICE) || s->cur_layer != 0)) {
         ret = vp_hevc_require_full(s, VP_ANALYSIS_REASON_CONFIG);
         if (ret < 0) return ret;
     }

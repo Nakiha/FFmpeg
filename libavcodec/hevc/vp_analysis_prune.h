@@ -41,8 +41,10 @@ static inline int vp_hevc_admit_config(HEVCContext *s)
 {
     int pps_count = 0;
     s->vp_analysis_path = 0;
+    /* Slice workers join before the next NAL changes the prune/replay state.
+     * Frame threading has independent contexts and cannot use that state. */
     if (!VP_HEVC_NO_PIXELS || !s->vp_analysis_mode || !ff_voidplayer_vachunk_is_active() ||
-        s->avctx->thread_count != 1 || s->avctx->thread_type ||
+        (s->avctx->thread_type & ~FF_THREAD_SLICE) ||
         (s->avctx->err_recognition & AV_EF_CRCCHECK))
         return 0;
     for (int i = 0; i < HEVC_MAX_PPS_COUNT; i++) {
