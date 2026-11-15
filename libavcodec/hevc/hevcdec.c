@@ -2528,12 +2528,14 @@ static void voidplayer_hevc_record_cu(HEVCLocalContext *lc,
         frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];
     }
 
-    if (s->sh.slice_type != HEVC_SLICE_I)
+    if (!lc->analysis_refs_reported && s->sh.slice_type != HEVC_SLICE_I) {
+        lc->analysis_refs_reported = 1;
         for(int list=0;list<(s->sh.slice_type==HEVC_SLICE_B?2:1);list++)
             for(int r=0;r<s->sh.nb_refs[list];r++) {
                 const HEVCFrame *ref=ref_pic_list&&r<ref_pic_list[list].nb_refs?ref_pic_list[list].ref[r]:NULL;
                 ff_vpa_reference(frame_info.frame_identity, ref&&ref->f?(uintptr_t)ref->f->opaque:0, list);
             }
+    }
     qp = (uint8_t)av_clip_uint8(lc->qp_y);
     if (lc->cu.pred_mode == MODE_INTRA) {
         ff_voidplayer_vachunk_write_intra_cu(&frame_info,
@@ -2953,6 +2955,9 @@ static int hls_decode_entry(HEVCContext *s, GetBitContext *gb)
         l->deblock[ctb_addr_rs].tc_offset   = s->sh.tc_offset;
         l->filter_slice_edges[ctb_addr_rs]  = s->sh.slice_loop_filter_across_slices_enabled_flag;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+        lc->analysis_refs_reported = 0;
+#endif
         more_data = hls_coding_quadtree(lc, l, pps, sps, x_ctb, y_ctb, sps->log2_ctb_size, 0);
         if (more_data < 0) {
             l->tab_slice_address[ctb_addr_rs] = -1;
@@ -3024,6 +3029,9 @@ static int hls_decode_entry_wpp(AVCodecContext *avctx, void *hevc_lclist,
         l->deblock[ctb_addr_rs].tc_offset   = s->sh.tc_offset;
         l->filter_slice_edges[ctb_addr_rs]  = s->sh.slice_loop_filter_across_slices_enabled_flag;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+        lc->analysis_refs_reported = 0;
+#endif
         more_data = hls_coding_quadtree(lc, l, pps, sps, x_ctb, y_ctb, sps->log2_ctb_size, 0);
 
         if (more_data < 0) {

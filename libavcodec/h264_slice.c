@@ -2613,6 +2613,9 @@ static int decode_slice(struct AVCodecContext *avctx, void *arg)
     int orig_deblock = sl->deblocking_filter;
     int ret;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    sl->analysis_refs_reported = 0;
+#endif
     sl->linesize   = h->cur_pic_ptr->f->linesize[0];
     sl->uvlinesize = h->cur_pic_ptr->f->linesize[1];
 

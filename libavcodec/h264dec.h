@@ -239,6 +239,7 @@ typedef struct H264SliceContext {
     int next_slice_idx;
     int mb_skip_run;
 #if CONFIG_VOIDPLAYER_ANALYSIS
+    int analysis_refs_reported;  ///< Local to one progressive slice.
     uint32_t voidplayer_mb_bit_count;
 #endif
     int is_complex;

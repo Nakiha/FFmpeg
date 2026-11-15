@@ -391,6 +391,9 @@ typedef struct HEVCFrame {
 } HEVCFrame;
 
 typedef struct HEVCLocalContext {
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    int analysis_refs_reported;  ///< Local to one coding tree unit.
+#endif
     uint8_t cabac_state[HEVC_CONTEXTS];
 
     uint8_t stat_coeff[HEVC_STAT_COEFFS];

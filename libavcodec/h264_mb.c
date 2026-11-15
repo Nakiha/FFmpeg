@@ -896,12 +896,14 @@ static void voidplayer_h264_record_mb(const H264Context *h, H264SliceContext *sl
         frame_info.ref_pocs_l1[i] = ref_pocs_l1[i];
     }
 
-    if (frame_info.slice_type != 2)
+    if (!sl->analysis_refs_reported && frame_info.slice_type != 2) {
+        sl->analysis_refs_reported = !FRAME_MBAFF(h) && h->picture_structure == PICT_FRAME;
         for(int list=0;list<sl->list_count;list++)
             for(int r=0;r<sl->ref_count[list];r++) {
                 const H264Picture *ref=sl->ref_list[list][r].parent;
                 ff_vpa_reference(frame_info.frame_identity, ref&&ref->f?(uintptr_t)ref->f->opaque:0, list);
             }
+    }
     qp = (uint8_t)av_clip_uint8(h->cur_pic.qscale_table ? h->cur_pic.qscale_table[mb_xy] : sl->qscale);
     if (IS_INTRA(mb_type)) {
         ff_voidplayer_vachunk_write_h264_mb(&frame_info,

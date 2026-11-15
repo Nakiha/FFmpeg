@@ -384,6 +384,9 @@ typedef struct EntryPoint {
 } EntryPoint;
 
 typedef struct VVCLocalContext {
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    int analysis_refs_reported;  ///< Local to one coding tree unit.
+#endif
     uint8_t ctb_left_flag;
     uint8_t ctb_up_flag;
     uint8_t ctb_up_right_flag;

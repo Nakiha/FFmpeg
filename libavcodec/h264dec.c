@@ -98,6 +98,9 @@ static void h264_er_decode_mb(void *opaque, int ref, int mv_dir, int mv_type,
                    pack16to32((*mv)[0][0][0], (*mv)[0][0][1]), 4);
     sl->mb_mbaff =
     sl->mb_field_decoding_flag = 0;
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    sl->analysis_refs_reported = 0;  /* Concealment supplies its own reference. */
+#endif
     ff_h264_hl_decode_mb(h, &h->slice_ctx[0]);
 }
 

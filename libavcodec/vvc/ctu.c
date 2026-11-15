@@ -2276,7 +2276,7 @@ static void voidplayer_vvc_ref_pocs(const RefPicList *rpl,
         ref_pocs[i] = i < nb_refs ? rpl[list].refs[i].poc : -1;
 }
 
-static void voidplayer_vvc_fill_frame_info(const VVCLocalContext *lc,
+static void voidplayer_vvc_fill_frame_info(VVCLocalContext *lc,
                                            VoidPlayerVachunkFrameInfo *info)
 {
     const VVCFrameContext *fc = lc->fc;
@@ -2303,12 +2303,14 @@ static void voidplayer_vvc_fill_frame_info(const VVCLocalContext *lc,
     info->num_ref_l0 = num_ref_l0;
     info->num_ref_l1 = num_ref_l1;
     info->frame_identity = (uintptr_t)fc->frame->opaque;
-    if (info->slice_type != 2)
+    if (!lc->analysis_refs_reported && info->slice_type != 2) {
+        lc->analysis_refs_reported = 1;
         for(int list=0;list<(info->slice_type==0?2:1);list++)
             for(int r=0;r<lc->sc->sh.r->num_ref_idx_active[list];r++) {
                 const VVCFrame *ref=r<lc->sc->rpl[list].nb_refs?lc->sc->rpl[list].refs[r].ref:NULL;
                 ff_vpa_reference(info->frame_identity, ref&&ref->frame?(uintptr_t)ref->frame->opaque:0, list);
             }
+    }
     info->coded_order_key = fc->decode_order + 1;
     info->has_coded_order_key = 1;
     for (i = 0; i < 15; ++i) {
@@ -3082,6 +3084,9 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
         fc->tab.coeffs + (size_t)rs * ff_vvc_ctu_coeff_count(sps);
     lc->cu     = NULL;
 
+#if CONFIG_VOIDPLAYER_ANALYSIS
+    lc->analysis_refs_reported = 0;
+#endif
     ff_vvc_cabac_init(lc, ctu_idx, rx, ry);
     ff_vvc_decode_neighbour(lc, x_ctb, y_ctb, rx, ry, rs);
     ret = hls_coding_tree_unit(lc, x_ctb, y_ctb, ctu_idx, rx, ry);
