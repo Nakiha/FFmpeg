@@ -1,7 +1,7 @@
 NAME = avcodec
 DESC = FFmpeg codec library
 
-HEADERS = ac3_parser.h                                                  \
+HEADERS = vvenc_live.h ac3_parser.h                                                  \
           early_output.h                                                \
           async.h                                                       \
           adts_parser.h                                                 \

@@ -23,6 +23,11 @@
 #include <vvenc/vvenc.h>
 #include <vvenc/vvencCfg.h>
 #include <vvenc/version.h>
+#ifdef VVENC_LIVE_RATE_VERSION
+#include <vvenc/vvencLiveRate.h>
+#endif
+#include "vvenc_live.h"
+#include "libavutil/time.h"
 
 #include "libavutil/avstring.h"
 #include "libavutil/avutil.h"
@@ -61,6 +66,10 @@ typedef struct VVenCContext {
     int   live_max_future;
     int   live_qp_feedback;
     int   live_frame_trace;
+    int   r28_tier, r28_pictures, r28_burst;
+#ifdef VVENC_LIVE_RATE_VERSION
+    vvencLiveRate *live_rate;
+#endif
     int64_t live_cts[256];
     uint64_t live_index[256], live_submitted;
     uint8_t live_used[256];
@@ -73,6 +82,47 @@ typedef struct VVenCContext {
     char *stats;
     AVDictionary *vvenc_opts;
 } VVenCContext;
+
+#ifdef VVENC_LIVE_RATE_VERSION
+static VVenCContext *live_context(AVCodecContext *ctx)
+{
+    return ctx && ctx->codec && ctx->priv_data && !strcmp(ctx->codec->name,"libvvenc") ? ctx->priv_data : NULL;
+}
+#endif
+
+int av_vvenc_live_coded(AVCodecContext *ctx, int64_t pts, int64_t dts, int64_t bits, AVVvencLiveDecision *decision)
+{
+#ifdef VVENC_LIVE_RATE_VERSION
+    VVenCContext *s = live_context(ctx);
+    vvencLiveRateDecision d;
+    if (!s || vvenc_live_rate_coded(s->live_rate, pts, dts, bits, &d)) return AVERROR_INVALIDDATA;
+    if (decision) *decision = (AVVvencLiveDecision){d.requestedQp,d.role,d.predictedBits,d.complexity,
+        d.modelKind,d.saturated,d.decisionUs,d.mediaUs,d.qualityQp,d.allowanceBits,d.coefficient,d.roomBits,d.followupBits};
+    return 0;
+#else
+    return AVERROR(ENOSYS);
+#endif
+}
+
+int av_vvenc_live_written(AVCodecContext *ctx, int64_t dts, int64_t wall, int64_t bits)
+{
+#ifdef VVENC_LIVE_RATE_VERSION
+    VVenCContext *s = live_context(ctx);
+    return s && !vvenc_live_rate_written(s->live_rate,dts,wall,bits) ? 0 : AVERROR_INVALIDDATA;
+#else
+    return AVERROR(ENOSYS);
+#endif
+}
+
+int av_vvenc_live_pending(AVCodecContext *ctx)
+{
+#ifdef VVENC_LIVE_RATE_VERSION
+    VVenCContext *s = live_context(ctx);
+    return s && s->live_rate ? vvenc_live_rate_pending(s->live_rate) : AVERROR(EINVAL);
+#else
+    return AVERROR(ENOSYS);
+#endif
+}
 
 static void vvenc_log_callback(void *ctx, int level,
                                const char *fmt, va_list args)
@@ -307,8 +357,28 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     ret = vvenc_set_rc_mode(avctx, &params);
     if (ret != 0)
         return ret;
+    if (s->r28_tier) {
+#ifdef VVENC_LIVE_RATE_VERSION
+        if (!s->live_pts_gop || s->live_max_future != 10 || s->live_qp_feedback ||
+            s->live_frame_intra || avctx->bit_rate || avctx->rc_max_rate < 10000 ||
+            avctx->rc_max_rate > 100000000 || avctx->pix_fmt != AV_PIX_FMT_YUV420P ||
+            avctx->time_base.num != 1 || avctx->time_base.den != 90000 ||
+            (avctx->flags & (AV_CODEC_FLAG_PASS1 | AV_CODEC_FLAG_PASS2)) || av_dict_count(s->vvenc_opts) ||
+            (avctx->color_primaries != AVCOL_PRI_UNSPECIFIED && avctx->color_primaries != AVCOL_PRI_BT709) ||
+            (avctx->color_trc != AVCOL_TRC_UNSPECIFIED && avctx->color_trc != AVCOL_TRC_BT709) ||
+            (avctx->colorspace != AVCOL_SPC_UNSPECIFIED && avctx->colorspace != AVCOL_SPC_BT709) ||
+            vvenc_live_rate_profile(&params,s->r28_tier,avctx->thread_count,s->r28_pictures))
+            return AVERROR(EINVAL);
+        s->live_rate = vvenc_live_rate_create(&params,s->qp,avctx->rc_max_rate,s->r28_burst);
+        if (!s->live_rate) return AVERROR(EINVAL);
+#else
+        return AVERROR(ENOSYS);
+#endif
+    } else if (s->live_max_future > 4) {
+        return AVERROR(EINVAL);
+    }
     if (s->live_max_future && (!s->live_pts_gop || avctx->bit_rate ||
-        params.m_LookAhead > 0 || params.m_maxParallelFrames || params.m_vvencMCTF.MCTFFutureReference))
+        params.m_LookAhead > 0 || (params.m_maxParallelFrames && !s->r28_tier) || params.m_vvencMCTF.MCTFFutureReference))
         return AVERROR(EINVAL);
     if (s->live_frame_trace && !s->live_max_future) return AVERROR(EINVAL);
     if (s->live_qp_feedback && !s->live_max_future) return AVERROR(EINVAL);
@@ -409,6 +479,7 @@ static av_cold int vvenc_close(AVCodecContext *avctx)
 {
     VVenCContext *s = avctx->priv_data;
 
+    int ret = 0;
     av_frame_free(&s->input_frame);
     if (s->au)
         vvenc_accessUnit_free(s->au, true);
@@ -416,11 +487,13 @@ static av_cold int vvenc_close(AVCodecContext *avctx)
     if (s->encoder) {
         vvenc_print_summary(s->encoder);
 
-        if (0 != vvenc_encoder_close(s->encoder))
-            return AVERROR_EXTERNAL;
+        if (0 != vvenc_encoder_close(s->encoder)) ret = AVERROR_EXTERNAL;
     }
-
-    return 0;
+#ifdef VVENC_LIVE_RATE_VERSION
+    vvenc_live_rate_free(s->live_rate);
+    s->live_rate = NULL;
+#endif
+    return ret;
 }
 
 static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFrame *frame,
@@ -493,6 +566,10 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
 #else
         if (s->live_qp_feedback) return AVERROR(ENOSYS);
 #endif
+#ifdef VVENC_LIVE_RATE_VERSION
+        if (s->live_rate && vvenc_live_rate_submit(s->live_rate,&yuvbuf,av_gettime_relative()))
+            return AVERROR_INVALIDDATA;
+#endif
         pyuvbuf = &yuvbuf;
     }
 
@@ -536,7 +613,7 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
             uint8_t *data;
             av_dict_set_int(&info, "live_future_frames", future, 0);
 #ifdef VVENC_LIVE_QP_OFFSET_VERSION
-            if (s->live_qp_feedback) av_dict_set_int(&info, "live_slice_qp", s->au->liveSliceQp, 0);
+            if (s->live_qp_feedback || s->r28_tier) av_dict_set_int(&info, "live_slice_qp", s->au->liveSliceQp, 0);
 #endif
             if(s->live_frame_trace) {
                 av_dict_set_int(&info,"vvenc_trace_version",VVENC_LIVE_FRAME_TRACE_VERSION,0);
@@ -636,7 +713,10 @@ static const AVOption options[] = {
     { "live-pts-gop", "fork: PTS-grid CRA and timestamp FIFO for the live GOP4 profile", OFFSET(live_pts_gop), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "live-frame-trace", "fork: opt-in per-picture internal telemetry", OFFSET(live_frame_trace), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "live-qp-feedback", "fork: require per-picture naki_qp_offset metadata in live CQF", OFFSET(live_qp_feedback), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
-    { "live-max-future", "fork: fail if CQF AU release has more than N submitted future pictures (0 disables)", OFFSET(live_max_future), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 4, VE },
+    { "live-max-future", "fork: fail if CQF AU release has more than N submitted future pictures (0 disables)", OFFSET(live_max_future), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 10, VE },
+    { "live-r28-tier", "closed-loop GOP4 (1 Live, 2 Quality); caller reports coded and written packets", OFFSET(r28_tier), AV_OPT_TYPE_INT, {.i64=0}, 0, 2, VE },
+    { "live-r28-pictures", "parallel pictures for closed-loop GOP4", OFFSET(r28_pictures), AV_OPT_TYPE_INT, {.i64=4}, 4, 8, VE },
+    { "live-r28-burst-ms", "short-term rate tolerance in milliseconds", OFFSET(r28_burst), AV_OPT_TYPE_INT, {.i64=300}, 0, 1000, VE },
     { "live-frame-intra", "fork: explicit ordinary I pictures, disable automatic CRA grid", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
