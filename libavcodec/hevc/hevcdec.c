@@ -56,6 +56,7 @@
 #include "libavcodec/threadprogress.h"
 #include "libavcodec/voidplayer_prediction.h"
 #if CONFIG_VOIDPLAYER_ANALYSIS
+#include "libavcodec/voidplayer_cabac_bits.h"
 #include "libavcodec/voidplayer_vachunk.h"
 extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
 #endif
@@ -2492,19 +2493,6 @@ static void voidplayer_hevc_ref_pocs(const HEVCContext *s,
                       ref_pic_list[list].ref[i]->poc : -1;
 }
 
-static uint32_t voidplayer_hevc_cabac_bitpos(const CABACContext *cc)
-{
-    int64_t bytes;
-    if (!cc || !cc->bytestream_start || !cc->bytestream)
-        return 0;
-    bytes = cc->bytestream - cc->bytestream_start;
-    if (bytes <= 0)
-        return 0;
-    if (bytes > UINT32_MAX / 8)
-        return UINT32_MAX;
-    return (uint32_t)bytes * 8u;
-}
-
 static uint32_t voidplayer_hevc_bit_delta(uint32_t start, uint32_t end)
 {
     return end >= start ? end - start : 0;
@@ -2627,7 +2615,7 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
     int qp_block_mask    = (1 << (sps->log2_ctb_size - pps->diff_cu_qp_delta_depth)) - 1;
     int x, y, ret;
 #if CONFIG_VOIDPLAYER_ANALYSIS
-    uint32_t voidplayer_bit_start = voidplayer_hevc_cabac_bitpos(&lc->cc);
+    uint32_t voidplayer_bit_start = ff_voidplayer_cabac_bit_position(&lc->cc, lc->cc.bytestream_start);
 #endif
 
     lc->cu.x                = x0;
@@ -2807,7 +2795,7 @@ static int hls_coding_unit(HEVCLocalContext *lc, const HEVCContext *s,
         x0,
         y0,
         log2_cb_size,
-        voidplayer_hevc_bit_delta(voidplayer_bit_start, voidplayer_hevc_cabac_bitpos(&lc->cc)));
+        voidplayer_hevc_bit_delta(voidplayer_bit_start, ff_voidplayer_cabac_bit_position(&lc->cc, lc->cc.bytestream_start)));
 #endif
 
     return 0;

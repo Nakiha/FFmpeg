@@ -28,6 +28,7 @@
 
 #include "libavcodec/voidplayer_prediction.h"
 #if CONFIG_VOIDPLAYER_ANALYSIS
+#include "libavcodec/voidplayer_cabac_bits.h"
 #include "libavcodec/voidplayer_vachunk.h"
 extern void ff_vpa_reference(uintptr_t id, uintptr_t ref, int list);
 #endif
@@ -2353,19 +2354,6 @@ static void voidplayer_vvc_fill_frame_info(VVCLocalContext *lc,
     }
 }
 
-static uint32_t voidplayer_vvc_cabac_bitpos(const CABACContext *cc)
-{
-    int64_t bytes;
-    if (!cc || !cc->bytestream_start || !cc->bytestream)
-        return 0;
-    bytes = cc->bytestream - cc->bytestream_start;
-    if (bytes <= 0)
-        return 0;
-    if (bytes > UINT32_MAX / 8)
-        return UINT32_MAX;
-    return (uint32_t)bytes * 8u;
-}
-
 static uint32_t voidplayer_vvc_bit_delta(uint32_t start, uint32_t end)
 {
     return end >= start ? end - start : 0;
@@ -2468,7 +2456,7 @@ static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, in
     const int is_128              = cb_width > 64 || cb_height > 64;
     int ret                       = 0;
 #if CONFIG_VOIDPLAYER_ANALYSIS
-    uint32_t voidplayer_bit_start = voidplayer_vvc_cabac_bitpos(&lc->ep->cc);
+    uint32_t voidplayer_bit_start = ff_voidplayer_cabac_bit_position(&lc->ep->cc, lc->ep->cc.bytestream_start);
 #endif
 
     CodingUnit *cu = add_cu(lc, x0, y0, cb_width, cb_height, cqt_depth, tree_type);
@@ -2522,7 +2510,7 @@ static int hls_coding_unit(VVCLocalContext *lc, int x0, int y0, int cb_width, in
     voidplayer_vvc_record_cu(
         lc,
         cu,
-        voidplayer_vvc_bit_delta(voidplayer_bit_start, voidplayer_vvc_cabac_bitpos(&lc->ep->cc)));
+        voidplayer_vvc_bit_delta(voidplayer_bit_start, ff_voidplayer_cabac_bit_position(&lc->ep->cc, lc->ep->cc.bytestream_start)));
 #endif
 
     return 0;

@@ -48,6 +48,9 @@
 #include "libavutil/refstruct.h"
 #include "thread.h"
 #include "threadframe.h"
+#if CONFIG_VOIDPLAYER_ANALYSIS
+#include "voidplayer_cabac_bits.h"
+#endif
 
 static const uint8_t field_scan[16+1] = {
     0 + 0 * 4, 0 + 1 * 4, 1 + 0 * 4, 0 + 2 * 4,
@@ -115,19 +118,6 @@ static const uint8_t zigzag_scan8x8_cavlc[64+1] = {
 };
 
 #if CONFIG_VOIDPLAYER_ANALYSIS
-static uint32_t voidplayer_h264_cabac_bitpos(const CABACContext *cc)
-{
-    int64_t bytes;
-    if (!cc || !cc->bytestream_start || !cc->bytestream)
-        return 0;
-    bytes = cc->bytestream - cc->bytestream_start;
-    if (bytes <= 0)
-        return 0;
-    if (bytes > UINT32_MAX / 8)
-        return UINT32_MAX;
-    return (uint32_t)bytes * 8u;
-}
-
 static uint32_t voidplayer_h264_bit_delta(uint32_t start, uint32_t end)
 {
     return end >= start ? end - start : 0;
@@ -135,9 +125,12 @@ static uint32_t voidplayer_h264_bit_delta(uint32_t start, uint32_t end)
 
 static inline int decode_mb_cabac(const H264Context *h, H264SliceContext *sl)
 {
-    const uint32_t start = voidplayer_h264_cabac_bitpos(&sl->cabac);
+    // I_PCM can restart the CABAC decoder after reading sample data.
+    const uint8_t *origin = sl->cabac.bytestream_start;
+    const uint32_t start = ff_voidplayer_cabac_bit_position(&sl->cabac, origin);
     int ret = ff_h264_decode_mb_cabac(h, sl);
-    sl->voidplayer_mb_bit_count = ret >= 0 ? voidplayer_h264_bit_delta(start, voidplayer_h264_cabac_bitpos(&sl->cabac)) : 0;
+    sl->voidplayer_mb_bit_count = ret >= 0 ?
+        voidplayer_h264_bit_delta(start, ff_voidplayer_cabac_bit_position(&sl->cabac, origin)) : 0;
     return ret;
 }
 
