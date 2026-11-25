@@ -23,6 +23,12 @@
 #include <vvenc/vvenc.h>
 #include <vvenc/vvencCfg.h>
 #include <vvenc/version.h>
+#if defined(__linux__) && defined(VVENC_LIVE_OUTPUT_WAKE_VERSION)
+#include <sys/eventfd.h>
+#include <unistd.h>
+#define VVENC_HAS_OUTPUT_EVENT 1
+#endif
+
 #ifdef VVENC_LIVE_RATE_VERSION
 #include <vvenc/vvencLiveRate.h>
 #endif
@@ -67,6 +73,7 @@ typedef struct VVenCContext {
     int   live_qp_feedback;
     int   live_frame_trace;
     int   r28_tier, r28_pictures, r28_burst;
+    int output_notify, ready_fd;
 #ifdef VVENC_LIVE_RATE_VERSION
     vvencLiveRate *live_rate;
 #endif
@@ -292,6 +299,18 @@ static int vvenc_init_extradata(AVCodecContext *avctx, VVenCContext *s)
     return 0;
 }
 
+#ifdef VVENC_HAS_OUTPUT_EVENT
+static void live_output_wake(void *opaque)
+{
+    const VVenCContext *s = opaque;
+    const uint64_t one = 1;
+    ssize_t n;
+    do { n = write(s->ready_fd, &one, sizeof(one)); } while (n < 0 && errno == EINTR);
+    /* EAGAIN preserves an already readable event. The wrapper owns the descriptor
+     * until after the SDK has joined every worker. */
+}
+#endif
+
 static av_cold int vvenc_init(AVCodecContext *avctx)
 {
     int ret;
@@ -300,6 +319,7 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     vvenc_config params;
     vvencPresetMode preset = (vvencPresetMode) s->preset;
 
+    s->ready_fd = -1;
     if (avctx->flags & AV_CODEC_FLAG_INTERLACED_DCT) {
         av_log(avctx, AV_LOG_ERROR, "interlaced not supported\n");
         return AVERROR(EINVAL);
@@ -439,6 +459,15 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     }
 
     vvenc_get_config(s->encoder, &params);     /* get the adapted config */
+#ifdef VVENC_HAS_OUTPUT_EVENT
+    if (s->output_notify) {
+        if (!s->r28_tier) return AVERROR(EINVAL);
+        s->ready_fd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        if (s->ready_fd < 0) return AVERROR(errno);
+        if (vvenc_encoder_set_live_output_wake(s->encoder,s,live_output_wake) != VVENC_OK)
+            return AVERROR_EXTERNAL;
+    }
+#endif
 
     av_log(avctx, AV_LOG_INFO, "libvvenc version: %s\n", vvenc_get_version());
     if (av_log_get_level() >= AV_LOG_VERBOSE)
@@ -489,6 +518,12 @@ static av_cold int vvenc_close(AVCodecContext *avctx)
 
         if (0 != vvenc_encoder_close(s->encoder)) ret = AVERROR_EXTERNAL;
     }
+#ifdef VVENC_HAS_OUTPUT_EVENT
+    if (s->ready_fd >= 0) {
+        close(s->ready_fd);
+        s->ready_fd = -1;
+    }
+#endif
 #ifdef VVENC_LIVE_RATE_VERSION
     vvenc_live_rate_free(s->live_rate);
     s->live_rate = NULL;
@@ -699,6 +734,10 @@ static int vvenc_receive_packet(AVCodecContext *avctx, AVPacket *pkt)
 #define OFFSET(x) offsetof(VVenCContext, x)
 #define VE AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_ENCODING_PARAM
 static const AVOption options[] = {
+#ifdef VVENC_HAS_OUTPUT_EVENT
+    { "live-output-notify", "Enable per-encoder completion notification in parallel live mode", OFFSET(output_notify), AV_OPT_TYPE_BOOL, {.i64=0}, 0, 1, VE },
+    { "live-output-ready-fd", "Borrowed nonblocking eventfd, readable until encoder close; read uint64_t on the owner, then receive available packets", OFFSET(ready_fd), AV_OPT_TYPE_INT, {.i64=-1}, -1, INT_MAX, VE | AV_OPT_FLAG_EXPORT | AV_OPT_FLAG_READONLY },
+#endif
     { "preset",       "set encoding preset", OFFSET(preset), AV_OPT_TYPE_INT, {.i64 = 2}, 0, 4, VE, "preset"},
     { "faster",       "0", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_FASTER}, INT_MIN, INT_MAX, VE, "preset" },
     { "fast",         "1", 0, AV_OPT_TYPE_CONST, {.i64 = VVENC_FAST},   INT_MIN, INT_MAX, VE, "preset" },
