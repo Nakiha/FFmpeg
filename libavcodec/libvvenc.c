@@ -67,6 +67,7 @@ typedef struct VVenCContext {
     int   live_qp_feedback;
     int   live_frame_trace;
     int   r28_tier, r28_pictures, r28_burst;
+    int   forced_idr;
 #ifdef VVENC_LIVE_RATE_VERSION
     vvencLiveRate *live_rate;
 #endif
@@ -360,7 +361,7 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     if (s->r28_tier) {
 #ifdef VVENC_LIVE_RATE_VERSION
         if (!s->live_pts_gop || s->live_max_future != 10 || s->live_qp_feedback ||
-            s->live_frame_intra || avctx->bit_rate || avctx->rc_max_rate < 10000 ||
+            avctx->bit_rate || avctx->rc_max_rate < 10000 ||
             avctx->rc_max_rate > 100000000 || avctx->pix_fmt != AV_PIX_FMT_YUV420P ||
             avctx->time_base.num != 1 || avctx->time_base.den != 90000 ||
             (avctx->flags & (AV_CODEC_FLAG_PASS1 | AV_CODEC_FLAG_PASS2)) || av_dict_count(s->vvenc_opts) ||
@@ -369,6 +370,14 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
             (avctx->colorspace != AVCOL_SPC_UNSPECIFIED && avctx->colorspace != AVCOL_SPC_BT709) ||
             vvenc_live_rate_profile(&params,s->r28_tier,avctx->thread_count,s->r28_pictures))
             return AVERROR(EINVAL);
+#ifdef VVENC_LIVE_FORCE_IDR_VERSION
+        params.m_liveFrameIntra = s->live_frame_intra;
+        if (s->live_frame_intra && !s->forced_idr)
+            return AVERROR(EINVAL);
+#else
+        if (s->live_frame_intra)
+            return AVERROR(ENOSYS);
+#endif
         s->live_rate = vvenc_live_rate_create(&params,s->qp,avctx->rc_max_rate,s->r28_burst);
         if (!s->live_rate) return AVERROR(EINVAL);
 #else
@@ -554,6 +563,10 @@ static av_cold int vvenc_frame(AVCodecContext *avctx, AVPacket *pkt, const AVFra
         yuvbuf.ctsValid = true;
 #ifdef VVENC_LIVE_FRAME_INTRA_VERSION
         yuvbuf.forceIntra = s->live_frame_intra && frame->pict_type == AV_PICTURE_TYPE_I;
+#ifdef VVENC_LIVE_FORCE_IDR_VERSION
+        if (s->r28_tier)
+            yuvbuf.forceIntra = s->forced_idr && frame->pict_type == AV_PICTURE_TYPE_I;
+#endif
 #endif
 #ifdef VVENC_LIVE_QP_OFFSET_VERSION
         if (s->live_qp_feedback) {
@@ -717,7 +730,10 @@ static const AVOption options[] = {
     { "live-r28-tier", "closed-loop GOP4 (1 Live, 2 Quality); caller reports coded and written packets", OFFSET(r28_tier), AV_OPT_TYPE_INT, {.i64=0}, 0, 2, VE },
     { "live-r28-pictures", "parallel pictures for closed-loop GOP4", OFFSET(r28_pictures), AV_OPT_TYPE_INT, {.i64=4}, 4, 8, VE },
     { "live-r28-burst-ms", "short-term rate tolerance in milliseconds", OFFSET(r28_burst), AV_OPT_TYPE_INT, {.i64=300}, 0, 1000, VE },
-    { "live-frame-intra", "fork: explicit ordinary I pictures, disable automatic CRA grid", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
+#ifdef VVENC_LIVE_FORCE_IDR_VERSION
+    { "forced-idr", "Live/Quality: encode a requested I picture as a closed IDR", OFFSET(forced_idr), AV_OPT_TYPE_BOOL, {.i64=1}, 0, 1, VE },
+#endif
+    { "live-frame-intra", "Caller schedules refreshes after startup (closed IDR in Live/Quality, ordinary I in serial live mode)", OFFSET(live_frame_intra), AV_OPT_TYPE_BOOL, {.i64 = 0}, 0, 1, VE },
     { "vvenc-params", "set the vvenc configuration using a :-separated list of key=value parameters", OFFSET(vvenc_opts), AV_OPT_TYPE_DICT, { 0 }, 0, 0, VE },
     { "level",        "Specify level (as defined by Annex A)", OFFSET(level), AV_OPT_TYPE_STRING, {.str = NULL}, 0, 0, VE},
     { "tier",         "set vvc tier", OFFSET(tier), AV_OPT_TYPE_INT, {.i64 = 0},  0, 1, VE, "tier"},
