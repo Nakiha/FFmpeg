@@ -68,6 +68,7 @@ typedef struct VVenCContext {
     int   live_frame_trace;
     int   r28_tier, r28_pictures, r28_burst;
     int   forced_idr;
+    AVVvencOpenStats open_stats;
 #ifdef VVENC_LIVE_RATE_VERSION
     vvencLiveRate *live_rate;
 #endif
@@ -90,6 +91,26 @@ static VVenCContext *live_context(AVCodecContext *ctx)
     return ctx && ctx->codec && ctx->priv_data && !strcmp(ctx->codec->name,"libvvenc") ? ctx->priv_data : NULL;
 }
 #endif
+
+int av_vvenc_get_open_stats(AVCodecContext *ctx, AVVvencOpenStats *stats)
+{
+#ifdef VVENC_OPEN_STATS_VERSION
+    VVenCContext *s = live_context(ctx);
+    vvencOpenStats v;
+    if (!stats || !s || !s->encoder || vvenc_get_open_stats(s->encoder, &v))
+        return AVERROR(EINVAL);
+    *stats = s->open_stats;
+    stats->thread_pool_us = v.threadPoolUs;
+    stats->preprocess_us = v.preprocessUs;
+    stats->mctf_us = v.mctfUs;
+    stats->gop_us = v.gopUs;
+    stats->picture_slots_us = v.pictureSlotsUs;
+    stats->thread_resources_us = v.threadResourcesUs;
+    return 0;
+#else
+    return AVERROR(ENOSYS);
+#endif
+}
 
 int av_vvenc_live_coded(AVCodecContext *ctx, int64_t pts, int64_t dts, int64_t bits, AVVvencLiveDecision *decision)
 {
@@ -312,6 +333,7 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     int framerate;
     VVenCContext *s = avctx->priv_data;
     vvenc_config params;
+    int64_t start = av_gettime_relative(), library_start, library_done;
     vvencPresetMode preset = (vvencPresetMode) s->preset;
 
     if (avctx->flags & AV_CODEC_FLAG_INTERLACED_DCT) {
@@ -453,7 +475,9 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     }
 
     vvenc_set_msg_callback(&params, s->encoder, vvenc_log_callback);
+    library_start = av_gettime_relative();
     ret = vvenc_encoder_open(s->encoder, &params);
+    library_done = av_gettime_relative();
     if (ret != 0) {
         av_log(avctx, AV_LOG_ERROR, "cannot open libvvenc encoder: %s\n",
                vvenc_get_last_error(s->encoder));
@@ -494,6 +518,9 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
     s->encode_done = false;
     s->input_frame = av_frame_alloc();
     if (!s->input_frame) return AVERROR(ENOMEM);
+    s->open_stats.setup_us = library_start - start;
+    s->open_stats.library_us = library_done - library_start;
+    s->open_stats.post_us = av_gettime_relative() - library_done;
     return 0;
 }
 
