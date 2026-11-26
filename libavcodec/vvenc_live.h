@@ -20,4 +20,11 @@ int av_vvenc_live_coded(AVCodecContext *ctx, int64_t pts90k, int64_t dts_us,
                         int64_t bits, AVVvencLiveDecision *decision);
 int av_vvenc_live_written(AVCodecContext *ctx, int64_t dts_us, int64_t wall_us, int64_t bits);
 int av_vvenc_live_pending(AVCodecContext *ctx);
+
+/* Notify the caller when a final-pass picture finishes reconstruction. The
+ * callback may run on a worker thread and must be fast, non-blocking and
+ * must not re-enter FFmpeg or VVenC. Serialize registration with codec API
+ * calls. Passing NULL for fn clears it and waits for active calls to return. */
+typedef void (*AVVvencLiveWakeFn)(void *opaque);
+int av_vvenc_live_set_wake(AVCodecContext *ctx, AVVvencLiveWakeFn fn, void *opaque);
 #endif

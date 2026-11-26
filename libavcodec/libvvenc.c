@@ -84,7 +84,7 @@ typedef struct VVenCContext {
     AVDictionary *vvenc_opts;
 } VVenCContext;
 
-#ifdef VVENC_LIVE_RATE_VERSION
+#if defined(VVENC_LIVE_RATE_VERSION) || defined(VVENC_LIVE_PROGRESS_CALLBACK_VERSION)
 static VVenCContext *live_context(AVCodecContext *ctx)
 {
     return ctx && ctx->codec && ctx->priv_data && !strcmp(ctx->codec->name,"libvvenc") ? ctx->priv_data : NULL;
@@ -120,6 +120,19 @@ int av_vvenc_live_pending(AVCodecContext *ctx)
 #ifdef VVENC_LIVE_RATE_VERSION
     VVenCContext *s = live_context(ctx);
     return s && s->live_rate ? vvenc_live_rate_pending(s->live_rate) : AVERROR(EINVAL);
+#else
+    return AVERROR(ENOSYS);
+#endif
+}
+
+int av_vvenc_live_set_wake(AVCodecContext *ctx, AVVvencLiveWakeFn fn, void *opaque)
+{
+#ifdef VVENC_LIVE_PROGRESS_CALLBACK_VERSION
+    VVenCContext *s = live_context(ctx);
+    if (!s || !s->encoder)
+        return AVERROR(EINVAL);
+    return vvenc_encoder_set_progress_callback(s->encoder, fn ? opaque : NULL, fn) == 0
+           ? 0 : AVERROR_EXTERNAL;
 #else
     return AVERROR(ENOSYS);
 #endif
@@ -496,6 +509,9 @@ static av_cold int vvenc_close(AVCodecContext *avctx)
     if (s->encoder) {
         vvenc_print_summary(s->encoder);
 
+#ifdef VVENC_LIVE_PROGRESS_CALLBACK_VERSION
+        vvenc_encoder_set_progress_callback(s->encoder, NULL, NULL);
+#endif
         if (0 != vvenc_encoder_close(s->encoder)) ret = AVERROR_EXTERNAL;
     }
 #ifdef VVENC_LIVE_RATE_VERSION
