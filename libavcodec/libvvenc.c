@@ -67,6 +67,7 @@ typedef struct VVenCContext {
     int   live_qp_feedback;
     int   live_frame_trace;
     int   r28_tier, r28_pictures, r28_burst;
+    int   r28_static_gop_credit_pct;
     int   forced_idr;
     AVVvencOpenStats open_stats;
 #ifdef VVENC_LIVE_RATE_VERSION
@@ -415,10 +416,14 @@ static av_cold int vvenc_init(AVCodecContext *avctx)
 #endif
         s->live_rate = vvenc_live_rate_create(&params,s->qp,avctx->rc_max_rate,s->r28_burst);
         if (!s->live_rate) return AVERROR(EINVAL);
+#ifdef VVENC_LIVE_STATIC_GOP_CREDIT_VERSION
+        if (vvenc_live_rate_set_static_gop_credit(s->live_rate, s->r28_static_gop_credit_pct) < 0)
+            return AVERROR(EINVAL);
+#endif
 #else
         return AVERROR(ENOSYS);
 #endif
-    } else if (s->live_max_future > 4) {
+    } else if (s->live_max_future > 4 || s->r28_static_gop_credit_pct) {
         return AVERROR(EINVAL);
     }
     if (s->live_max_future && (!s->live_pts_gop || avctx->bit_rate ||
@@ -773,6 +778,9 @@ static const AVOption options[] = {
     { "live-r28-tier", "closed-loop GOP4 (1 Live, 2 Quality); caller reports coded and written packets", OFFSET(r28_tier), AV_OPT_TYPE_INT, {.i64=0}, 0, 2, VE },
     { "live-r28-pictures", "parallel pictures for closed-loop GOP4", OFFSET(r28_pictures), AV_OPT_TYPE_INT, {.i64=4}, 4, 8, VE },
     { "live-r28-burst-ms", "short-term rate tolerance in milliseconds", OFFSET(r28_burst), AV_OPT_TYPE_INT, {.i64=300}, 0, 1000, VE },
+#ifdef VVENC_LIVE_STATIC_GOP_CREDIT_VERSION
+    { "live-r28-static-gop-credit-pct", "percentage of retiring AU bits used to plan a quiet GOP", OFFSET(r28_static_gop_credit_pct), AV_OPT_TYPE_INT, {.i64=0}, 0, 100, VE },
+#endif
 #ifdef VVENC_LIVE_FORCE_IDR_VERSION
     { "forced-idr", "Live/Quality: encode a requested I picture as a closed IDR", OFFSET(forced_idr), AV_OPT_TYPE_BOOL, {.i64=1}, 0, 1, VE },
 #endif
